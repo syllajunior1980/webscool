@@ -210,7 +210,7 @@ export default function App() {
             <div style={styles.ficheHeader}>
               <div style={styles.ficheAvatar}>
                 {eleveSelectionne.photo
-                  ? <img src={eleveSelectionne.photo} alt="photo" style={styles.fichePhoto}/>
+                  ? <img src={eleveSelectionne.photo} alt="" style={styles.fichePhoto}/>
                   : <span style={{fontSize:'2.5rem'}}>👤</span>}
               </div>
               <div>
