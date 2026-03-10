@@ -5,6 +5,7 @@ const API = 'https://webscool.onrender.com/api';
 const MOT_DE_PASSE = 'dsps2024';
 const ETABLISSEMENT = 'COLLÈGE MODERNE BOUAKÉ DAR ES SALAM';
 const ANNEE_SCOLAIRE = '2025-2026';
+const MONTANT_INSCRIPTION = 1000;
 
 export default function App() {
   const [connecte, setConnecte] = useState(false);
@@ -30,8 +31,15 @@ export default function App() {
   const [modeFormulaire, setModeFormulaire] = useState('ajouter');
   const [messageFormulaire, setMessageFormulaire] = useState('');
 
+  // Inscription states
+  const [rechercheInscription, setRechercheInscription] = useState('');
+  const [classeFiltreInscription, setClasseFiltreInscription] = useState('');
+  const [elevesInscription, setElevesInscription] = useState([]);
+  const [paiements, setPaiements] = useState({});
+  const [messageInscription, setMessageInscription] = useState('');
+
   useEffect(() => {
-    if (connecte) { chargerEleves(); chargerClasses(); }
+    if (connecte) { chargerEleves(); chargerClasses(); chargerPaiements(); }
   }, [connecte]);
 
   const seConnecter = () => {
@@ -40,13 +48,22 @@ export default function App() {
   };
 
   const chargerEleves = async () => {
-    try { const res = await axios.get(`${API}/eleves`); setEleves(res.data); }
+    try { const res = await axios.get(`${API}/eleves`); setEleves(res.data); setElevesInscription(res.data); }
     catch (err) { console.error('Erreur:', err); }
   };
 
   const chargerClasses = async () => {
     try { const res = await axios.get(`${API}/eleves/classes`); setClasses(res.data.map(r => r.classe)); }
     catch (err) { console.error(err); }
+  };
+
+  const chargerPaiements = async () => {
+    try {
+      const res = await axios.get(`${API}/inscriptions`);
+      const map = {};
+      res.data.forEach(p => { map[p.eleve_id] = p; });
+      setPaiements(map);
+    } catch (err) { console.error('Paiements:', err); }
   };
 
   const rechercherEleves = async (val) => {
@@ -61,6 +78,45 @@ export default function App() {
     if (!classe) { chargerEleves(); return; }
     try { const res = await axios.get(`${API}/eleves/classe/${classe}`); setEleves(res.data); }
     catch (err) { console.error(err); }
+  };
+
+  const rechercherInscription = async (val) => {
+    setRechercheInscription(val);
+    setClasseFiltreInscription('');
+    if (val.length < 2) { setElevesInscription(eleves); return; }
+    try { const res = await axios.get(`${API}/eleves/recherche?q=${val}`); setElevesInscription(res.data); }
+    catch (err) { console.error(err); }
+  };
+
+  const filtrerInscriptionParClasse = async (classe) => {
+    setClasseFiltreInscription(classe); setRechercheInscription('');
+    if (!classe) { setElevesInscription(eleves); return; }
+    try { const res = await axios.get(`${API}/eleves/classe/${classe}`); setElevesInscription(res.data); }
+    catch (err) { console.error(err); }
+  };
+
+  const togglePaiement = async (eleve) => {
+    const estPaye = !!paiements[eleve.id];
+    try {
+      if (estPaye) {
+        await axios.delete(`${API}/inscriptions/${eleve.id}`);
+        const newP = {...paiements};
+        delete newP[eleve.id];
+        setPaiements(newP);
+        setMessageInscription(`❌ Paiement annulé pour ${eleve.nom} ${eleve.prenom}`);
+      } else {
+        const res = await axios.post(`${API}/inscriptions`, {
+          eleve_id: eleve.id,
+          montant: MONTANT_INSCRIPTION,
+          date_paiement: new Date().toISOString().split('T')[0]
+        });
+        setPaiements({...paiements, [eleve.id]: res.data});
+        setMessageInscription(`✅ Paiement enregistré pour ${eleve.nom} ${eleve.prenom}`);
+      }
+      setTimeout(() => setMessageInscription(''), 3000);
+    } catch (err) {
+      setMessageInscription('❌ Erreur: ' + (err.response?.data?.erreur || err.message));
+    }
   };
 
   const importerTrimestre = async () => {
@@ -205,7 +261,6 @@ export default function App() {
       </div>
       <script>window.onload=function(){window.print();}</script>
       </body></html>`;
-
     const fenetre = window.open('', '_blank');
     fenetre.document.write(html);
     fenetre.document.close();
@@ -263,7 +318,65 @@ export default function App() {
       </div>
       <script>window.onload=function(){window.print();}</script>
       </body></html>`;
+    const fenetre = window.open('', '_blank');
+    fenetre.document.write(html);
+    fenetre.document.close();
+  };
 
+  const imprimerListePayes = () => {
+    const filtre = classeFiltreInscription;
+    const liste = elevesInscription
+      .filter(e => paiements[e.id])
+      .sort((a,b) => (a.nom||'').localeCompare(b.nom||''));
+
+    const lignes = liste.map((e, i) => `
+      <tr>
+        <td style="padding:5px 4px;text-align:center;border:1px solid #ccc;">${i+1}</td>
+        <td style="padding:5px 4px;border:1px solid #ccc;">${e.matricule||''}</td>
+        <td style="padding:5px 4px;font-weight:bold;border:1px solid #ccc;">${e.nom||''}</td>
+        <td style="padding:5px 4px;border:1px solid #ccc;">${e.prenom||''}</td>
+        <td style="padding:5px 4px;text-align:center;border:1px solid #ccc;">${e.classe||''}</td>
+        <td style="padding:5px 4px;text-align:center;border:1px solid #ccc;">${paiements[e.id]?.date_paiement ? new Date(paiements[e.id].date_paiement).toLocaleDateString('fr-FR') : '-'}</td>
+        <td style="padding:5px 4px;text-align:center;font-weight:bold;color:green;border:1px solid #ccc;">${MONTANT_INSCRIPTION} FCFA</td>
+      </tr>
+    `).join('');
+
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Liste paiements</title>
+      <style>
+        body{font-family:Arial,sans-serif;margin:20px;font-size:12px;}
+        @media print{body{margin:10px;}}
+        .entete{text-align:center;margin-bottom:20px;border-bottom:2px solid #000;padding-bottom:10px;}
+        .entete h2{margin:0;font-size:14px;text-transform:uppercase;}
+        .entete h1{margin:5px 0;font-size:18px;text-transform:uppercase;color:#1e3a5f;}
+        .entete p{margin:2px 0;font-size:11px;color:#555;}
+        table{width:100%;border-collapse:collapse;margin-top:10px;}
+        thead{background-color:#1e3a5f;color:white;}
+        thead th{padding:7px 4px;border:1px solid #ccc;font-size:11px;}
+        .stats{margin-top:15px;padding:10px;background:#dcfce7;border-radius:6px;font-size:13px;display:flex;gap:30px;}
+        .footer{margin-top:30px;display:flex;justify-content:space-between;font-size:11px;}
+      </style></head><body>
+      <div class="entete">
+        <h2>${ETABLISSEMENT}</h2>
+        <h1>LISTE DES ÉLÈVES AYANT PAYÉ LES DROITS D'INSCRIPTION</h1>
+        <p>Année scolaire : ${ANNEE_SCOLAIRE}${filtre ? ' — Classe : '+filtre : ' — Toutes classes'}</p>
+      </div>
+      <table>
+        <thead><tr>
+          <th>N°</th><th>Matricule</th><th>Nom</th><th>Prénom</th>
+          <th>Classe</th><th>Date paiement</th><th>Montant</th>
+        </tr></thead>
+        <tbody>${lignes}</tbody>
+      </table>
+      <div class="stats">
+        <span>👥 <strong>Total payés :</strong> ${liste.length} élèves</span>
+        <span>💰 <strong>Total encaissé :</strong> ${liste.length * MONTANT_INSCRIPTION} FCFA</span>
+      </div>
+      <div class="footer">
+        <span>Imprimé le : ${new Date().toLocaleDateString('fr-FR')}</span>
+        <span>Signature de l'Économe : ________________</span>
+      </div>
+      <script>window.onload=function(){window.print();}</script>
+      </body></html>`;
     const fenetre = window.open('', '_blank');
     fenetre.document.write(html);
     fenetre.document.close();
@@ -302,6 +415,14 @@ export default function App() {
     classes3eme.some(c => c === e.classe) && e.decision_fin_annee === 'Admis'
   ).length;
 
+  const totalPayes = Object.keys(paiements).length;
+  const totalNonPayes = eleves.length - totalPayes;
+  const montantTotal = totalPayes * MONTANT_INSCRIPTION;
+
+  const elevesAffichesInscription = elevesInscription;
+  const payesDansVue = elevesAffichesInscription.filter(e => paiements[e.id]).length;
+  const nonPayesDansVue = elevesAffichesInscription.length - payesDansVue;
+
   return (
     <div style={styles.app}>
       <div style={styles.header}>
@@ -316,7 +437,7 @@ export default function App() {
       </div>
 
       <div style={styles.nav}>
-        {[['liste','📋 Élèves'],['formulaire','➕ Ajouter'],['importer','📥 Importer'],['bepc','🏆 BEPC']].map(([id,label])=>(
+        {[['liste','📋 Élèves'],['formulaire','➕ Ajouter'],['importer','📥 Importer'],['bepc','🏆 BEPC'],['inscription','💰 Inscription']].map(([id,label])=>(
           <button key={id} onClick={()=>{setOnglet(id);if(id==='formulaire')ouvrirFormulaire();}}
             style={onglet===id?styles.navBtnActif:styles.navBtn}>{label}</button>
         ))}
@@ -346,7 +467,7 @@ export default function App() {
               <span style={{color:'#166534'}}>✅ Admis : <strong>{elevesClasse.filter(e=>e.decision_fin_annee==='Admis').length}</strong></span>
               <span style={{color:'#92400e'}}>🔄 Redoublants : <strong>{elevesClasse.filter(e=>e.decision_fin_annee==='Redoublant').length}</strong></span>
               <span style={{color:'#991b1b'}}>❌ Exclus : <strong>{elevesClasse.filter(e=>e.decision_fin_annee==='Exclu').length}</strong></span>
-              <span>📊 Taux réussite : <strong>{Math.round(elevesClasse.filter(e=>e.decision_fin_annee==='Admis').length/elevesClasse.length*100)}%</strong></span>
+              <span>📊 Taux : <strong>{Math.round(elevesClasse.filter(e=>e.decision_fin_annee==='Admis').length/elevesClasse.length*100)}%</strong></span>
             </div>
           )}
 
@@ -412,6 +533,11 @@ export default function App() {
                 <h2 style={styles.ficheNom}>{eleveSelectionne.nom} {eleveSelectionne.prenom}</h2>
                 <p style={styles.ficheClasse}>Classe : {eleveSelectionne.classe}</p>
                 <p style={styles.ficheMatricule}>Matricule : {eleveSelectionne.matricule}</p>
+                <p style={{margin:'4px 0'}}>
+                  Inscription : {paiements[eleveSelectionne.id]
+                    ? <span style={styles.badgeAdmis}>✅ Payé</span>
+                    : <span style={styles.badgeExclu}>❌ Non payé</span>}
+                </p>
               </div>
             </div>
             <div style={styles.ficheGrid}>
@@ -489,7 +615,6 @@ export default function App() {
               {importEnCours?`⏳ Import ${trimestreActif}...`:`📥 Importer ${trimestreActif}`}
             </button>
             {importStatus&&<p style={importStatus.includes('✅')?styles.succes:styles.erreur}>{importStatus}</p>}
-
             <hr style={{margin:'2rem 0',border:'none',borderTop:'2px solid #e2e8f0'}}/>
             <h3 style={styles.sectionTitre}>🧮 Calcul automatique MGA + DFA</h3>
             <p style={{color:'#64748b',fontSize:'0.9rem'}}>
@@ -547,6 +672,90 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {onglet==='inscription' && (
+        <div style={styles.contenu}>
+          <h2 style={styles.titrePage}>💰 Droits d'inscription — {ANNEE_SCOLAIRE}</h2>
+
+          <div style={styles.statsInscription}>
+            <div style={styles.statBox}>
+              <div style={styles.statNum}>{totalPayes}</div>
+              <div style={styles.statLabel}>✅ Ont payé</div>
+            </div>
+            <div style={{...styles.statBox, background:'#fee2e2'}}>
+              <div style={{...styles.statNum, color:'#991b1b'}}>{totalNonPayes}</div>
+              <div style={styles.statLabel}>❌ Non payés</div>
+            </div>
+            <div style={{...styles.statBox, background:'#dcfce7'}}>
+              <div style={{...styles.statNum, color:'#166534'}}>{montantTotal.toLocaleString()}</div>
+              <div style={styles.statLabel}>💵 FCFA encaissés</div>
+            </div>
+            <div style={{...styles.statBox, background:'#fef3c7'}}>
+              <div style={{...styles.statNum, color:'#92400e'}}>{(totalNonPayes * MONTANT_INSCRIPTION).toLocaleString()}</div>
+              <div style={styles.statLabel}>⏳ FCFA restants</div>
+            </div>
+          </div>
+
+          <div style={styles.filtres}>
+            <input placeholder="🔍 Rechercher par nom ou matricule..." value={rechercheInscription}
+              onChange={e=>rechercherInscription(e.target.value)} style={styles.inputRecherche} />
+            <select value={classeFiltreInscription} onChange={e=>filtrerInscriptionParClasse(e.target.value)} style={styles.selectClasse}>
+              <option value="">Toutes les classes</option>
+              {classes.map(c=><option key={c} value={c}>{c}</option>)}
+            </select>
+            <button onClick={imprimerListePayes} style={styles.btnImprimerClasse}>
+              🖨️ Imprimer liste des payés
+            </button>
+          </div>
+
+          {messageInscription && (
+            <div style={messageInscription.includes('✅')?styles.alertSucces:styles.alertErreur}>
+              {messageInscription}
+            </div>
+          )}
+
+          <p style={styles.compteur}>
+            {elevesAffichesInscription.length} élève(s) — ✅ {payesDansVue} payés | ❌ {nonPayesDansVue} non payés
+          </p>
+
+          <div style={styles.tableWrap}>
+            <table style={styles.table}>
+              <thead style={styles.tableHead}>
+                <tr>
+                  {['#','Matricule','Nom','Prénom','Classe','Parent','Statut paiement','Action'].map(h=>(
+                    <th key={h} style={styles.th}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {elevesAffichesInscription.map((e,i)=>(
+                  <tr key={e.id} style={i%2===0?styles.trPair:styles.trImpair}>
+                    <td style={styles.td}>{i+1}</td>
+                    <td style={styles.td}>{e.matricule}</td>
+                    <td style={styles.td}><strong>{e.nom}</strong></td>
+                    <td style={styles.td}>{e.prenom}</td>
+                    <td style={styles.td}><span style={styles.badgeClasse}>{e.classe}</span></td>
+                    <td style={styles.td}>{e.nom_parent||'-'}</td>
+                    <td style={styles.td}>
+                      {paiements[e.id]
+                        ? <span style={styles.badgeAdmis}>✅ Payé — {paiements[e.id].date_paiement ? new Date(paiements[e.id].date_paiement).toLocaleDateString('fr-FR') : ''}</span>
+                        : <span style={styles.badgeExclu}>❌ Non payé</span>
+                      }
+                    </td>
+                    <td style={styles.td}>
+                      <button
+                        onClick={()=>togglePaiement(e)}
+                        style={paiements[e.id]?styles.btnAnnulerPaiement:styles.btnPayer}>
+                        {paiements[e.id]?'↩️ Annuler':'💰 Encaisser'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -573,6 +782,12 @@ const styles = {
   inputRecherche:{flex:1,minWidth:'200px',padding:'0.6rem 1rem',border:'2px solid #e2e8f0',borderRadius:'8px',fontSize:'0.95rem'},
   selectClasse:{padding:'0.6rem 1rem',border:'2px solid #e2e8f0',borderRadius:'8px',fontSize:'0.95rem'},
   statsClasse:{display:'flex',gap:'1rem',background:'#dbeafe',padding:'0.75rem 1rem',borderRadius:'8px',marginBottom:'0.75rem',flexWrap:'wrap',fontSize:'0.88rem'},
+  statsInscription:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:'1rem',marginBottom:'1.5rem'},
+  statBox:{background:'#dbeafe',borderRadius:'12px',padding:'1rem',textAlign:'center'},
+  statNum:{fontSize:'2rem',fontWeight:'bold',color:'#1e3a5f'},
+  statLabel:{fontSize:'0.85rem',color:'#475569',marginTop:'0.25rem'},
+  alertSucces:{background:'#dcfce7',color:'#166534',padding:'0.75rem 1rem',borderRadius:'8px',marginBottom:'0.75rem',fontWeight:'600'},
+  alertErreur:{background:'#fee2e2',color:'#991b1b',padding:'0.75rem 1rem',borderRadius:'8px',marginBottom:'0.75rem',fontWeight:'600'},
   compteur:{color:'#64748b',fontSize:'0.9rem',marginBottom:'0.5rem'},
   tableWrap:{overflowX:'auto'},
   table:{width:'100%',borderCollapse:'collapse',background:'white',borderRadius:'10px',overflow:'hidden',boxShadow:'0 2px 8px rgba(0,0,0,0.07)'},
@@ -589,6 +804,8 @@ const styles = {
   btnVoir:{background:'#2563eb',color:'white',border:'none',borderRadius:'6px',padding:'4px 8px',cursor:'pointer',marginRight:'3px',fontSize:'0.8rem'},
   btnModifier:{background:'#f59e0b',color:'white',border:'none',borderRadius:'6px',padding:'4px 8px',cursor:'pointer',marginRight:'3px',fontSize:'0.8rem'},
   btnSupprimer:{background:'#ef4444',color:'white',border:'none',borderRadius:'6px',padding:'4px 8px',cursor:'pointer',fontSize:'0.8rem'},
+  btnPayer:{background:'#16a34a',color:'white',border:'none',borderRadius:'6px',padding:'5px 10px',cursor:'pointer',fontSize:'0.82rem',fontWeight:'600'},
+  btnAnnulerPaiement:{background:'#94a3b8',color:'white',border:'none',borderRadius:'6px',padding:'5px 10px',cursor:'pointer',fontSize:'0.82rem'},
   btnRetour:{background:'#64748b',color:'white',border:'none',borderRadius:'8px',padding:'0.5rem 1rem',cursor:'pointer',marginRight:'0.5rem'},
   btnImprimer:{background:'#2563eb',color:'white',border:'none',borderRadius:'8px',padding:'0.5rem 1rem',cursor:'pointer',marginRight:'0.5rem'},
   btnImprimerClasse:{background:'#1e3a5f',color:'white',border:'none',borderRadius:'8px',padding:'0.5rem 1rem',cursor:'pointer',fontWeight:'600'},

@@ -20,6 +20,7 @@ const elevesRoutes = require('./routes/eleves');
 const importRoutes = require('./routes/import');
 
 app.use('/api/eleves', elevesRoutes);
+app.use('/api/inscriptions', require('./routes/inscriptions'));
 app.use('/api/import', importRoutes);
 
 app.get('/', (req, res) => {
