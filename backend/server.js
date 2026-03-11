@@ -22,7 +22,7 @@ const importRoutes = require('./routes/import');
 app.use('/api/eleves', elevesRoutes);
 app.use('/api/inscriptions', require('./routes/inscriptions'));
 app.use('/api/import', importRoutes);
-
+app.use('/api/photos', require('./routes/photos'));
 app.get('/', (req, res) => {
   res.json({ message: '🎓 Bienvenue sur WebScool !', version: '1.0.0', status: 'Serveur en marche ✅' });
 });
