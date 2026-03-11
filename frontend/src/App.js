@@ -31,12 +31,15 @@ export default function App() {
   const [modeFormulaire, setModeFormulaire] = useState('ajouter');
   const [messageFormulaire, setMessageFormulaire] = useState('');
 
-  // Inscription states
   const [rechercheInscription, setRechercheInscription] = useState('');
   const [classeFiltreInscription, setClasseFiltreInscription] = useState('');
   const [elevesInscription, setElevesInscription] = useState([]);
   const [paiements, setPaiements] = useState({});
   const [messageInscription, setMessageInscription] = useState('');
+
+  // Bilan journalier
+  const [dateBilan, setDateBilan] = useState(new Date().toISOString().split('T')[0]);
+  const [sousOngletInscription, setSousOngletInscription] = useState('encaissement');
 
   useEffect(() => {
     if (connecte) { chargerEleves(); chargerClasses(); chargerPaiements(); }
@@ -206,7 +209,6 @@ export default function App() {
     const moyenneClasse = moyennesValides.length > 0
       ? (moyennesValides.reduce((s,e) => s + parseFloat(e.moyenne_generale), 0) / moyennesValides.length).toFixed(2)
       : '-';
-
     const lignes = elevesAImprimer.map((e, i) => `
       <tr>
         <td style="padding:5px 4px;text-align:center;border:1px solid #ccc;">${i+1}</td>
@@ -218,49 +220,28 @@ export default function App() {
         <td style="padding:5px 4px;text-align:center;border:1px solid #ccc;">${e.moyenne_t3||'-'}</td>
         <td style="padding:5px 4px;text-align:center;font-weight:bold;border:1px solid #ccc;">${e.moyenne_generale||'-'}</td>
         <td style="padding:5px 4px;text-align:center;border:1px solid #ccc;color:${e.decision_fin_annee==='Admis'?'green':e.decision_fin_annee==='Redoublant'?'orange':'red'};font-weight:bold;">${e.decision_fin_annee||'-'}</td>
-      </tr>
-    `).join('');
-
+      </tr>`).join('');
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Liste ${classeFiltre}</title>
-      <style>
-        body{font-family:Arial,sans-serif;margin:20px;font-size:12px;}
-        @media print{body{margin:10px;}}
-        .entete{text-align:center;margin-bottom:20px;border-bottom:2px solid #000;padding-bottom:10px;}
-        .entete h2{margin:0;font-size:14px;text-transform:uppercase;}
-        .entete h1{margin:5px 0;font-size:18px;text-transform:uppercase;color:#1e3a5f;}
-        .entete p{margin:2px 0;font-size:11px;color:#555;}
-        table{width:100%;border-collapse:collapse;margin-top:10px;}
-        thead{background-color:#1e3a5f;color:white;}
-        thead th{padding:7px 4px;border:1px solid #ccc;font-size:11px;}
-        .stats{display:flex;gap:20px;margin-top:15px;padding:10px;background:#f0f4f8;border-radius:6px;flex-wrap:wrap;}
-        .footer{margin-top:30px;display:flex;justify-content:space-between;font-size:11px;}
-      </style></head><body>
-      <div class="entete">
-        <h2>${ETABLISSEMENT}</h2>
-        <h1>LISTE DES ÉLÈVES DE ${classeFiltre.toUpperCase()}</h1>
-        <p>Année scolaire : ${ANNEE_SCOLAIRE}</p>
-      </div>
-      <table>
-        <thead><tr>
-          <th>N°</th><th>Matricule</th><th>Nom</th><th>Prénom</th>
-          <th>T1</th><th>T2</th><th>T3</th><th>MGA</th><th>Décision</th>
-        </tr></thead>
-        <tbody>${lignes}</tbody>
-      </table>
-      <div class="stats">
-        <span>👥 <strong>Total :</strong> ${elevesAImprimer.length}</span>
-        <span>📈 <strong>Moy. classe :</strong> ${moyenneClasse}</span>
-        <span style="color:green;">✅ <strong>Admis :</strong> ${admis}</span>
-        <span style="color:orange;">🔄 <strong>Redoublants :</strong> ${redoublants}</span>
-        <span style="color:red;">❌ <strong>Exclus :</strong> ${exclus}</span>
-        <span>📊 <strong>Taux réussite :</strong> ${elevesAImprimer.length > 0 ? Math.round(admis/elevesAImprimer.length*100) : 0}%</span>
-      </div>
-      <div class="footer">
-        <span>Imprimé le : ${new Date().toLocaleDateString('fr-FR')}</span>
-        <span>Signature du Directeur : ________________</span>
-      </div>
-      <script>window.onload=function(){window.print();}</script>
-      </body></html>`;
+      <style>body{font-family:Arial,sans-serif;margin:20px;font-size:12px;}@media print{body{margin:10px;}}
+      .entete{text-align:center;margin-bottom:20px;border-bottom:2px solid #000;padding-bottom:10px;}
+      .entete h2{margin:0;font-size:14px;text-transform:uppercase;}.entete h1{margin:5px 0;font-size:18px;text-transform:uppercase;color:#1e3a5f;}
+      .entete p{margin:2px 0;font-size:11px;color:#555;}table{width:100%;border-collapse:collapse;margin-top:10px;}
+      thead{background-color:#1e3a5f;color:white;}thead th{padding:7px 4px;border:1px solid #ccc;font-size:11px;}
+      .stats{display:flex;gap:20px;margin-top:15px;padding:10px;background:#f0f4f8;border-radius:6px;flex-wrap:wrap;}
+      .footer{margin-top:30px;display:flex;justify-content:space-between;font-size:11px;}</style></head><body>
+      <div class="entete"><h2>${ETABLISSEMENT}</h2><h1>LISTE DES ÉLÈVES DE ${classeFiltre.toUpperCase()}</h1>
+      <p>Année scolaire : ${ANNEE_SCOLAIRE}</p></div>
+      <table><thead><tr><th>N°</th><th>Matricule</th><th>Nom</th><th>Prénom</th><th>T1</th><th>T2</th><th>T3</th><th>MGA</th><th>Décision</th></tr></thead>
+      <tbody>${lignes}</tbody></table>
+      <div class="stats"><span>👥 <strong>Total :</strong> ${elevesAImprimer.length}</span>
+      <span>📈 <strong>Moy. classe :</strong> ${moyenneClasse}</span>
+      <span style="color:green;">✅ <strong>Admis :</strong> ${admis}</span>
+      <span style="color:orange;">🔄 <strong>Redoublants :</strong> ${redoublants}</span>
+      <span style="color:red;">❌ <strong>Exclus :</strong> ${exclus}</span>
+      <span>📊 <strong>Taux réussite :</strong> ${elevesAImprimer.length > 0 ? Math.round(admis/elevesAImprimer.length*100) : 0}%</span></div>
+      <div class="footer"><span>Imprimé le : ${new Date().toLocaleDateString('fr-FR')}</span>
+      <span>Signature du Directeur : ________________</span></div>
+      <script>window.onload=function(){window.print();}</script></body></html>`;
     const fenetre = window.open('', '_blank');
     fenetre.document.write(html);
     fenetre.document.close();
@@ -271,7 +252,6 @@ export default function App() {
     const admisBepc = eleves.filter(e =>
       classes3eme.some(c => c === e.classe) && e.decision_fin_annee === 'Admis'
     ).sort((a,b) => (parseFloat(b.moyenne_generale)||0) - (parseFloat(a.moyenne_generale)||0));
-
     const lignes = admisBepc.map((e, i) => `
       <tr>
         <td style="padding:5px 4px;text-align:center;border:1px solid #ccc;">${i+1}</td>
@@ -282,42 +262,23 @@ export default function App() {
         <td style="padding:5px 4px;text-align:center;font-weight:bold;color:green;border:1px solid #ccc;">${e.moyenne_generale||'-'}</td>
         <td style="padding:5px 4px;border:1px solid #ccc;">${e.nom_parent||''}</td>
         <td style="padding:5px 4px;border:1px solid #ccc;">${e.telephone1||''}</td>
-      </tr>
-    `).join('');
-
+      </tr>`).join('');
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Admis BEPC</title>
-      <style>
-        body{font-family:Arial,sans-serif;margin:20px;font-size:12px;}
-        @media print{body{margin:10px;}}
-        .entete{text-align:center;margin-bottom:20px;border-bottom:2px solid #000;padding-bottom:10px;}
-        .entete h2{margin:0;font-size:14px;text-transform:uppercase;}
-        .entete h1{margin:5px 0;font-size:18px;text-transform:uppercase;color:#166534;}
-        .entete p{margin:2px 0;font-size:11px;color:#555;}
-        table{width:100%;border-collapse:collapse;margin-top:10px;}
-        thead{background-color:#166534;color:white;}
-        thead th{padding:7px 4px;border:1px solid #ccc;font-size:11px;}
-        .stats{margin-top:15px;padding:10px;background:#dcfce7;border-radius:6px;font-size:13px;}
-        .footer{margin-top:30px;display:flex;justify-content:space-between;font-size:11px;}
-      </style></head><body>
-      <div class="entete">
-        <h2>${ETABLISSEMENT}</h2>
-        <h1>LISTE DES ADMIS AU BEPC</h1>
-        <p>Année scolaire : ${ANNEE_SCOLAIRE} — Élèves de 3ème</p>
-      </div>
-      <table>
-        <thead><tr>
-          <th>N°</th><th>Matricule</th><th>Nom</th><th>Prénom</th>
-          <th>Classe</th><th>MGA</th><th>Parent</th><th>Téléphone</th>
-        </tr></thead>
-        <tbody>${lignes}</tbody>
-      </table>
+      <style>body{font-family:Arial,sans-serif;margin:20px;font-size:12px;}@media print{body{margin:10px;}}
+      .entete{text-align:center;margin-bottom:20px;border-bottom:2px solid #000;padding-bottom:10px;}
+      .entete h2{margin:0;font-size:14px;text-transform:uppercase;}.entete h1{margin:5px 0;font-size:18px;text-transform:uppercase;color:#166534;}
+      .entete p{margin:2px 0;font-size:11px;color:#555;}table{width:100%;border-collapse:collapse;margin-top:10px;}
+      thead{background-color:#166534;color:white;}thead th{padding:7px 4px;border:1px solid #ccc;font-size:11px;}
+      .stats{margin-top:15px;padding:10px;background:#dcfce7;border-radius:6px;font-size:13px;}
+      .footer{margin-top:30px;display:flex;justify-content:space-between;font-size:11px;}</style></head><body>
+      <div class="entete"><h2>${ETABLISSEMENT}</h2><h1>LISTE DES ADMIS AU BEPC</h1>
+      <p>Année scolaire : ${ANNEE_SCOLAIRE} — Élèves de 3ème</p></div>
+      <table><thead><tr><th>N°</th><th>Matricule</th><th>Nom</th><th>Prénom</th><th>Classe</th><th>MGA</th><th>Parent</th><th>Téléphone</th></tr></thead>
+      <tbody>${lignes}</tbody></table>
       <div class="stats">✅ <strong>Total admis au BEPC : ${admisBepc.length} élèves</strong></div>
-      <div class="footer">
-        <span>Imprimé le : ${new Date().toLocaleDateString('fr-FR')}</span>
-        <span>Signature du Chef de service : ________________</span>
-      </div>
-      <script>window.onload=function(){window.print();}</script>
-      </body></html>`;
+      <div class="footer"><span>Imprimé le : ${new Date().toLocaleDateString('fr-FR')}</span>
+      <span>Signature du Chef de service : ________________</span></div>
+      <script>window.onload=function(){window.print();}</script></body></html>`;
     const fenetre = window.open('', '_blank');
     fenetre.document.write(html);
     fenetre.document.close();
@@ -328,7 +289,6 @@ export default function App() {
     const liste = elevesInscription
       .filter(e => paiements[e.id])
       .sort((a,b) => (a.nom||'').localeCompare(b.nom||''));
-
     const lignes = liste.map((e, i) => `
       <tr>
         <td style="padding:5px 4px;text-align:center;border:1px solid #ccc;">${i+1}</td>
@@ -338,43 +298,113 @@ export default function App() {
         <td style="padding:5px 4px;text-align:center;border:1px solid #ccc;">${e.classe||''}</td>
         <td style="padding:5px 4px;text-align:center;border:1px solid #ccc;">${paiements[e.id]?.date_paiement ? new Date(paiements[e.id].date_paiement).toLocaleDateString('fr-FR') : '-'}</td>
         <td style="padding:5px 4px;text-align:center;font-weight:bold;color:green;border:1px solid #ccc;">${MONTANT_INSCRIPTION} FCFA</td>
-      </tr>
-    `).join('');
-
+      </tr>`).join('');
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Liste paiements</title>
+      <style>body{font-family:Arial,sans-serif;margin:20px;font-size:12px;}@media print{body{margin:10px;}}
+      .entete{text-align:center;margin-bottom:20px;border-bottom:2px solid #000;padding-bottom:10px;}
+      .entete h2{margin:0;font-size:14px;text-transform:uppercase;}.entete h1{margin:5px 0;font-size:18px;text-transform:uppercase;color:#1e3a5f;}
+      .entete p{margin:2px 0;font-size:11px;color:#555;}table{width:100%;border-collapse:collapse;margin-top:10px;}
+      thead{background-color:#1e3a5f;color:white;}thead th{padding:7px 4px;border:1px solid #ccc;font-size:11px;}
+      .stats{margin-top:15px;padding:10px;background:#dcfce7;border-radius:6px;font-size:13px;display:flex;gap:30px;}
+      .footer{margin-top:30px;display:flex;justify-content:space-between;font-size:11px;}</style></head><body>
+      <div class="entete"><h2>${ETABLISSEMENT}</h2><h1>LISTE DES ÉLÈVES AYANT PAYÉ LES DROITS D'INSCRIPTION</h1>
+      <p>Année scolaire : ${ANNEE_SCOLAIRE}${filtre ? ' — Classe : '+filtre : ' — Toutes classes'}</p></div>
+      <table><thead><tr><th>N°</th><th>Matricule</th><th>Nom</th><th>Prénom</th><th>Classe</th><th>Date paiement</th><th>Montant</th></tr></thead>
+      <tbody>${lignes}</tbody></table>
+      <div class="stats"><span>👥 <strong>Total payés :</strong> ${liste.length} élèves</span>
+      <span>💰 <strong>Total encaissé :</strong> ${liste.length * MONTANT_INSCRIPTION} FCFA</span></div>
+      <div class="footer"><span>Imprimé le : ${new Date().toLocaleDateString('fr-FR')}</span>
+      <span>Signature de l'Économe : ________________</span></div>
+      <script>window.onload=function(){window.print();}</script></body></html>`;
+    const fenetre = window.open('', '_blank');
+    fenetre.document.write(html);
+    fenetre.document.close();
+  };
+
+  // === BILAN JOURNALIER ===
+  const imprimerBilanJournalier = () => {
+    const elevesDuJour = Object.values(paiements)
+      .filter(p => p.date_paiement && p.date_paiement.split('T')[0] === dateBilan);
+    const idsPayesDuJour = new Set(elevesDuJour.map(p => p.eleve_id));
+    const elevesDuJourAvecInfo = eleves
+      .filter(e => idsPayesDuJour.has(e.id))
+      .sort((a,b) => (a.nom||'').localeCompare(b.nom||''));
+
+    const dateAffichee = new Date(dateBilan + 'T00:00:00').toLocaleDateString('fr-FR', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+    const totalJour = elevesDuJourAvecInfo.length * MONTANT_INSCRIPTION;
+
+    const lignes = elevesDuJourAvecInfo.map((e, i) => `
+      <tr>
+        <td style="padding:6px 5px;text-align:center;border:1px solid #ccc;">${i+1}</td>
+        <td style="padding:6px 5px;border:1px solid #ccc;">${e.matricule||''}</td>
+        <td style="padding:6px 5px;font-weight:bold;border:1px solid #ccc;">${e.nom||''}</td>
+        <td style="padding:6px 5px;border:1px solid #ccc;">${e.prenom||''}</td>
+        <td style="padding:6px 5px;text-align:center;border:1px solid #ccc;">${e.classe||''}</td>
+        <td style="padding:6px 5px;text-align:center;font-weight:bold;color:green;border:1px solid #ccc;">${MONTANT_INSCRIPTION} FCFA</td>
+      </tr>`).join('');
+
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Bilan ${dateBilan}</title>
       <style>
         body{font-family:Arial,sans-serif;margin:20px;font-size:12px;}
         @media print{body{margin:10px;}}
-        .entete{text-align:center;margin-bottom:20px;border-bottom:2px solid #000;padding-bottom:10px;}
-        .entete h2{margin:0;font-size:14px;text-transform:uppercase;}
-        .entete h1{margin:5px 0;font-size:18px;text-transform:uppercase;color:#1e3a5f;}
-        .entete p{margin:2px 0;font-size:11px;color:#555;}
+        .entete{text-align:center;margin-bottom:20px;border-bottom:2px solid #000;padding-bottom:12px;}
+        .entete h2{margin:0;font-size:13px;text-transform:uppercase;}
+        .entete h1{margin:6px 0;font-size:17px;text-transform:uppercase;color:#1e3a5f;}
+        .entete .date{font-size:13px;font-weight:bold;color:#374151;margin:4px 0;}
         table{width:100%;border-collapse:collapse;margin-top:10px;}
         thead{background-color:#1e3a5f;color:white;}
-        thead th{padding:7px 4px;border:1px solid #ccc;font-size:11px;}
-        .stats{margin-top:15px;padding:10px;background:#dcfce7;border-radius:6px;font-size:13px;display:flex;gap:30px;}
-        .footer{margin-top:30px;display:flex;justify-content:space-between;font-size:11px;}
+        thead th{padding:8px 5px;border:1px solid #ccc;font-size:11px;}
+        .recap{margin-top:20px;padding:12px 16px;background:#f0fdf4;border:2px solid #16a34a;border-radius:8px;}
+        .recap-titre{font-size:13px;font-weight:bold;color:#166534;margin-bottom:8px;}
+        .recap-ligne{display:flex;justify-content:space-between;font-size:13px;margin:4px 0;}
+        .recap-total{display:flex;justify-content:space-between;font-size:16px;font-weight:bold;color:#166534;margin-top:10px;padding-top:8px;border-top:2px solid #16a34a;}
+        .vide{text-align:center;padding:30px;color:#9ca3af;font-style:italic;font-size:13px;}
+        .signatures{margin-top:40px;display:flex;justify-content:space-between;}
+        .sig-box{text-align:center;width:45%;}
+        .sig-box p{margin:0 0 4px;font-weight:bold;font-size:11px;}
+        .sig-line{border-bottom:1px solid #000;height:50px;margin-top:8px;}
       </style></head><body>
       <div class="entete">
         <h2>${ETABLISSEMENT}</h2>
-        <h1>LISTE DES ÉLÈVES AYANT PAYÉ LES DROITS D'INSCRIPTION</h1>
-        <p>Année scolaire : ${ANNEE_SCOLAIRE}${filtre ? ' — Classe : '+filtre : ' — Toutes classes'}</p>
+        <h1>📊 BILAN JOURNALIER DES DROITS D'INSCRIPTION</h1>
+        <div class="date">Journée du : ${dateAffichee}</div>
+        <p style="font-size:11px;color:#555;">Année scolaire : ${ANNEE_SCOLAIRE}</p>
       </div>
-      <table>
+
+      ${elevesDuJourAvecInfo.length === 0
+        ? `<div class="vide">Aucun paiement enregistré pour cette date.</div>`
+        : `<table>
         <thead><tr>
-          <th>N°</th><th>Matricule</th><th>Nom</th><th>Prénom</th>
-          <th>Classe</th><th>Date paiement</th><th>Montant</th>
+          <th>N°</th><th>Matricule</th><th>Nom</th><th>Prénom</th><th>Classe</th><th>Montant</th>
         </tr></thead>
         <tbody>${lignes}</tbody>
-      </table>
-      <div class="stats">
-        <span>👥 <strong>Total payés :</strong> ${liste.length} élèves</span>
-        <span>💰 <strong>Total encaissé :</strong> ${liste.length * MONTANT_INSCRIPTION} FCFA</span>
+      </table>`}
+
+      <div class="recap">
+        <div class="recap-titre">📋 RÉCAPITULATIF DE LA JOURNÉE</div>
+        <div class="recap-ligne"><span>Nombre d'élèves ayant payé :</span><span><strong>${elevesDuJourAvecInfo.length} élève(s)</strong></span></div>
+        <div class="recap-ligne"><span>Montant unitaire :</span><span>${MONTANT_INSCRIPTION} FCFA</span></div>
+        <div class="recap-total"><span>TOTAL ENCAISSÉ CE JOUR :</span><span>${totalJour.toLocaleString()} FCFA</span></div>
       </div>
-      <div class="footer">
-        <span>Imprimé le : ${new Date().toLocaleDateString('fr-FR')}</span>
-        <span>Signature de l'Économe : ________________</span>
+
+      <div class="signatures">
+        <div class="sig-box">
+          <p>L'Économe / Responsable Financier</p>
+          <div class="sig-line"></div>
+          <p style="margin-top:6px;font-size:10px;color:#555;">Nom et signature</p>
+        </div>
+        <div class="sig-box">
+          <p>Le Directeur</p>
+          <div class="sig-line"></div>
+          <p style="margin-top:6px;font-size:10px;color:#555;">Nom et signature</p>
+        </div>
       </div>
+
+      <p style="text-align:right;font-size:10px;color:#9ca3af;margin-top:20px;">
+        Document généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}
+      </p>
       <script>window.onload=function(){window.print();}</script>
       </body></html>`;
     const fenetre = window.open('', '_blank');
@@ -423,6 +453,15 @@ export default function App() {
   const payesDansVue = elevesAffichesInscription.filter(e => paiements[e.id]).length;
   const nonPayesDansVue = elevesAffichesInscription.length - payesDansVue;
 
+  // Calcul bilan du jour sélectionné
+  const elevesDuJourIds = new Set(
+    Object.values(paiements)
+      .filter(p => p.date_paiement && p.date_paiement.split('T')[0] === dateBilan)
+      .map(p => p.eleve_id)
+  );
+  const nbPayesDuJour = elevesDuJourIds.size;
+  const montantDuJour = nbPayesDuJour * MONTANT_INSCRIPTION;
+
   return (
     <div style={styles.app}>
       <div style={styles.header}>
@@ -458,7 +497,6 @@ export default function App() {
               </button>
             )}
           </div>
-
           {classeFiltre && elevesClasse.length > 0 && (
             <div style={styles.statsClasse}>
               <span>📊 Classe : <strong>{classeFiltre}</strong></span>
@@ -470,16 +508,13 @@ export default function App() {
               <span>📊 Taux : <strong>{Math.round(elevesClasse.filter(e=>e.decision_fin_annee==='Admis').length/elevesClasse.length*100)}%</strong></span>
             </div>
           )}
-
           <p style={styles.compteur}>{eleves.length} élève(s){classeFiltre?` en ${classeFiltre}`:''}</p>
           <div style={styles.tableWrap}>
             <table style={styles.table}>
               <thead style={styles.tableHead}>
-                <tr>
-                  {['#','Matricule','Nom','Prénom','Classe','Parent','Téléphone','T1','T2','T3','MGA','Décision','Actions'].map(h=>(
-                    <th key={h} style={styles.th}>{h}</th>
-                  ))}
-                </tr>
+                <tr>{['#','Matricule','Nom','Prénom','Classe','Parent','Téléphone','T1','T2','T3','MGA','Décision','Actions'].map(h=>(
+                  <th key={h} style={styles.th}>{h}</th>
+                ))}</tr>
               </thead>
               <tbody>
                 {eleves.map((e,i)=>(
@@ -490,9 +525,7 @@ export default function App() {
                     <td style={styles.td}>{e.prenom}</td>
                     <td style={styles.td}><span style={styles.badgeClasse}>{e.classe}</span></td>
                     <td style={styles.td}>{e.nom_parent}</td>
-                    <td style={styles.td}>
-                      {e.telephone1&&<a href={`tel:${e.telephone1}`} style={styles.telLink}>📞 {e.telephone1}</a>}
-                    </td>
+                    <td style={styles.td}>{e.telephone1&&<a href={`tel:${e.telephone1}`} style={styles.telLink}>📞 {e.telephone1}</a>}</td>
                     <td style={styles.td}>{e.moyenne_t1||'-'}</td>
                     <td style={styles.td}>{e.moyenne_t2||'-'}</td>
                     <td style={styles.td}>{e.moyenne_t3||'-'}</td>
@@ -524,20 +557,14 @@ export default function App() {
           </div>
           <div style={styles.ficheCard}>
             <div style={styles.ficheHeader}>
-              <div style={styles.ficheAvatar}>
-                {eleveSelectionne.photo
-                  ? <img src={eleveSelectionne.photo} alt="" style={styles.fichePhoto}/>
-                  : <span style={{fontSize:'2.5rem'}}>👤</span>}
-              </div>
+              <div style={styles.ficheAvatar}><span style={{fontSize:'2.5rem'}}>👤</span></div>
               <div>
                 <h2 style={styles.ficheNom}>{eleveSelectionne.nom} {eleveSelectionne.prenom}</h2>
                 <p style={styles.ficheClasse}>Classe : {eleveSelectionne.classe}</p>
                 <p style={styles.ficheMatricule}>Matricule : {eleveSelectionne.matricule}</p>
-                <p style={{margin:'4px 0'}}>
-                  Inscription : {paiements[eleveSelectionne.id]
-                    ? <span style={styles.badgeAdmis}>✅ Payé</span>
-                    : <span style={styles.badgeExclu}>❌ Non payé</span>}
-                </p>
+                <p style={{margin:'4px 0'}}>Inscription : {paiements[eleveSelectionne.id]
+                  ? <span style={styles.badgeAdmis}>✅ Payé</span>
+                  : <span style={styles.badgeExclu}>❌ Non payé</span>}</p>
               </div>
             </div>
             <div style={styles.ficheGrid}>
@@ -566,31 +593,22 @@ export default function App() {
           <div style={styles.formCard}>
             <h3 style={styles.sectionTitre}>📋 Informations générales</h3>
             <div style={styles.formGrid}>
-              <div><label style={styles.label}>Matricule</label>
-                <input value={formulaire.matricule} onChange={e=>setFormulaire({...formulaire,matricule:e.target.value})} style={styles.input}/></div>
-              <div><label style={styles.label}>Nom *</label>
-                <input value={formulaire.nom} onChange={e=>setFormulaire({...formulaire,nom:e.target.value})} style={styles.input}/></div>
-              <div><label style={styles.label}>Prénom *</label>
-                <input value={formulaire.prenom} onChange={e=>setFormulaire({...formulaire,prenom:e.target.value})} style={styles.input}/></div>
+              <div><label style={styles.label}>Matricule</label><input value={formulaire.matricule} onChange={e=>setFormulaire({...formulaire,matricule:e.target.value})} style={styles.input}/></div>
+              <div><label style={styles.label}>Nom *</label><input value={formulaire.nom} onChange={e=>setFormulaire({...formulaire,nom:e.target.value})} style={styles.input}/></div>
+              <div><label style={styles.label}>Prénom *</label><input value={formulaire.prenom} onChange={e=>setFormulaire({...formulaire,prenom:e.target.value})} style={styles.input}/></div>
               <div><label style={styles.label}>Classe *</label>
                 <input value={formulaire.classe} onChange={e=>setFormulaire({...formulaire,classe:e.target.value})} style={styles.input} list="liste-classes"/>
                 <datalist id="liste-classes">{classes.map(c=><option key={c} value={c}/>)}</datalist></div>
-              <div><label style={styles.label}>N° Extrait</label>
-                <input value={formulaire.numero_extrait} onChange={e=>setFormulaire({...formulaire,numero_extrait:e.target.value})} style={styles.input}/></div>
+              <div><label style={styles.label}>N° Extrait</label><input value={formulaire.numero_extrait} onChange={e=>setFormulaire({...formulaire,numero_extrait:e.target.value})} style={styles.input}/></div>
             </div>
             <h3 style={{...styles.sectionTitre,marginTop:'1.5rem'}}>👪 Contact parent</h3>
             <div style={styles.formGrid}>
-              <div><label style={styles.label}>Nom parent</label>
-                <input value={formulaire.nom_parent} onChange={e=>setFormulaire({...formulaire,nom_parent:e.target.value})} style={styles.input}/></div>
-              <div><label style={styles.label}>Téléphone 1</label>
-                <input value={formulaire.telephone1} onChange={e=>setFormulaire({...formulaire,telephone1:e.target.value})} style={styles.input} type="tel"/></div>
-              <div><label style={styles.label}>Téléphone 2</label>
-                <input value={formulaire.telephone2} onChange={e=>setFormulaire({...formulaire,telephone2:e.target.value})} style={styles.input} type="tel"/></div>
+              <div><label style={styles.label}>Nom parent</label><input value={formulaire.nom_parent} onChange={e=>setFormulaire({...formulaire,nom_parent:e.target.value})} style={styles.input}/></div>
+              <div><label style={styles.label}>Téléphone 1</label><input value={formulaire.telephone1} onChange={e=>setFormulaire({...formulaire,telephone1:e.target.value})} style={styles.input} type="tel"/></div>
+              <div><label style={styles.label}>Téléphone 2</label><input value={formulaire.telephone2} onChange={e=>setFormulaire({...formulaire,telephone2:e.target.value})} style={styles.input} type="tel"/></div>
             </div>
             {messageFormulaire&&<p style={messageFormulaire.includes('✅')?styles.succes:styles.erreur}>{messageFormulaire}</p>}
-            <button onClick={sauvegarderEleve} style={styles.btnSauvegarder}>
-              {modeFormulaire==='ajouter'?'➕ Ajouter':'💾 Sauvegarder'}
-            </button>
+            <button onClick={sauvegarderEleve} style={styles.btnSauvegarder}>{modeFormulaire==='ajouter'?'➕ Ajouter':'💾 Sauvegarder'}</button>
           </div>
         </div>
       )}
@@ -601,10 +619,7 @@ export default function App() {
           <div style={styles.importCard}>
             <div style={styles.trimestreBtns}>
               {['T1','T2','T3'].map(t=>(
-                <button key={t} onClick={()=>setTrimestreActif(t)}
-                  style={trimestreActif===t?styles.trimestreBtnActif:styles.trimestreBtn}>
-                  📊 Trimestre {t}
-                </button>
+                <button key={t} onClick={()=>setTrimestreActif(t)} style={trimestreActif===t?styles.trimestreBtnActif:styles.trimestreBtn}>📊 Trimestre {t}</button>
               ))}
             </div>
             <p style={styles.importInfo}>📌 Fichier Excel pour <strong>{trimestreActif}</strong> — colonnes requises :</p>
@@ -641,11 +656,9 @@ export default function App() {
             <div style={styles.tableWrap}>
               <table style={styles.table}>
                 <thead style={{...styles.tableHead, background:'#166534'}}>
-                  <tr>
-                    {['#','Matricule','Nom','Prénom','Classe','MGA','Parent','Téléphone'].map(h=>(
-                      <th key={h} style={styles.th}>{h}</th>
-                    ))}
-                  </tr>
+                  <tr>{['#','Matricule','Nom','Prénom','Classe','MGA','Parent','Téléphone'].map(h=>(
+                    <th key={h} style={styles.th}>{h}</th>
+                  ))}</tr>
                 </thead>
                 <tbody>
                   {eleves.filter(e => classes3eme.some(c=>c===e.classe) && e.decision_fin_annee==='Admis')
@@ -677,83 +690,161 @@ export default function App() {
         <div style={styles.contenu}>
           <h2 style={styles.titrePage}>💰 Droits d'inscription — {ANNEE_SCOLAIRE}</h2>
 
-          <div style={styles.statsInscription}>
-            <div style={styles.statBox}>
-              <div style={styles.statNum}>{totalPayes}</div>
-              <div style={styles.statLabel}>✅ Ont payé</div>
-            </div>
-            <div style={{...styles.statBox, background:'#fee2e2'}}>
-              <div style={{...styles.statNum, color:'#991b1b'}}>{totalNonPayes}</div>
-              <div style={styles.statLabel}>❌ Non payés</div>
-            </div>
-            <div style={{...styles.statBox, background:'#dcfce7'}}>
-              <div style={{...styles.statNum, color:'#166534'}}>{montantTotal.toLocaleString()}</div>
-              <div style={styles.statLabel}>💵 FCFA encaissés</div>
-            </div>
-            <div style={{...styles.statBox, background:'#fef3c7'}}>
-              <div style={{...styles.statNum, color:'#92400e'}}>{(totalNonPayes * MONTANT_INSCRIPTION).toLocaleString()}</div>
-              <div style={styles.statLabel}>⏳ FCFA restants</div>
-            </div>
-          </div>
-
-          <div style={styles.filtres}>
-            <input placeholder="🔍 Rechercher par nom ou matricule..." value={rechercheInscription}
-              onChange={e=>rechercherInscription(e.target.value)} style={styles.inputRecherche} />
-            <select value={classeFiltreInscription} onChange={e=>filtrerInscriptionParClasse(e.target.value)} style={styles.selectClasse}>
-              <option value="">Toutes les classes</option>
-              {classes.map(c=><option key={c} value={c}>{c}</option>)}
-            </select>
-            <button onClick={imprimerListePayes} style={styles.btnImprimerClasse}>
-              🖨️ Imprimer liste des payés
+          {/* Sous-onglets */}
+          <div style={styles.sousNav}>
+            <button onClick={()=>setSousOngletInscription('encaissement')}
+              style={sousOngletInscription==='encaissement'?styles.sousNavActif:styles.sousNavBtn}>
+              💰 Encaissement
+            </button>
+            <button onClick={()=>setSousOngletInscription('bilan')}
+              style={sousOngletInscription==='bilan'?styles.sousNavActif:styles.sousNavBtn}>
+              📊 Bilan journalier
             </button>
           </div>
 
-          {messageInscription && (
-            <div style={messageInscription.includes('✅')?styles.alertSucces:styles.alertErreur}>
-              {messageInscription}
-            </div>
+          {/* === ENCAISSEMENT === */}
+          {sousOngletInscription==='encaissement' && (
+            <>
+              <div style={styles.statsInscription}>
+                <div style={styles.statBox}>
+                  <div style={styles.statNum}>{totalPayes}</div>
+                  <div style={styles.statLabel}>✅ Ont payé</div>
+                </div>
+                <div style={{...styles.statBox, background:'#fee2e2'}}>
+                  <div style={{...styles.statNum, color:'#991b1b'}}>{totalNonPayes}</div>
+                  <div style={styles.statLabel}>❌ Non payés</div>
+                </div>
+                <div style={{...styles.statBox, background:'#dcfce7'}}>
+                  <div style={{...styles.statNum, color:'#166534'}}>{montantTotal.toLocaleString()}</div>
+                  <div style={styles.statLabel}>💵 FCFA encaissés</div>
+                </div>
+                <div style={{...styles.statBox, background:'#fef3c7'}}>
+                  <div style={{...styles.statNum, color:'#92400e'}}>{(totalNonPayes * MONTANT_INSCRIPTION).toLocaleString()}</div>
+                  <div style={styles.statLabel}>⏳ FCFA restants</div>
+                </div>
+              </div>
+
+              <div style={styles.filtres}>
+                <input placeholder="🔍 Rechercher par nom ou matricule..." value={rechercheInscription}
+                  onChange={e=>rechercherInscription(e.target.value)} style={styles.inputRecherche} />
+                <select value={classeFiltreInscription} onChange={e=>filtrerInscriptionParClasse(e.target.value)} style={styles.selectClasse}>
+                  <option value="">Toutes les classes</option>
+                  {classes.map(c=><option key={c} value={c}>{c}</option>)}
+                </select>
+                <button onClick={imprimerListePayes} style={styles.btnImprimerClasse}>
+                  🖨️ Imprimer liste des payés
+                </button>
+              </div>
+
+              {messageInscription && (
+                <div style={messageInscription.includes('✅')?styles.alertSucces:styles.alertErreur}>
+                  {messageInscription}
+                </div>
+              )}
+
+              <p style={styles.compteur}>
+                {elevesAffichesInscription.length} élève(s) — ✅ {payesDansVue} payés | ❌ {nonPayesDansVue} non payés
+              </p>
+
+              <div style={styles.tableWrap}>
+                <table style={styles.table}>
+                  <thead style={styles.tableHead}>
+                    <tr>{['#','Matricule','Nom','Prénom','Classe','Parent','Statut paiement','Action'].map(h=>(
+                      <th key={h} style={styles.th}>{h}</th>
+                    ))}</tr>
+                  </thead>
+                  <tbody>
+                    {elevesAffichesInscription.map((e,i)=>(
+                      <tr key={e.id} style={i%2===0?styles.trPair:styles.trImpair}>
+                        <td style={styles.td}>{i+1}</td>
+                        <td style={styles.td}>{e.matricule}</td>
+                        <td style={styles.td}><strong>{e.nom}</strong></td>
+                        <td style={styles.td}>{e.prenom}</td>
+                        <td style={styles.td}><span style={styles.badgeClasse}>{e.classe}</span></td>
+                        <td style={styles.td}>{e.nom_parent||'-'}</td>
+                        <td style={styles.td}>
+                          {paiements[e.id]
+                            ? <span style={styles.badgeAdmis}>✅ Payé — {paiements[e.id].date_paiement ? new Date(paiements[e.id].date_paiement).toLocaleDateString('fr-FR') : ''}</span>
+                            : <span style={styles.badgeExclu}>❌ Non payé</span>
+                          }
+                        </td>
+                        <td style={styles.td}>
+                          <button onClick={()=>togglePaiement(e)} style={paiements[e.id]?styles.btnAnnulerPaiement:styles.btnPayer}>
+                            {paiements[e.id]?'↩️ Annuler':'💰 Encaisser'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
 
-          <p style={styles.compteur}>
-            {elevesAffichesInscription.length} élève(s) — ✅ {payesDansVue} payés | ❌ {nonPayesDansVue} non payés
-          </p>
+          {/* === BILAN JOURNALIER === */}
+          {sousOngletInscription==='bilan' && (
+            <div style={styles.bilanCard}>
+              <h3 style={styles.sectionTitre}>📊 Bilan financier journalier</h3>
+              <p style={{color:'#64748b',fontSize:'0.9rem',marginBottom:'1rem'}}>
+                Sélectionnez une date pour voir les paiements effectués ce jour-là et imprimer le bilan à remettre au chef.
+              </p>
 
-          <div style={styles.tableWrap}>
-            <table style={styles.table}>
-              <thead style={styles.tableHead}>
-                <tr>
-                  {['#','Matricule','Nom','Prénom','Classe','Parent','Statut paiement','Action'].map(h=>(
-                    <th key={h} style={styles.th}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {elevesAffichesInscription.map((e,i)=>(
-                  <tr key={e.id} style={i%2===0?styles.trPair:styles.trImpair}>
-                    <td style={styles.td}>{i+1}</td>
-                    <td style={styles.td}>{e.matricule}</td>
-                    <td style={styles.td}><strong>{e.nom}</strong></td>
-                    <td style={styles.td}>{e.prenom}</td>
-                    <td style={styles.td}><span style={styles.badgeClasse}>{e.classe}</span></td>
-                    <td style={styles.td}>{e.nom_parent||'-'}</td>
-                    <td style={styles.td}>
-                      {paiements[e.id]
-                        ? <span style={styles.badgeAdmis}>✅ Payé — {paiements[e.id].date_paiement ? new Date(paiements[e.id].date_paiement).toLocaleDateString('fr-FR') : ''}</span>
-                        : <span style={styles.badgeExclu}>❌ Non payé</span>
-                      }
-                    </td>
-                    <td style={styles.td}>
-                      <button
-                        onClick={()=>togglePaiement(e)}
-                        style={paiements[e.id]?styles.btnAnnulerPaiement:styles.btnPayer}>
-                        {paiements[e.id]?'↩️ Annuler':'💰 Encaisser'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              <div style={styles.bilanDateRow}>
+                <label style={{fontWeight:'600',color:'#1e3a5f',fontSize:'0.95rem'}}>📅 Date :</label>
+                <input type="date" value={dateBilan} onChange={e=>setDateBilan(e.target.value)}
+                  style={styles.inputDate} />
+              </div>
+
+              {/* Résumé du jour */}
+              <div style={styles.bilanResume}>
+                <div style={styles.bilanResumeItem}>
+                  <div style={styles.bilanResumeNum}>{nbPayesDuJour}</div>
+                  <div style={styles.bilanResumeLabel}>élève(s) payé(s)</div>
+                </div>
+                <div style={{...styles.bilanResumeItem, background:'#dcfce7', borderColor:'#16a34a'}}>
+                  <div style={{...styles.bilanResumeNum, color:'#166534'}}>{montantDuJour.toLocaleString()}</div>
+                  <div style={styles.bilanResumeLabel}>FCFA encaissés</div>
+                </div>
+              </div>
+
+              {/* Liste du jour */}
+              {nbPayesDuJour === 0 ? (
+                <div style={styles.bilanVide}>
+                  <p>😔 Aucun paiement enregistré pour le {new Date(dateBilan+'T00:00:00').toLocaleDateString('fr-FR')}</p>
+                </div>
+              ) : (
+                <div style={styles.tableWrap}>
+                  <table style={styles.table}>
+                    <thead style={{...styles.tableHead, background:'#0f766e'}}>
+                      <tr>{['#','Matricule','Nom','Prénom','Classe','Montant'].map(h=>(
+                        <th key={h} style={styles.th}>{h}</th>
+                      ))}</tr>
+                    </thead>
+                    <tbody>
+                      {eleves
+                        .filter(e => elevesDuJourIds.has(e.id))
+                        .sort((a,b)=>(a.nom||'').localeCompare(b.nom||''))
+                        .map((e,i)=>(
+                        <tr key={e.id} style={i%2===0?styles.trPair:styles.trImpair}>
+                          <td style={styles.td}>{i+1}</td>
+                          <td style={styles.td}>{e.matricule}</td>
+                          <td style={styles.td}><strong>{e.nom}</strong></td>
+                          <td style={styles.td}>{e.prenom}</td>
+                          <td style={styles.td}><span style={styles.badgeClasse}>{e.classe}</span></td>
+                          <td style={styles.td}><strong style={{color:'#166534'}}>{MONTANT_INSCRIPTION} FCFA</strong></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              <br/>
+              <button onClick={imprimerBilanJournalier} style={styles.btnBilanImprimer}>
+                🖨️ Imprimer le bilan journalier
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -777,6 +868,9 @@ const styles = {
   nav:{background:'white',padding:'0.75rem 1.5rem',display:'flex',gap:'0.5rem',borderBottom:'1px solid #e2e8f0',flexWrap:'wrap'},
   navBtn:{padding:'0.5rem 1.1rem',border:'2px solid #e2e8f0',borderRadius:'8px',background:'white',cursor:'pointer',fontWeight:'500'},
   navBtnActif:{padding:'0.5rem 1.1rem',border:'2px solid #2563eb',borderRadius:'8px',background:'#2563eb',color:'white',cursor:'pointer',fontWeight:'500'},
+  sousNav:{display:'flex',gap:'0.5rem',marginBottom:'1.5rem',borderBottom:'2px solid #e2e8f0',paddingBottom:'0.5rem'},
+  sousNavBtn:{padding:'0.5rem 1.2rem',border:'2px solid #e2e8f0',borderRadius:'8px 8px 0 0',background:'white',cursor:'pointer',fontWeight:'500',fontSize:'0.9rem'},
+  sousNavActif:{padding:'0.5rem 1.2rem',border:'2px solid #0f766e',borderBottom:'2px solid white',borderRadius:'8px 8px 0 0',background:'#0f766e',color:'white',cursor:'pointer',fontWeight:'600',fontSize:'0.9rem'},
   contenu:{padding:'1.5rem',maxWidth:'1200px',margin:'0 auto'},
   filtres:{display:'flex',gap:'0.75rem',marginBottom:'0.75rem',flexWrap:'wrap',alignItems:'center'},
   inputRecherche:{flex:1,minWidth:'200px',padding:'0.6rem 1rem',border:'2px solid #e2e8f0',borderRadius:'8px',fontSize:'0.95rem'},
@@ -813,7 +907,6 @@ const styles = {
   ficheCard:{background:'white',borderRadius:'12px',padding:'2rem',boxShadow:'0 2px 8px rgba(0,0,0,0.08)'},
   ficheHeader:{display:'flex',alignItems:'center',gap:'1.5rem',marginBottom:'1.5rem',borderBottom:'2px solid #e2e8f0',paddingBottom:'1.5rem'},
   ficheAvatar:{width:'80px',height:'80px',borderRadius:'50%',background:'#dbeafe',display:'flex',alignItems:'center',justifyContent:'center'},
-  fichePhoto:{width:'80px',height:'80px',objectFit:'cover'},
   ficheNom:{margin:'0 0 0.3rem',color:'#1e3a5f',fontSize:'1.5rem'},
   ficheClasse:{margin:'0',color:'#2563eb',fontWeight:'600'},
   ficheMatricule:{margin:'0',color:'#64748b',fontSize:'0.9rem'},
@@ -835,6 +928,15 @@ const styles = {
   btnImportExcel:{background:'#2563eb',color:'white',border:'none',borderRadius:'8px',padding:'0.75rem 1.5rem',cursor:'pointer',fontSize:'1rem',fontWeight:'600'},
   btnCalculer:{background:'#7c3aed',color:'white',border:'none',borderRadius:'8px',padding:'0.75rem 1.5rem',cursor:'pointer',fontSize:'1rem',fontWeight:'600',marginTop:'0.5rem'},
   bepcInfo:{background:'#dcfce7',borderRadius:'8px',padding:'1rem',marginBottom:'1.5rem'},
+  bilanCard:{background:'white',borderRadius:'12px',padding:'1.5rem',boxShadow:'0 2px 8px rgba(0,0,0,0.07)'},
+  bilanDateRow:{display:'flex',alignItems:'center',gap:'1rem',marginBottom:'1.5rem'},
+  inputDate:{padding:'0.6rem 1rem',border:'2px solid #0f766e',borderRadius:'8px',fontSize:'1rem',color:'#1e3a5f',fontWeight:'600'},
+  bilanResume:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem',marginBottom:'1.5rem'},
+  bilanResumeItem:{background:'#dbeafe',border:'2px solid #2563eb',borderRadius:'12px',padding:'1.2rem',textAlign:'center'},
+  bilanResumeNum:{fontSize:'2.2rem',fontWeight:'bold',color:'#1e3a5f'},
+  bilanResumeLabel:{fontSize:'0.9rem',color:'#475569',marginTop:'0.3rem'},
+  bilanVide:{background:'#f8fafc',borderRadius:'8px',padding:'2rem',textAlign:'center',color:'#9ca3af',fontSize:'1rem'},
+  btnBilanImprimer:{background:'#0f766e',color:'white',border:'none',borderRadius:'8px',padding:'0.8rem 1.8rem',cursor:'pointer',fontSize:'1rem',fontWeight:'600'},
   succes:{color:'green',fontWeight:'600',marginTop:'0.75rem'},
   erreur:{color:'red',fontWeight:'600',marginTop:'0.75rem'},
 };
