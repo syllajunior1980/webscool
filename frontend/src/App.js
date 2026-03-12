@@ -366,6 +366,77 @@ export default function App() {
     const f = window.open('','_blank'); f.document.write(html); f.document.close();
   };
 
+  const imprimerRecuPaiement = (eleve) => {
+    const paiement = paiements[eleve.id];
+    const datePaiement = paiement?.date_paiement
+      ? new Date(paiement.date_paiement + 'T00:00:00').toLocaleDateString('fr-FR', {day:'2-digit',month:'long',year:'numeric'})
+      : new Date().toLocaleDateString('fr-FR', {day:'2-digit',month:'long',year:'numeric'});
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Reçu ${eleve.matricule}</title>
+    <style>
+      body{font-family:Arial,sans-serif;margin:0;padding:0;background:#f0f4f8;}
+      .page{width:148mm;min-height:105mm;margin:10mm auto;background:white;border:2px solid #1e3a5f;border-radius:8px;padding:0;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.15);}
+      .entete{background:linear-gradient(135deg,#1e3a5f,#2563eb);color:white;padding:10px 16px;display:flex;align-items:center;gap:12px;}
+      .entete-texte h2{margin:0;font-size:11px;font-weight:bold;}
+      .entete-texte p{margin:2px 0 0;font-size:9px;opacity:0.85;}
+      .titre-recu{text-align:center;background:#e8f0fe;padding:6px;font-size:12px;font-weight:bold;color:#1e3a5f;letter-spacing:1px;border-bottom:2px solid #1e3a5f;}
+      .corps{display:flex;gap:16px;padding:14px 16px;align-items:flex-start;}
+      .photo{width:70px;height:90px;object-fit:cover;border-radius:6px;border:2px solid #1e3a5f;flex-shrink:0;}
+      .photo-placeholder{width:70px;height:90px;background:#e2e8f0;border-radius:6px;border:2px solid #1e3a5f;display:flex;align-items:center;justify-content:center;font-size:2rem;flex-shrink:0;}
+      .infos{flex:1;}
+      .nom{font-size:14px;font-weight:bold;color:#1e3a5f;margin:0 0 2px;}
+      .classe{font-size:11px;color:#2563eb;font-weight:600;margin:0 0 8px;}
+      .ligne{display:flex;justify-content:space-between;font-size:10px;margin:3px 0;padding:3px 0;border-bottom:1px dashed #e2e8f0;}
+      .ligne span:first-child{color:#64748b;}
+      .ligne span:last-child{font-weight:600;color:#1e3a5f;}
+      .montant-box{background:#dcfce7;border:2px solid #16a34a;border-radius:8px;padding:8px 12px;margin:10px 16px;display:flex;justify-content:space-between;align-items:center;}
+      .montant-label{font-size:11px;color:#166534;font-weight:600;}
+      .montant-val{font-size:18px;font-weight:bold;color:#166534;}
+      .phrase{font-size:9px;color:#374151;font-style:italic;text-align:center;padding:6px 16px;line-height:1.5;background:#f8fafc;border-top:1px solid #e2e8f0;}
+      .signatures{display:flex;justify-content:space-between;padding:8px 24px 10px;border-top:1px solid #e2e8f0;}
+      .sig{text-align:center;font-size:9px;color:#374151;}
+      .sig-line{border-bottom:1px solid #374151;height:28px;margin-top:4px;width:80px;}
+      .badge-ok{display:inline-block;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:bold;}
+      @media print{body{background:white;}.page{box-shadow:none;border:2px solid #1e3a5f;margin:5mm auto;}}
+    </style></head><body>
+    <div class="page">
+      <div class="entete">
+        <div style="font-size:1.8rem;">🎓</div>
+        <div class="entete-texte">
+          <h2>${ETABLISSEMENT}</h2>
+          <p>Année scolaire : ${ANNEE_SCOLAIRE}</p>
+        </div>
+      </div>
+      <div class="titre-recu">✅ REÇU DE PAIEMENT — DROITS D'INSCRIPTION</div>
+      <div class="corps">
+        ${eleve.photo_url
+          ? `<img src="${eleve.photo_url}" class="photo" onerror="this.style.display='none'"/>`
+          : `<div class="photo-placeholder">👤</div>`}
+        <div class="infos">
+          <div class="nom">${eleve.nom} ${eleve.prenom}</div>
+          <div class="classe">Classe : ${eleve.classe}</div>
+          <div class="ligne"><span>Matricule :</span><span>${eleve.matricule||'-'}</span></div>
+          <div class="ligne"><span>Date de paiement :</span><span>${datePaiement}</span></div>
+          <div class="ligne"><span>Statut :</span><span><span class="badge-ok">✅ PAYÉ</span></span></div>
+        </div>
+      </div>
+      <div class="montant-box">
+        <span class="montant-label">💰 Montant reçu :</span>
+        <span class="montant-val">${MONTANT_INSCRIPTION.toLocaleString()} FCFA</span>
+      </div>
+      <div class="phrase">
+        Le présent reçu certifie que l'élève <strong>${eleve.nom} ${eleve.prenom}</strong> a régulièrement acquitté ses droits d'inscription pour l'année scolaire <strong>${ANNEE_SCOLAIRE}</strong>.<br/>
+        Ce document fait foi auprès de l'administration scolaire et des parents ou tuteurs légaux.
+      </div>
+      <div class="signatures">
+        <div class="sig"><div>L'Économe</div><div class="sig-line"></div></div>
+        <div class="sig" style="text-align:center;font-size:9px;color:#9ca3af;">N° : ${eleve.id}-${new Date().getFullYear()}</div>
+        <div class="sig"><div>Le Directeur</div><div class="sig-line"></div></div>
+      </div>
+    </div>
+    <script>window.onload=function(){window.print();}</script></body></html>`;
+    const f = window.open('','_blank'); f.document.write(html); f.document.close();
+  };
+
   const imprimerTrombinoscope = () => {
     const elevesClasse = classeTrombi
       ? eleves.filter(e => e.classe === classeTrombi && e.photo_url)
@@ -536,6 +607,11 @@ export default function App() {
                 <p style={{margin:'4px 0'}}>Inscription : {paiements[eleveSelectionne.id]
                   ? <span style={s.badgeAdmis}>✅ Payé</span>
                   : <span style={s.badgeExclu}>❌ Non payé</span>}</p>
+                {paiements[eleveSelectionne.id] && (
+                  <button onClick={()=>imprimerRecuPaiement(eleveSelectionne)} style={{marginTop:'8px',background:'#0f766e',color:'white',border:'none',borderRadius:'8px',padding:'6px 14px',cursor:'pointer',fontWeight:'600',fontSize:'0.9rem'}}>
+                    🧾 Imprimer le reçu
+                  </button>
+                )}
               </div>
             </div>
             <div style={s.ficheGrid}>
@@ -686,7 +762,10 @@ export default function App() {
                         <td style={s.td}><span style={s.badgeClasse}>{e.classe}</span></td>
                         <td style={s.td}>{e.nom_parent||'-'}</td>
                         <td style={s.td}>{paiements[e.id]?<span style={s.badgeAdmis}>✅ Payé — {paiements[e.id].date_paiement?new Date(paiements[e.id].date_paiement).toLocaleDateString('fr-FR'):''}</span>:<span style={s.badgeExclu}>❌ Non payé</span>}</td>
-                        <td style={s.td}><button onClick={()=>togglePaiement(e)} style={paiements[e.id]?s.btnAnnulerPaiement:s.btnPayer}>{paiements[e.id]?'↩️ Annuler':'💰 Encaisser'}</button></td>
+                        <td style={s.td}>
+                          <button onClick={()=>togglePaiement(e)} style={paiements[e.id]?s.btnAnnulerPaiement:s.btnPayer}>{paiements[e.id]?'↩️ Annuler':'💰 Encaisser'}</button>
+                          {paiements[e.id] && <button onClick={()=>imprimerRecuPaiement(e)} style={{...s.btnVoir,marginLeft:'4px',background:'#0f766e'}}>🧾 Reçu</button>}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
