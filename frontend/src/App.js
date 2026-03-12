@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 
 const API = 'https://webscool.onrender.com/api';
@@ -24,22 +24,29 @@ export default function App() {
   const [calcEnCours, setCalcEnCours] = useState(false);
   const [calcStatus, setCalcStatus] = useState('');
   const [formulaire, setFormulaire] = useState({
-    matricule: '', nom: '', prenom: '', classe: '', numero_extrait: '',
-    moyenne_t1: '', moyenne_t2: '', moyenne_t3: '', moyenne_generale: '',
-    decision_fin_annee: '', nom_parent: '', telephone1: '', telephone2: ''
+    matricule:'',nom:'',prenom:'',classe:'',numero_extrait:'',
+    moyenne_t1:'',moyenne_t2:'',moyenne_t3:'',moyenne_generale:'',
+    decision_fin_annee:'',nom_parent:'',telephone1:'',telephone2:''
   });
   const [modeFormulaire, setModeFormulaire] = useState('ajouter');
   const [messageFormulaire, setMessageFormulaire] = useState('');
-
   const [rechercheInscription, setRechercheInscription] = useState('');
   const [classeFiltreInscription, setClasseFiltreInscription] = useState('');
   const [elevesInscription, setElevesInscription] = useState([]);
   const [paiements, setPaiements] = useState({});
   const [messageInscription, setMessageInscription] = useState('');
-
-  // Bilan journalier
   const [dateBilan, setDateBilan] = useState(new Date().toISOString().split('T')[0]);
   const [sousOngletInscription, setSousOngletInscription] = useState('encaissement');
+
+  // Photos
+  const [uploadEnCours, setUploadEnCours] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState('');
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [recherchePhoto, setRecherchePhoto] = useState('');
+  const [eleveRecherchePhoto, setEleveRecherchePhoto] = useState(null);
+  const [classeTrombi, setClasseTrombi] = useState('');
+  const [sousOngletPhotos, setSousOngletPhotos] = useState('import');
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     if (connecte) { chargerEleves(); chargerClasses(); chargerPaiements(); }
@@ -54,12 +61,10 @@ export default function App() {
     try { const res = await axios.get(`${API}/eleves`); setEleves(res.data); setElevesInscription(res.data); }
     catch (err) { console.error('Erreur:', err); }
   };
-
   const chargerClasses = async () => {
     try { const res = await axios.get(`${API}/eleves/classes`); setClasses(res.data.map(r => r.classe)); }
     catch (err) { console.error(err); }
   };
-
   const chargerPaiements = async () => {
     try {
       const res = await axios.get(`${API}/inscriptions`);
@@ -68,67 +73,96 @@ export default function App() {
       setPaiements(map);
     } catch (err) { console.error('Paiements:', err); }
   };
-
   const rechercherEleves = async (val) => {
     setRecherche(val);
     if (val.length < 2) { chargerEleves(); return; }
     try { const res = await axios.get(`${API}/eleves/recherche?q=${val}`); setEleves(res.data); }
     catch (err) { console.error(err); }
   };
-
   const filtrerParClasse = async (classe) => {
     setClasseFiltre(classe); setRecherche('');
     if (!classe) { chargerEleves(); return; }
     try { const res = await axios.get(`${API}/eleves/classe/${classe}`); setEleves(res.data); }
     catch (err) { console.error(err); }
   };
-
   const rechercherInscription = async (val) => {
-    setRechercheInscription(val);
-    setClasseFiltreInscription('');
+    setRechercheInscription(val); setClasseFiltreInscription('');
     if (val.length < 2) { setElevesInscription(eleves); return; }
     try { const res = await axios.get(`${API}/eleves/recherche?q=${val}`); setElevesInscription(res.data); }
     catch (err) { console.error(err); }
   };
-
   const filtrerInscriptionParClasse = async (classe) => {
     setClasseFiltreInscription(classe); setRechercheInscription('');
     if (!classe) { setElevesInscription(eleves); return; }
     try { const res = await axios.get(`${API}/eleves/classe/${classe}`); setElevesInscription(res.data); }
     catch (err) { console.error(err); }
   };
-
   const togglePaiement = async (eleve) => {
     const estPaye = !!paiements[eleve.id];
     try {
       if (estPaye) {
         await axios.delete(`${API}/inscriptions/${eleve.id}`);
-        const newP = {...paiements};
-        delete newP[eleve.id];
-        setPaiements(newP);
+        const newP = {...paiements}; delete newP[eleve.id]; setPaiements(newP);
         setMessageInscription(`❌ Paiement annulé pour ${eleve.nom} ${eleve.prenom}`);
       } else {
         const res = await axios.post(`${API}/inscriptions`, {
-          eleve_id: eleve.id,
-          montant: MONTANT_INSCRIPTION,
+          eleve_id: eleve.id, montant: MONTANT_INSCRIPTION,
           date_paiement: new Date().toISOString().split('T')[0]
         });
         setPaiements({...paiements, [eleve.id]: res.data});
         setMessageInscription(`✅ Paiement enregistré pour ${eleve.nom} ${eleve.prenom}`);
       }
       setTimeout(() => setMessageInscription(''), 3000);
-    } catch (err) {
-      setMessageInscription('❌ Erreur: ' + (err.response?.data?.erreur || err.message));
+    } catch (err) { setMessageInscription('❌ Erreur: ' + (err.response?.data?.erreur || err.message)); }
+  };
+
+  // ===== PHOTOS =====
+  const importerPhotosGroupees = async (fichiers) => {
+    if (!fichiers || fichiers.length === 0) return;
+    setUploadEnCours(true);
+    setUploadProgress(0);
+    setUploadStatus(`⏳ Préparation de ${fichiers.length} photos...`);
+
+    const BATCH = 20;
+    let total = 0; let erreurs = 0;
+    const tabFichiers = Array.from(fichiers);
+
+    for (let i = 0; i < tabFichiers.length; i += BATCH) {
+      const lot = tabFichiers.slice(i, i + BATCH);
+      const formData = new FormData();
+      lot.forEach(f => formData.append('photos', f));
+      try {
+        const res = await axios.post(`${API}/photos/upload-multiple`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }, timeout: 300000
+        });
+        total += res.data.uploaded;
+        erreurs += res.data.erreurs;
+      } catch (err) { erreurs += lot.length; }
+      const progress = Math.round(((i + BATCH) / tabFichiers.length) * 100);
+      setUploadProgress(Math.min(progress, 100));
+      setUploadStatus(`⏳ ${Math.min(i + BATCH, tabFichiers.length)} / ${tabFichiers.length} photos traitées...`);
     }
+
+    setUploadStatus(`✅ ${total} photos importées ! ${erreurs > 0 ? `⚠️ ${erreurs} erreurs` : ''}`);
+    setUploadEnCours(false);
+    chargerEleves();
+  };
+
+  const rechercherElevePhoto = async (val) => {
+    setRecherchePhoto(val);
+    setEleveRecherchePhoto(null);
+    if (val.length < 2) return;
+    try {
+      const res = await axios.get(`${API}/eleves/recherche?q=${val}`);
+      if (res.data.length > 0) setEleveRecherchePhoto(res.data[0]);
+    } catch (err) { console.error(err); }
   };
 
   const importerTrimestre = async () => {
     if (!fichierExcel) { setImportStatus('⚠️ Choisissez un fichier Excel'); return; }
-    setImportEnCours(true);
-    setImportStatus(`⏳ Import ${trimestreActif} en cours...`);
+    setImportEnCours(true); setImportStatus(`⏳ Import ${trimestreActif} en cours...`);
     const formData = new FormData();
-    formData.append('fichier', fichierExcel);
-    formData.append('trimestre', trimestreActif);
+    formData.append('fichier', fichierExcel); formData.append('trimestre', trimestreActif);
     try {
       const res = await axios.post(`${API}/import/trimestre`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }, timeout: 120000
@@ -136,47 +170,40 @@ export default function App() {
       setImportStatus(`✅ ${res.data.mis_a_jour} élèves mis à jour pour ${trimestreActif} !`);
       chargerEleves();
     } catch (err) {
-      const msg = err.response?.data?.erreur || err.message || 'Erreur inconnue';
-      setImportStatus('❌ Erreur: ' + JSON.stringify(msg));
+      setImportStatus('❌ Erreur: ' + JSON.stringify(err.response?.data?.erreur || err.message));
     }
     setImportEnCours(false);
   };
-
   const calculerMoyennesAnnuelles = async () => {
-    if (!window.confirm('Calculer MGA et DFA pour tous les élèves ayant T1, T2 et T3 ?')) return;
+    if (!window.confirm('Calculer MGA et DFA pour tous les élèves ?')) return;
     setCalcEnCours(true); setCalcStatus('⏳ Calcul en cours...');
     try {
       const res = await axios.post(`${API}/eleves/calculer-moyennes`);
       setCalcStatus(`✅ ${res.data.mis_a_jour} élèves mis à jour ! (Admis: ${res.data.admis}, Redoublants: ${res.data.redoublants}, Exclus: ${res.data.exclus})`);
       chargerEleves();
-    } catch (err) {
-      setCalcStatus('❌ Erreur: ' + (err.response?.data?.erreur || err.message));
-    }
+    } catch (err) { setCalcStatus('❌ Erreur: ' + (err.response?.data?.erreur || err.message)); }
     setCalcEnCours(false);
   };
-
   const ouvrirFiche = (eleve) => { setEleveSelectionne(eleve); setOnglet('fiche'); };
-
   const ouvrirFormulaire = (eleve = null) => {
     if (eleve) {
       setFormulaire({
-        matricule: eleve.matricule||'', nom: eleve.nom||'', prenom: eleve.prenom||'',
-        classe: eleve.classe||'', numero_extrait: eleve.numero_extrait||'',
-        moyenne_t1: eleve.moyenne_t1||'', moyenne_t2: eleve.moyenne_t2||'',
-        moyenne_t3: eleve.moyenne_t3||'', moyenne_generale: eleve.moyenne_generale||'',
-        decision_fin_annee: eleve.decision_fin_annee||'', nom_parent: eleve.nom_parent||'',
-        telephone1: eleve.telephone1||'', telephone2: eleve.telephone2||''
+        matricule:eleve.matricule||'',nom:eleve.nom||'',prenom:eleve.prenom||'',
+        classe:eleve.classe||'',numero_extrait:eleve.numero_extrait||'',
+        moyenne_t1:eleve.moyenne_t1||'',moyenne_t2:eleve.moyenne_t2||'',
+        moyenne_t3:eleve.moyenne_t3||'',moyenne_generale:eleve.moyenne_generale||'',
+        decision_fin_annee:eleve.decision_fin_annee||'',nom_parent:eleve.nom_parent||'',
+        telephone1:eleve.telephone1||'',telephone2:eleve.telephone2||''
       });
       setModeFormulaire('modifier');
     } else {
-      setFormulaire({ matricule:'', nom:'', prenom:'', classe:'', numero_extrait:'',
-        moyenne_t1:'', moyenne_t2:'', moyenne_t3:'', moyenne_generale:'',
-        decision_fin_annee:'', nom_parent:'', telephone1:'', telephone2:'' });
+      setFormulaire({matricule:'',nom:'',prenom:'',classe:'',numero_extrait:'',
+        moyenne_t1:'',moyenne_t2:'',moyenne_t3:'',moyenne_generale:'',
+        decision_fin_annee:'',nom_parent:'',telephone1:'',telephone2:''});
       setModeFormulaire('ajouter');
     }
     setMessageFormulaire(''); setOnglet('formulaire');
   };
-
   const sauvegarderEleve = async () => {
     if (!formulaire.nom || !formulaire.prenom || !formulaire.classe) {
       setMessageFormulaire('❌ Nom, prénom et classe sont obligatoires'); return;
@@ -192,7 +219,6 @@ export default function App() {
       chargerEleves(); chargerClasses();
     } catch (err) { setMessageFormulaire('❌ Erreur: ' + (err.response?.data?.erreur || err.message)); }
   };
-
   const supprimerEleve = async (id) => {
     if (!window.confirm('Supprimer cet élève ?')) return;
     try { await axios.delete(`${API}/eleves/${id}`); chargerEleves(); }
@@ -207,26 +233,22 @@ export default function App() {
     const exclus = elevesAImprimer.filter(e => e.decision_fin_annee === 'Exclu').length;
     const moyennesValides = elevesAImprimer.filter(e => e.moyenne_generale && parseFloat(e.moyenne_generale) > 0);
     const moyenneClasse = moyennesValides.length > 0
-      ? (moyennesValides.reduce((s,e) => s + parseFloat(e.moyenne_generale), 0) / moyennesValides.length).toFixed(2)
-      : '-';
+      ? (moyennesValides.reduce((s,e) => s + parseFloat(e.moyenne_generale), 0) / moyennesValides.length).toFixed(2) : '-';
     const lignes = elevesAImprimer.map((e, i) => `
-      <tr>
-        <td style="padding:5px 4px;text-align:center;border:1px solid #ccc;">${i+1}</td>
-        <td style="padding:5px 4px;border:1px solid #ccc;">${e.matricule||''}</td>
-        <td style="padding:5px 4px;font-weight:bold;border:1px solid #ccc;">${e.nom||''}</td>
-        <td style="padding:5px 4px;border:1px solid #ccc;">${e.prenom||''}</td>
-        <td style="padding:5px 4px;text-align:center;border:1px solid #ccc;">${e.moyenne_t1||'-'}</td>
-        <td style="padding:5px 4px;text-align:center;border:1px solid #ccc;">${e.moyenne_t2||'-'}</td>
-        <td style="padding:5px 4px;text-align:center;border:1px solid #ccc;">${e.moyenne_t3||'-'}</td>
-        <td style="padding:5px 4px;text-align:center;font-weight:bold;border:1px solid #ccc;">${e.moyenne_generale||'-'}</td>
-        <td style="padding:5px 4px;text-align:center;border:1px solid #ccc;color:${e.decision_fin_annee==='Admis'?'green':e.decision_fin_annee==='Redoublant'?'orange':'red'};font-weight:bold;">${e.decision_fin_annee||'-'}</td>
-      </tr>`).join('');
+      <tr><td style="padding:5px 4px;text-align:center;border:1px solid #ccc;">${i+1}</td>
+      <td style="padding:5px 4px;border:1px solid #ccc;">${e.matricule||''}</td>
+      <td style="padding:5px 4px;font-weight:bold;border:1px solid #ccc;">${e.nom||''}</td>
+      <td style="padding:5px 4px;border:1px solid #ccc;">${e.prenom||''}</td>
+      <td style="padding:5px 4px;text-align:center;border:1px solid #ccc;">${e.moyenne_t1||'-'}</td>
+      <td style="padding:5px 4px;text-align:center;border:1px solid #ccc;">${e.moyenne_t2||'-'}</td>
+      <td style="padding:5px 4px;text-align:center;border:1px solid #ccc;">${e.moyenne_t3||'-'}</td>
+      <td style="padding:5px 4px;text-align:center;font-weight:bold;border:1px solid #ccc;">${e.moyenne_generale||'-'}</td>
+      <td style="padding:5px 4px;text-align:center;border:1px solid #ccc;color:${e.decision_fin_annee==='Admis'?'green':e.decision_fin_annee==='Redoublant'?'orange':'red'};font-weight:bold;">${e.decision_fin_annee||'-'}</td></tr>`).join('');
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Liste ${classeFiltre}</title>
       <style>body{font-family:Arial,sans-serif;margin:20px;font-size:12px;}@media print{body{margin:10px;}}
       .entete{text-align:center;margin-bottom:20px;border-bottom:2px solid #000;padding-bottom:10px;}
-      .entete h2{margin:0;font-size:14px;text-transform:uppercase;}.entete h1{margin:5px 0;font-size:18px;text-transform:uppercase;color:#1e3a5f;}
-      .entete p{margin:2px 0;font-size:11px;color:#555;}table{width:100%;border-collapse:collapse;margin-top:10px;}
-      thead{background-color:#1e3a5f;color:white;}thead th{padding:7px 4px;border:1px solid #ccc;font-size:11px;}
+      table{width:100%;border-collapse:collapse;}thead{background-color:#1e3a5f;color:white;}
+      thead th{padding:7px 4px;border:1px solid #ccc;font-size:11px;}
       .stats{display:flex;gap:20px;margin-top:15px;padding:10px;background:#f0f4f8;border-radius:6px;flex-wrap:wrap;}
       .footer{margin-top:30px;display:flex;justify-content:space-between;font-size:11px;}</style></head><body>
       <div class="entete"><h2>${ETABLISSEMENT}</h2><h1>LISTE DES ÉLÈVES DE ${classeFiltre.toUpperCase()}</h1>
@@ -238,193 +260,145 @@ export default function App() {
       <span style="color:green;">✅ <strong>Admis :</strong> ${admis}</span>
       <span style="color:orange;">🔄 <strong>Redoublants :</strong> ${redoublants}</span>
       <span style="color:red;">❌ <strong>Exclus :</strong> ${exclus}</span>
-      <span>📊 <strong>Taux réussite :</strong> ${elevesAImprimer.length > 0 ? Math.round(admis/elevesAImprimer.length*100) : 0}%</span></div>
+      <span>📊 <strong>Taux :</strong> ${elevesAImprimer.length > 0 ? Math.round(admis/elevesAImprimer.length*100) : 0}%</span></div>
       <div class="footer"><span>Imprimé le : ${new Date().toLocaleDateString('fr-FR')}</span>
       <span>Signature du Directeur : ________________</span></div>
       <script>window.onload=function(){window.print();}</script></body></html>`;
-    const fenetre = window.open('', '_blank');
-    fenetre.document.write(html);
-    fenetre.document.close();
+    const f = window.open('','_blank'); f.document.write(html); f.document.close();
   };
 
   const imprimerListeBEPC = () => {
     const classes3eme = classes.filter(c => c.toLowerCase().startsWith('3'));
-    const admisBepc = eleves.filter(e =>
-      classes3eme.some(c => c === e.classe) && e.decision_fin_annee === 'Admis'
-    ).sort((a,b) => (parseFloat(b.moyenne_generale)||0) - (parseFloat(a.moyenne_generale)||0));
-    const lignes = admisBepc.map((e, i) => `
-      <tr>
-        <td style="padding:5px 4px;text-align:center;border:1px solid #ccc;">${i+1}</td>
-        <td style="padding:5px 4px;border:1px solid #ccc;">${e.matricule||''}</td>
-        <td style="padding:5px 4px;font-weight:bold;border:1px solid #ccc;">${e.nom||''}</td>
-        <td style="padding:5px 4px;border:1px solid #ccc;">${e.prenom||''}</td>
-        <td style="padding:5px 4px;text-align:center;border:1px solid #ccc;">${e.classe||''}</td>
-        <td style="padding:5px 4px;text-align:center;font-weight:bold;color:green;border:1px solid #ccc;">${e.moyenne_generale||'-'}</td>
-        <td style="padding:5px 4px;border:1px solid #ccc;">${e.nom_parent||''}</td>
-        <td style="padding:5px 4px;border:1px solid #ccc;">${e.telephone1||''}</td>
-      </tr>`).join('');
+    const admisBepc = eleves.filter(e => classes3eme.some(c => c === e.classe) && e.decision_fin_annee === 'Admis')
+      .sort((a,b) => (parseFloat(b.moyenne_generale)||0)-(parseFloat(a.moyenne_generale)||0));
+    const lignes = admisBepc.map((e,i) => `
+      <tr><td style="padding:5px 4px;text-align:center;border:1px solid #ccc;">${i+1}</td>
+      <td style="padding:5px 4px;border:1px solid #ccc;">${e.matricule||''}</td>
+      <td style="padding:5px 4px;font-weight:bold;border:1px solid #ccc;">${e.nom||''}</td>
+      <td style="padding:5px 4px;border:1px solid #ccc;">${e.prenom||''}</td>
+      <td style="padding:5px 4px;text-align:center;border:1px solid #ccc;">${e.classe||''}</td>
+      <td style="padding:5px 4px;text-align:center;font-weight:bold;color:green;border:1px solid #ccc;">${e.moyenne_generale||'-'}</td>
+      <td style="padding:5px 4px;border:1px solid #ccc;">${e.nom_parent||''}</td>
+      <td style="padding:5px 4px;border:1px solid #ccc;">${e.telephone1||''}</td></tr>`).join('');
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Admis BEPC</title>
-      <style>body{font-family:Arial,sans-serif;margin:20px;font-size:12px;}@media print{body{margin:10px;}}
+      <style>body{font-family:Arial,sans-serif;margin:20px;font-size:12px;}
       .entete{text-align:center;margin-bottom:20px;border-bottom:2px solid #000;padding-bottom:10px;}
-      .entete h2{margin:0;font-size:14px;text-transform:uppercase;}.entete h1{margin:5px 0;font-size:18px;text-transform:uppercase;color:#166534;}
-      .entete p{margin:2px 0;font-size:11px;color:#555;}table{width:100%;border-collapse:collapse;margin-top:10px;}
-      thead{background-color:#166534;color:white;}thead th{padding:7px 4px;border:1px solid #ccc;font-size:11px;}
-      .stats{margin-top:15px;padding:10px;background:#dcfce7;border-radius:6px;font-size:13px;}
+      table{width:100%;border-collapse:collapse;}thead{background-color:#166534;color:white;}
+      thead th{padding:7px 4px;border:1px solid #ccc;font-size:11px;}
+      .stats{margin-top:15px;padding:10px;background:#dcfce7;border-radius:6px;}
       .footer{margin-top:30px;display:flex;justify-content:space-between;font-size:11px;}</style></head><body>
       <div class="entete"><h2>${ETABLISSEMENT}</h2><h1>LISTE DES ADMIS AU BEPC</h1>
-      <p>Année scolaire : ${ANNEE_SCOLAIRE} — Élèves de 3ème</p></div>
+      <p>Année scolaire : ${ANNEE_SCOLAIRE}</p></div>
       <table><thead><tr><th>N°</th><th>Matricule</th><th>Nom</th><th>Prénom</th><th>Classe</th><th>MGA</th><th>Parent</th><th>Téléphone</th></tr></thead>
       <tbody>${lignes}</tbody></table>
       <div class="stats">✅ <strong>Total admis au BEPC : ${admisBepc.length} élèves</strong></div>
       <div class="footer"><span>Imprimé le : ${new Date().toLocaleDateString('fr-FR')}</span>
-      <span>Signature du Chef de service : ________________</span></div>
+      <span>Signature : ________________</span></div>
       <script>window.onload=function(){window.print();}</script></body></html>`;
-    const fenetre = window.open('', '_blank');
-    fenetre.document.write(html);
-    fenetre.document.close();
+    const f = window.open('','_blank'); f.document.write(html); f.document.close();
   };
 
   const imprimerListePayes = () => {
     const filtre = classeFiltreInscription;
-    const liste = elevesInscription
-      .filter(e => paiements[e.id])
-      .sort((a,b) => (a.nom||'').localeCompare(b.nom||''));
-    const lignes = liste.map((e, i) => `
-      <tr>
-        <td style="padding:5px 4px;text-align:center;border:1px solid #ccc;">${i+1}</td>
-        <td style="padding:5px 4px;border:1px solid #ccc;">${e.matricule||''}</td>
-        <td style="padding:5px 4px;font-weight:bold;border:1px solid #ccc;">${e.nom||''}</td>
-        <td style="padding:5px 4px;border:1px solid #ccc;">${e.prenom||''}</td>
-        <td style="padding:5px 4px;text-align:center;border:1px solid #ccc;">${e.classe||''}</td>
-        <td style="padding:5px 4px;text-align:center;border:1px solid #ccc;">${paiements[e.id]?.date_paiement ? new Date(paiements[e.id].date_paiement).toLocaleDateString('fr-FR') : '-'}</td>
-        <td style="padding:5px 4px;text-align:center;font-weight:bold;color:green;border:1px solid #ccc;">${MONTANT_INSCRIPTION} FCFA</td>
-      </tr>`).join('');
+    const liste = elevesInscription.filter(e => paiements[e.id]).sort((a,b) => (a.nom||'').localeCompare(b.nom||''));
+    const lignes = liste.map((e,i) => `
+      <tr><td style="padding:5px 4px;text-align:center;border:1px solid #ccc;">${i+1}</td>
+      <td style="padding:5px 4px;border:1px solid #ccc;">${e.matricule||''}</td>
+      <td style="padding:5px 4px;font-weight:bold;border:1px solid #ccc;">${e.nom||''}</td>
+      <td style="padding:5px 4px;border:1px solid #ccc;">${e.prenom||''}</td>
+      <td style="padding:5px 4px;text-align:center;border:1px solid #ccc;">${e.classe||''}</td>
+      <td style="padding:5px 4px;text-align:center;border:1px solid #ccc;">${paiements[e.id]?.date_paiement?new Date(paiements[e.id].date_paiement).toLocaleDateString('fr-FR'):'-'}</td>
+      <td style="padding:5px 4px;text-align:center;font-weight:bold;color:green;border:1px solid #ccc;">${MONTANT_INSCRIPTION} FCFA</td></tr>`).join('');
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Liste paiements</title>
-      <style>body{font-family:Arial,sans-serif;margin:20px;font-size:12px;}@media print{body{margin:10px;}}
-      .entete{text-align:center;margin-bottom:20px;border-bottom:2px solid #000;padding-bottom:10px;}
-      .entete h2{margin:0;font-size:14px;text-transform:uppercase;}.entete h1{margin:5px 0;font-size:18px;text-transform:uppercase;color:#1e3a5f;}
-      .entete p{margin:2px 0;font-size:11px;color:#555;}table{width:100%;border-collapse:collapse;margin-top:10px;}
-      thead{background-color:#1e3a5f;color:white;}thead th{padding:7px 4px;border:1px solid #ccc;font-size:11px;}
-      .stats{margin-top:15px;padding:10px;background:#dcfce7;border-radius:6px;font-size:13px;display:flex;gap:30px;}
+      <style>body{font-family:Arial,sans-serif;margin:20px;font-size:12px;}
+      table{width:100%;border-collapse:collapse;}thead{background-color:#1e3a5f;color:white;}
+      thead th{padding:7px 4px;border:1px solid #ccc;}
+      .stats{margin-top:15px;padding:10px;background:#dcfce7;border-radius:6px;display:flex;gap:30px;}
       .footer{margin-top:30px;display:flex;justify-content:space-between;font-size:11px;}</style></head><body>
-      <div class="entete"><h2>${ETABLISSEMENT}</h2><h1>LISTE DES ÉLÈVES AYANT PAYÉ LES DROITS D'INSCRIPTION</h1>
-      <p>Année scolaire : ${ANNEE_SCOLAIRE}${filtre ? ' — Classe : '+filtre : ' — Toutes classes'}</p></div>
+      <div style="text-align:center;margin-bottom:20px;border-bottom:2px solid #000;padding-bottom:10px;">
+      <h2>${ETABLISSEMENT}</h2><h1>LISTE DES ÉLÈVES AYANT PAYÉ LES DROITS D'INSCRIPTION</h1>
+      <p>Année scolaire : ${ANNEE_SCOLAIRE}${filtre?' — Classe : '+filtre:' — Toutes classes'}</p></div>
       <table><thead><tr><th>N°</th><th>Matricule</th><th>Nom</th><th>Prénom</th><th>Classe</th><th>Date paiement</th><th>Montant</th></tr></thead>
       <tbody>${lignes}</tbody></table>
-      <div class="stats"><span>👥 <strong>Total payés :</strong> ${liste.length} élèves</span>
+      <div class="stats"><span>👥 <strong>Total payés :</strong> ${liste.length}</span>
       <span>💰 <strong>Total encaissé :</strong> ${liste.length * MONTANT_INSCRIPTION} FCFA</span></div>
       <div class="footer"><span>Imprimé le : ${new Date().toLocaleDateString('fr-FR')}</span>
       <span>Signature de l'Économe : ________________</span></div>
       <script>window.onload=function(){window.print();}</script></body></html>`;
-    const fenetre = window.open('', '_blank');
-    fenetre.document.write(html);
-    fenetre.document.close();
+    const f = window.open('','_blank'); f.document.write(html); f.document.close();
   };
 
-  // === BILAN JOURNALIER ===
   const imprimerBilanJournalier = () => {
-    const elevesDuJour = Object.values(paiements)
-      .filter(p => p.date_paiement && p.date_paiement.split('T')[0] === dateBilan);
+    const elevesDuJour = Object.values(paiements).filter(p => p.date_paiement && p.date_paiement.split('T')[0] === dateBilan);
     const idsPayesDuJour = new Set(elevesDuJour.map(p => p.eleve_id));
-    const elevesDuJourAvecInfo = eleves
-      .filter(e => idsPayesDuJour.has(e.id))
-      .sort((a,b) => (a.nom||'').localeCompare(b.nom||''));
-
-    const dateAffichee = new Date(dateBilan + 'T00:00:00').toLocaleDateString('fr-FR', {
-      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-    });
-    const totalJour = elevesDuJourAvecInfo.length * MONTANT_INSCRIPTION;
-
-    const lignes = elevesDuJourAvecInfo.map((e, i) => `
-      <tr>
-        <td style="padding:6px 5px;text-align:center;border:1px solid #ccc;">${i+1}</td>
-        <td style="padding:6px 5px;border:1px solid #ccc;">${e.matricule||''}</td>
-        <td style="padding:6px 5px;font-weight:bold;border:1px solid #ccc;">${e.nom||''}</td>
-        <td style="padding:6px 5px;border:1px solid #ccc;">${e.prenom||''}</td>
-        <td style="padding:6px 5px;text-align:center;border:1px solid #ccc;">${e.classe||''}</td>
-        <td style="padding:6px 5px;text-align:center;font-weight:bold;color:green;border:1px solid #ccc;">${MONTANT_INSCRIPTION} FCFA</td>
-      </tr>`).join('');
-
+    const liste = eleves.filter(e => idsPayesDuJour.has(e.id)).sort((a,b) => (a.nom||'').localeCompare(b.nom||''));
+    const dateAffichee = new Date(dateBilan+'T00:00:00').toLocaleDateString('fr-FR',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+    const lignes = liste.map((e,i) => `
+      <tr><td style="padding:6px 5px;text-align:center;border:1px solid #ccc;">${i+1}</td>
+      <td style="padding:6px 5px;border:1px solid #ccc;">${e.matricule||''}</td>
+      <td style="padding:6px 5px;font-weight:bold;border:1px solid #ccc;">${e.nom||''}</td>
+      <td style="padding:6px 5px;border:1px solid #ccc;">${e.prenom||''}</td>
+      <td style="padding:6px 5px;text-align:center;border:1px solid #ccc;">${e.classe||''}</td>
+      <td style="padding:6px 5px;text-align:center;font-weight:bold;color:green;border:1px solid #ccc;">${MONTANT_INSCRIPTION} FCFA</td></tr>`).join('');
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Bilan ${dateBilan}</title>
-      <style>
-        body{font-family:Arial,sans-serif;margin:20px;font-size:12px;}
-        @media print{body{margin:10px;}}
-        .entete{text-align:center;margin-bottom:20px;border-bottom:2px solid #000;padding-bottom:12px;}
-        .entete h2{margin:0;font-size:13px;text-transform:uppercase;}
-        .entete h1{margin:6px 0;font-size:17px;text-transform:uppercase;color:#1e3a5f;}
-        .entete .date{font-size:13px;font-weight:bold;color:#374151;margin:4px 0;}
-        table{width:100%;border-collapse:collapse;margin-top:10px;}
-        thead{background-color:#1e3a5f;color:white;}
-        thead th{padding:8px 5px;border:1px solid #ccc;font-size:11px;}
-        .recap{margin-top:20px;padding:12px 16px;background:#f0fdf4;border:2px solid #16a34a;border-radius:8px;}
-        .recap-titre{font-size:13px;font-weight:bold;color:#166534;margin-bottom:8px;}
-        .recap-ligne{display:flex;justify-content:space-between;font-size:13px;margin:4px 0;}
-        .recap-total{display:flex;justify-content:space-between;font-size:16px;font-weight:bold;color:#166534;margin-top:10px;padding-top:8px;border-top:2px solid #16a34a;}
-        .vide{text-align:center;padding:30px;color:#9ca3af;font-style:italic;font-size:13px;}
-        .signatures{margin-top:40px;display:flex;justify-content:space-between;}
-        .sig-box{text-align:center;width:45%;}
-        .sig-box p{margin:0 0 4px;font-weight:bold;font-size:11px;}
-        .sig-line{border-bottom:1px solid #000;height:50px;margin-top:8px;}
-      </style></head><body>
-      <div class="entete">
-        <h2>${ETABLISSEMENT}</h2>
-        <h1>📊 BILAN JOURNALIER DES DROITS D'INSCRIPTION</h1>
-        <div class="date">Journée du : ${dateAffichee}</div>
-        <p style="font-size:11px;color:#555;">Année scolaire : ${ANNEE_SCOLAIRE}</p>
-      </div>
-
-      ${elevesDuJourAvecInfo.length === 0
-        ? `<div class="vide">Aucun paiement enregistré pour cette date.</div>`
-        : `<table>
-        <thead><tr>
-          <th>N°</th><th>Matricule</th><th>Nom</th><th>Prénom</th><th>Classe</th><th>Montant</th>
-        </tr></thead>
-        <tbody>${lignes}</tbody>
-      </table>`}
-
-      <div class="recap">
-        <div class="recap-titre">📋 RÉCAPITULATIF DE LA JOURNÉE</div>
-        <div class="recap-ligne"><span>Nombre d'élèves ayant payé :</span><span><strong>${elevesDuJourAvecInfo.length} élève(s)</strong></span></div>
-        <div class="recap-ligne"><span>Montant unitaire :</span><span>${MONTANT_INSCRIPTION} FCFA</span></div>
-        <div class="recap-total"><span>TOTAL ENCAISSÉ CE JOUR :</span><span>${totalJour.toLocaleString()} FCFA</span></div>
-      </div>
-
+      <style>body{font-family:Arial,sans-serif;margin:20px;font-size:12px;}
+      .entete{text-align:center;margin-bottom:20px;border-bottom:2px solid #000;padding-bottom:12px;}
+      table{width:100%;border-collapse:collapse;margin-top:10px;}thead{background-color:#1e3a5f;color:white;}
+      thead th{padding:8px 5px;border:1px solid #ccc;font-size:11px;}
+      .recap{margin-top:20px;padding:12px 16px;background:#f0fdf4;border:2px solid #16a34a;border-radius:8px;}
+      .signatures{margin-top:40px;display:flex;justify-content:space-between;}
+      .sig-box{text-align:center;width:45%;}.sig-line{border-bottom:1px solid #000;height:50px;margin-top:8px;}</style></head><body>
+      <div class="entete"><h2>${ETABLISSEMENT}</h2><h1>BILAN JOURNALIER DES DROITS D'INSCRIPTION</h1>
+      <div style="font-size:13px;font-weight:bold;">Journée du : ${dateAffichee}</div>
+      <p style="font-size:11px;color:#555;">Année scolaire : ${ANNEE_SCOLAIRE}</p></div>
+      ${liste.length===0?'<p style="text-align:center;color:#9ca3af;">Aucun paiement ce jour.</p>':
+      `<table><thead><tr><th>N°</th><th>Matricule</th><th>Nom</th><th>Prénom</th><th>Classe</th><th>Montant</th></tr></thead>
+      <tbody>${lignes}</tbody></table>`}
+      <div class="recap"><div style="font-size:13px;font-weight:bold;color:#166534;margin-bottom:8px;">RÉCAPITULATIF DE LA JOURNÉE</div>
+      <div style="display:flex;justify-content:space-between;"><span>Nombre d'élèves :</span><span><strong>${liste.length}</strong></span></div>
+      <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:bold;color:#166534;margin-top:8px;padding-top:8px;border-top:2px solid #16a34a;">
+      <span>TOTAL ENCAISSÉ CE JOUR :</span><span>${(liste.length*MONTANT_INSCRIPTION).toLocaleString()} FCFA</span></div></div>
       <div class="signatures">
-        <div class="sig-box">
-          <p>L'Économe / Responsable Financier</p>
-          <div class="sig-line"></div>
-          <p style="margin-top:6px;font-size:10px;color:#555;">Nom et signature</p>
-        </div>
-        <div class="sig-box">
-          <p>Le Directeur</p>
-          <div class="sig-line"></div>
-          <p style="margin-top:6px;font-size:10px;color:#555;">Nom et signature</p>
-        </div>
-      </div>
+      <div class="sig-box"><p style="font-weight:bold;">L'Économe / Responsable Financier</p><div class="sig-line"></div></div>
+      <div class="sig-box"><p style="font-weight:bold;">Le Directeur</p><div class="sig-line"></div></div></div>
+      <p style="text-align:right;font-size:10px;color:#9ca3af;margin-top:20px;">Document généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}</p>
+      <script>window.onload=function(){window.print();}</script></body></html>`;
+    const f = window.open('','_blank'); f.document.write(html); f.document.close();
+  };
 
-      <p style="text-align:right;font-size:10px;color:#9ca3af;margin-top:20px;">
-        Document généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}
-      </p>
-      <script>window.onload=function(){window.print();}</script>
-      </body></html>`;
-    const fenetre = window.open('', '_blank');
-    fenetre.document.write(html);
-    fenetre.document.close();
+  const imprimerTrombinoscope = () => {
+    const elevesClasse = classeTrombi
+      ? eleves.filter(e => e.classe === classeTrombi && e.photo_url)
+      : eleves.filter(e => e.photo_url);
+    const cartes = elevesClasse.map(e => `
+      <div style="display:inline-block;width:130px;margin:8px;text-align:center;vertical-align:top;border:1px solid #ddd;border-radius:8px;padding:8px;background:white;">
+        <img src="${e.photo_url}" style="width:110px;height:140px;object-fit:cover;border-radius:6px;" onerror="this.style.display='none'"/>
+        <div style="margin-top:6px;font-weight:bold;font-size:11px;">${e.nom}</div>
+        <div style="font-size:10px;color:#555;">${e.prenom}</div>
+        <div style="font-size:10px;color:#2563eb;font-weight:600;">${e.classe}</div>
+      </div>`).join('');
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Trombinoscope</title>
+      <style>body{font-family:Arial,sans-serif;margin:20px;}@media print{body{margin:10px;}}
+      .entete{text-align:center;margin-bottom:20px;border-bottom:2px solid #000;padding-bottom:10px;}</style></head><body>
+      <div class="entete"><h2>${ETABLISSEMENT}</h2><h1>TROMBINOSCOPE${classeTrombi?' — '+classeTrombi:''}</h1>
+      <p>Année scolaire : ${ANNEE_SCOLAIRE} — ${elevesClasse.length} élève(s)</p></div>
+      <div>${cartes}</div>
+      <script>window.onload=function(){window.print();}</script></body></html>`;
+    const f = window.open('','_blank'); f.document.write(html); f.document.close();
   };
 
   if (!connecte) {
     return (
-      <div style={styles.loginPage}>
-        <div style={styles.loginBox}>
-          <div style={styles.loginLogo}>🎓</div>
-          <h1 style={styles.loginTitre}>WebScool</h1>
-          <p style={styles.loginSousTitre}>Gestion des élèves</p>
+      <div style={s.loginPage}>
+        <div style={s.loginBox}>
+          <div style={{fontSize:'3rem',marginBottom:'0.5rem'}}>🎓</div>
+          <h1 style={s.loginTitre}>WebScool</h1>
+          <p style={{color:'#666',marginBottom:'1.5rem',fontSize:'0.9rem'}}>Gestion des élèves</p>
           <input type="password" placeholder="Mot de passe" value={mdp}
-            onChange={e=>setMdp(e.target.value)}
-            onKeyPress={e=>e.key==='Enter'&&seConnecter()}
-            style={styles.loginInput} />
+            onChange={e=>setMdp(e.target.value)} onKeyPress={e=>e.key==='Enter'&&seConnecter()}
+            style={s.loginInput} />
           {erreurMdp && <p style={{color:'red',fontSize:'0.85rem'}}>{erreurMdp}</p>}
-          <button onClick={seConnecter} style={styles.loginBtn}>Connexion</button>
+          <button onClick={seConnecter} style={s.loginBtn}>Connexion</button>
         </div>
       </div>
     );
@@ -432,74 +406,60 @@ export default function App() {
 
   const elevesClasse = classeFiltre ? eleves : [];
   const moyenneClasseFiltre = elevesClasse.length > 0
-    ? (() => {
-        const valides = elevesClasse.filter(e=>e.moyenne_generale&&parseFloat(e.moyenne_generale)>0);
-        return valides.length > 0
-          ? (valides.reduce((s,e)=>s+parseFloat(e.moyenne_generale),0)/valides.length).toFixed(2)
-          : '-';
-      })()
-    : '-';
-
+    ? (() => { const v=elevesClasse.filter(e=>e.moyenne_generale&&parseFloat(e.moyenne_generale)>0);
+        return v.length>0?(v.reduce((s,e)=>s+parseFloat(e.moyenne_generale),0)/v.length).toFixed(2):'-'; })() : '-';
   const classes3eme = classes.filter(c => c.toLowerCase().startsWith('3'));
-  const totalAdmisBepc = eleves.filter(e =>
-    classes3eme.some(c => c === e.classe) && e.decision_fin_annee === 'Admis'
-  ).length;
-
+  const totalAdmisBepc = eleves.filter(e => classes3eme.some(c=>c===e.classe) && e.decision_fin_annee==='Admis').length;
   const totalPayes = Object.keys(paiements).length;
   const totalNonPayes = eleves.length - totalPayes;
   const montantTotal = totalPayes * MONTANT_INSCRIPTION;
-
   const elevesAffichesInscription = elevesInscription;
-  const payesDansVue = elevesAffichesInscription.filter(e => paiements[e.id]).length;
+  const payesDansVue = elevesAffichesInscription.filter(e=>paiements[e.id]).length;
   const nonPayesDansVue = elevesAffichesInscription.length - payesDansVue;
-
-  // Calcul bilan du jour sélectionné
-  const elevesDuJourIds = new Set(
-    Object.values(paiements)
-      .filter(p => p.date_paiement && p.date_paiement.split('T')[0] === dateBilan)
-      .map(p => p.eleve_id)
-  );
+  const elevesDuJourIds = new Set(Object.values(paiements).filter(p=>p.date_paiement&&p.date_paiement.split('T')[0]===dateBilan).map(p=>p.eleve_id));
   const nbPayesDuJour = elevesDuJourIds.size;
   const montantDuJour = nbPayesDuJour * MONTANT_INSCRIPTION;
 
+  // Trombinoscope data
+  const elevesTrombi = classeTrombi ? eleves.filter(e=>e.classe===classeTrombi) : eleves;
+  const avecPhoto = elevesTrombi.filter(e=>e.photo_url).length;
+
   return (
-    <div style={styles.app}>
-      <div style={styles.header}>
-        <div style={styles.headerLeft}>
+    <div style={s.app}>
+      <div style={s.header}>
+        <div style={s.headerLeft}>
           <span style={{fontSize:'1.8rem'}}>🎓</span>
           <div>
-            <div style={styles.headerTitre}>WebScool</div>
-            <div style={styles.headerSous}>{eleves.length} élèves — {ETABLISSEMENT}</div>
+            <div style={s.headerTitre}>WebScool</div>
+            <div style={s.headerSous}>{eleves.length} élèves — {ETABLISSEMENT}</div>
           </div>
         </div>
-        <button onClick={()=>setConnecte(false)} style={styles.btnDeconnecter}>Déconnexion</button>
+        <button onClick={()=>setConnecte(false)} style={s.btnDeconnecter}>Déconnexion</button>
       </div>
 
-      <div style={styles.nav}>
-        {[['liste','📋 Élèves'],['formulaire','➕ Ajouter'],['importer','📥 Importer'],['bepc','🏆 BEPC'],['inscription','💰 Inscription']].map(([id,label])=>(
+      <div style={s.nav}>
+        {[['liste','📋 Élèves'],['formulaire','➕ Ajouter'],['importer','📥 Importer'],
+          ['bepc','🏆 BEPC'],['inscription','💰 Inscription'],['photos','📸 Photos']].map(([id,label])=>(
           <button key={id} onClick={()=>{setOnglet(id);if(id==='formulaire')ouvrirFormulaire();}}
-            style={onglet===id?styles.navBtnActif:styles.navBtn}>{label}</button>
+            style={onglet===id?s.navBtnActif:s.navBtn}>{label}</button>
         ))}
       </div>
 
+      {/* ===== LISTE ===== */}
       {onglet==='liste' && (
-        <div style={styles.contenu}>
-          <div style={styles.filtres}>
+        <div style={s.contenu}>
+          <div style={s.filtres}>
             <input placeholder="🔍 Rechercher par nom ou matricule..." value={recherche}
-              onChange={e=>rechercherEleves(e.target.value)} style={styles.inputRecherche} />
-            <select value={classeFiltre} onChange={e=>filtrerParClasse(e.target.value)} style={styles.selectClasse}>
+              onChange={e=>rechercherEleves(e.target.value)} style={s.inputRecherche} />
+            <select value={classeFiltre} onChange={e=>filtrerParClasse(e.target.value)} style={s.selectClasse}>
               <option value="">Toutes les classes</option>
               {classes.map(c=><option key={c} value={c}>{c}</option>)}
             </select>
-            {classeFiltre && (
-              <button onClick={imprimerListeClasse} style={styles.btnImprimerClasse}>
-                🖨️ Imprimer la liste
-              </button>
-            )}
+            {classeFiltre && <button onClick={imprimerListeClasse} style={s.btnImprimerClasse}>🖨️ Imprimer</button>}
           </div>
           {classeFiltre && elevesClasse.length > 0 && (
-            <div style={styles.statsClasse}>
-              <span>📊 Classe : <strong>{classeFiltre}</strong></span>
+            <div style={s.statsClasse}>
+              <span>📊 <strong>{classeFiltre}</strong></span>
               <span>👥 Total : <strong>{elevesClasse.length}</strong></span>
               <span>📈 Moy. : <strong>{moyenneClasseFiltre}</strong></span>
               <span style={{color:'#166534'}}>✅ Admis : <strong>{elevesClasse.filter(e=>e.decision_fin_annee==='Admis').length}</strong></span>
@@ -508,37 +468,43 @@ export default function App() {
               <span>📊 Taux : <strong>{Math.round(elevesClasse.filter(e=>e.decision_fin_annee==='Admis').length/elevesClasse.length*100)}%</strong></span>
             </div>
           )}
-          <p style={styles.compteur}>{eleves.length} élève(s){classeFiltre?` en ${classeFiltre}`:''}</p>
-          <div style={styles.tableWrap}>
-            <table style={styles.table}>
-              <thead style={styles.tableHead}>
-                <tr>{['#','Matricule','Nom','Prénom','Classe','Parent','Téléphone','T1','T2','T3','MGA','Décision','Actions'].map(h=>(
-                  <th key={h} style={styles.th}>{h}</th>
+          <p style={s.compteur}>{eleves.length} élève(s){classeFiltre?` en ${classeFiltre}`:''}</p>
+          <div style={s.tableWrap}>
+            <table style={s.table}>
+              <thead style={s.tableHead}>
+                <tr>{['#','Photo','Matricule','Nom','Prénom','Classe','Parent','Téléphone','T1','T2','T3','MGA','Décision','Actions'].map(h=>(
+                  <th key={h} style={s.th}>{h}</th>
                 ))}</tr>
               </thead>
               <tbody>
                 {eleves.map((e,i)=>(
-                  <tr key={e.id} style={i%2===0?styles.trPair:styles.trImpair}>
-                    <td style={styles.td}>{i+1}</td>
-                    <td style={styles.td}>{e.matricule}</td>
-                    <td style={styles.td}><strong>{e.nom}</strong></td>
-                    <td style={styles.td}>{e.prenom}</td>
-                    <td style={styles.td}><span style={styles.badgeClasse}>{e.classe}</span></td>
-                    <td style={styles.td}>{e.nom_parent}</td>
-                    <td style={styles.td}>{e.telephone1&&<a href={`tel:${e.telephone1}`} style={styles.telLink}>📞 {e.telephone1}</a>}</td>
-                    <td style={styles.td}>{e.moyenne_t1||'-'}</td>
-                    <td style={styles.td}>{e.moyenne_t2||'-'}</td>
-                    <td style={styles.td}>{e.moyenne_t3||'-'}</td>
-                    <td style={styles.td}><strong>{e.moyenne_generale||'-'}</strong></td>
-                    <td style={styles.td}>
-                      <span style={e.decision_fin_annee==='Admis'?styles.badgeAdmis:e.decision_fin_annee==='Redoublant'?styles.badgeRedoublant:e.decision_fin_annee==='Exclu'?styles.badgeExclu:{}}>
+                  <tr key={e.id} style={i%2===0?s.trPair:s.trImpair}>
+                    <td style={s.td}>{i+1}</td>
+                    <td style={s.td}>
+                      {e.photo_url
+                        ? <img src={e.photo_url} alt="" style={{width:'36px',height:'45px',objectFit:'cover',borderRadius:'4px',border:'1px solid #ddd'}}/>
+                        : <div style={{width:'36px',height:'45px',background:'#e2e8f0',borderRadius:'4px',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1.2rem'}}>👤</div>
+                      }
+                    </td>
+                    <td style={s.td}>{e.matricule}</td>
+                    <td style={s.td}><strong>{e.nom}</strong></td>
+                    <td style={s.td}>{e.prenom}</td>
+                    <td style={s.td}><span style={s.badgeClasse}>{e.classe}</span></td>
+                    <td style={s.td}>{e.nom_parent}</td>
+                    <td style={s.td}>{e.telephone1&&<a href={`tel:${e.telephone1}`} style={s.telLink}>📞 {e.telephone1}</a>}</td>
+                    <td style={s.td}>{e.moyenne_t1||'-'}</td>
+                    <td style={s.td}>{e.moyenne_t2||'-'}</td>
+                    <td style={s.td}>{e.moyenne_t3||'-'}</td>
+                    <td style={s.td}><strong>{e.moyenne_generale||'-'}</strong></td>
+                    <td style={s.td}>
+                      <span style={e.decision_fin_annee==='Admis'?s.badgeAdmis:e.decision_fin_annee==='Redoublant'?s.badgeRedoublant:e.decision_fin_annee==='Exclu'?s.badgeExclu:{}}>
                         {e.decision_fin_annee||'-'}
                       </span>
                     </td>
-                    <td style={styles.td}>
-                      <button onClick={()=>ouvrirFiche(e)} style={styles.btnVoir}>👁️</button>
-                      <button onClick={()=>{setEleveSelectionne(e);ouvrirFormulaire(e);}} style={styles.btnModifier}>✏️</button>
-                      <button onClick={()=>supprimerEleve(e.id)} style={styles.btnSupprimer}>🗑️</button>
+                    <td style={s.td}>
+                      <button onClick={()=>ouvrirFiche(e)} style={s.btnVoir}>👁️</button>
+                      <button onClick={()=>{setEleveSelectionne(e);ouvrirFormulaire(e);}} style={s.btnModifier}>✏️</button>
+                      <button onClick={()=>supprimerEleve(e.id)} style={s.btnSupprimer}>🗑️</button>
                     </td>
                   </tr>
                 ))}
@@ -548,231 +514,179 @@ export default function App() {
         </div>
       )}
 
+      {/* ===== FICHE ===== */}
       {onglet==='fiche' && eleveSelectionne && (
-        <div style={styles.contenu}>
+        <div style={s.contenu}>
           <div style={{marginBottom:'1rem'}}>
-            <button onClick={()=>setOnglet('liste')} style={styles.btnRetour}>← Retour</button>
-            <button onClick={()=>window.print()} style={styles.btnImprimer}>🖨️ Imprimer</button>
-            <button onClick={()=>ouvrirFormulaire(eleveSelectionne)} style={styles.btnModifier2}>✏️ Modifier</button>
+            <button onClick={()=>setOnglet('liste')} style={s.btnRetour}>← Retour</button>
+            <button onClick={()=>ouvrirFormulaire(eleveSelectionne)} style={s.btnModifier2}>✏️ Modifier</button>
           </div>
-          <div style={styles.ficheCard}>
-            <div style={styles.ficheHeader}>
-              <div style={styles.ficheAvatar}><span style={{fontSize:'2.5rem'}}>👤</span></div>
+          <div style={s.ficheCard}>
+            <div style={s.ficheHeader}>
+              <div style={s.ficheAvatar}>
+                {eleveSelectionne.photo_url
+                  ? <img src={eleveSelectionne.photo_url} alt="" style={{width:'100px',height:'130px',objectFit:'cover',borderRadius:'8px',border:'3px solid #dbeafe'}}/>
+                  : <span style={{fontSize:'3rem'}}>👤</span>
+                }
+              </div>
               <div>
-                <h2 style={styles.ficheNom}>{eleveSelectionne.nom} {eleveSelectionne.prenom}</h2>
-                <p style={styles.ficheClasse}>Classe : {eleveSelectionne.classe}</p>
-                <p style={styles.ficheMatricule}>Matricule : {eleveSelectionne.matricule}</p>
+                <h2 style={s.ficheNom}>{eleveSelectionne.nom} {eleveSelectionne.prenom}</h2>
+                <p style={s.ficheClasse}>Classe : {eleveSelectionne.classe}</p>
+                <p style={s.ficheMatricule}>Matricule : {eleveSelectionne.matricule}</p>
                 <p style={{margin:'4px 0'}}>Inscription : {paiements[eleveSelectionne.id]
-                  ? <span style={styles.badgeAdmis}>✅ Payé</span>
-                  : <span style={styles.badgeExclu}>❌ Non payé</span>}</p>
+                  ? <span style={s.badgeAdmis}>✅ Payé</span>
+                  : <span style={s.badgeExclu}>❌ Non payé</span>}</p>
               </div>
             </div>
-            <div style={styles.ficheGrid}>
-              <div style={styles.ficheSection}>
-                <h3 style={styles.sectionTitre}>👪 Contact parent</h3>
+            <div style={s.ficheGrid}>
+              <div style={s.ficheSection}>
+                <h3 style={s.sectionTitre}>👪 Contact parent</h3>
                 <p><strong>Nom :</strong> {eleveSelectionne.nom_parent||'-'}</p>
-                <p><strong>Tél 1 :</strong> {eleveSelectionne.telephone1?<a href={`tel:${eleveSelectionne.telephone1}`} style={styles.telLink}>{eleveSelectionne.telephone1}</a>:'-'}</p>
-                <p><strong>Tél 2 :</strong> {eleveSelectionne.telephone2?<a href={`tel:${eleveSelectionne.telephone2}`} style={styles.telLink}>{eleveSelectionne.telephone2}</a>:'-'}</p>
+                <p><strong>Tél 1 :</strong> {eleveSelectionne.telephone1?<a href={`tel:${eleveSelectionne.telephone1}`} style={s.telLink}>{eleveSelectionne.telephone1}</a>:'-'}</p>
+                <p><strong>Tél 2 :</strong> {eleveSelectionne.telephone2?<a href={`tel:${eleveSelectionne.telephone2}`} style={s.telLink}>{eleveSelectionne.telephone2}</a>:'-'}</p>
               </div>
-              <div style={styles.ficheSection}>
-                <h3 style={styles.sectionTitre}>📊 Résultats scolaires</h3>
+              <div style={s.ficheSection}>
+                <h3 style={s.sectionTitre}>📊 Résultats scolaires</h3>
                 <p><strong>T1 :</strong> {eleveSelectionne.moyenne_t1||'-'}</p>
                 <p><strong>T2 :</strong> {eleveSelectionne.moyenne_t2||'-'}</p>
                 <p><strong>T3 :</strong> {eleveSelectionne.moyenne_t3||'-'}</p>
                 <p><strong>MGA :</strong> <span style={{fontWeight:'bold',fontSize:'1.1rem'}}>{eleveSelectionne.moyenne_generale||'-'}</span></p>
-                <p><strong>Décision :</strong> <span style={eleveSelectionne.decision_fin_annee==='Admis'?styles.badgeAdmis:eleveSelectionne.decision_fin_annee==='Redoublant'?styles.badgeRedoublant:styles.badgeExclu}>{eleveSelectionne.decision_fin_annee||'-'}</span></p>
+                <p><strong>Décision :</strong> <span style={eleveSelectionne.decision_fin_annee==='Admis'?s.badgeAdmis:eleveSelectionne.decision_fin_annee==='Redoublant'?s.badgeRedoublant:s.badgeExclu}>{eleveSelectionne.decision_fin_annee||'-'}</span></p>
               </div>
             </div>
           </div>
         </div>
       )}
 
+      {/* ===== FORMULAIRE ===== */}
       {onglet==='formulaire' && (
-        <div style={styles.contenu}>
-          <h2 style={styles.titrePage}>{modeFormulaire==='ajouter'?'➕ Ajouter un élève':'✏️ Modifier un élève'}</h2>
-          <div style={styles.formCard}>
-            <h3 style={styles.sectionTitre}>📋 Informations générales</h3>
-            <div style={styles.formGrid}>
-              <div><label style={styles.label}>Matricule</label><input value={formulaire.matricule} onChange={e=>setFormulaire({...formulaire,matricule:e.target.value})} style={styles.input}/></div>
-              <div><label style={styles.label}>Nom *</label><input value={formulaire.nom} onChange={e=>setFormulaire({...formulaire,nom:e.target.value})} style={styles.input}/></div>
-              <div><label style={styles.label}>Prénom *</label><input value={formulaire.prenom} onChange={e=>setFormulaire({...formulaire,prenom:e.target.value})} style={styles.input}/></div>
-              <div><label style={styles.label}>Classe *</label>
-                <input value={formulaire.classe} onChange={e=>setFormulaire({...formulaire,classe:e.target.value})} style={styles.input} list="liste-classes"/>
+        <div style={s.contenu}>
+          <h2 style={s.titrePage}>{modeFormulaire==='ajouter'?'➕ Ajouter un élève':'✏️ Modifier un élève'}</h2>
+          <div style={s.formCard}>
+            <h3 style={s.sectionTitre}>📋 Informations générales</h3>
+            <div style={s.formGrid}>
+              <div><label style={s.label}>Matricule</label><input value={formulaire.matricule} onChange={e=>setFormulaire({...formulaire,matricule:e.target.value})} style={s.input}/></div>
+              <div><label style={s.label}>Nom *</label><input value={formulaire.nom} onChange={e=>setFormulaire({...formulaire,nom:e.target.value})} style={s.input}/></div>
+              <div><label style={s.label}>Prénom *</label><input value={formulaire.prenom} onChange={e=>setFormulaire({...formulaire,prenom:e.target.value})} style={s.input}/></div>
+              <div><label style={s.label}>Classe *</label>
+                <input value={formulaire.classe} onChange={e=>setFormulaire({...formulaire,classe:e.target.value})} style={s.input} list="liste-classes"/>
                 <datalist id="liste-classes">{classes.map(c=><option key={c} value={c}/>)}</datalist></div>
-              <div><label style={styles.label}>N° Extrait</label><input value={formulaire.numero_extrait} onChange={e=>setFormulaire({...formulaire,numero_extrait:e.target.value})} style={styles.input}/></div>
             </div>
-            <h3 style={{...styles.sectionTitre,marginTop:'1.5rem'}}>👪 Contact parent</h3>
-            <div style={styles.formGrid}>
-              <div><label style={styles.label}>Nom parent</label><input value={formulaire.nom_parent} onChange={e=>setFormulaire({...formulaire,nom_parent:e.target.value})} style={styles.input}/></div>
-              <div><label style={styles.label}>Téléphone 1</label><input value={formulaire.telephone1} onChange={e=>setFormulaire({...formulaire,telephone1:e.target.value})} style={styles.input} type="tel"/></div>
-              <div><label style={styles.label}>Téléphone 2</label><input value={formulaire.telephone2} onChange={e=>setFormulaire({...formulaire,telephone2:e.target.value})} style={styles.input} type="tel"/></div>
+            <h3 style={{...s.sectionTitre,marginTop:'1.5rem'}}>👪 Contact parent</h3>
+            <div style={s.formGrid}>
+              <div><label style={s.label}>Nom parent</label><input value={formulaire.nom_parent} onChange={e=>setFormulaire({...formulaire,nom_parent:e.target.value})} style={s.input}/></div>
+              <div><label style={s.label}>Téléphone 1</label><input value={formulaire.telephone1} onChange={e=>setFormulaire({...formulaire,telephone1:e.target.value})} style={s.input} type="tel"/></div>
+              <div><label style={s.label}>Téléphone 2</label><input value={formulaire.telephone2} onChange={e=>setFormulaire({...formulaire,telephone2:e.target.value})} style={s.input} type="tel"/></div>
             </div>
-            {messageFormulaire&&<p style={messageFormulaire.includes('✅')?styles.succes:styles.erreur}>{messageFormulaire}</p>}
-            <button onClick={sauvegarderEleve} style={styles.btnSauvegarder}>{modeFormulaire==='ajouter'?'➕ Ajouter':'💾 Sauvegarder'}</button>
+            {messageFormulaire&&<p style={messageFormulaire.includes('✅')?s.succes:s.erreur}>{messageFormulaire}</p>}
+            <button onClick={sauvegarderEleve} style={s.btnSauvegarder}>{modeFormulaire==='ajouter'?'➕ Ajouter':'💾 Sauvegarder'}</button>
           </div>
         </div>
       )}
 
+      {/* ===== IMPORTER ===== */}
       {onglet==='importer' && (
-        <div style={styles.contenu}>
-          <h2 style={styles.titrePage}>📥 Import des moyennes trimestrielles</h2>
-          <div style={styles.importCard}>
-            <div style={styles.trimestreBtns}>
+        <div style={s.contenu}>
+          <h2 style={s.titrePage}>📥 Import des moyennes trimestrielles</h2>
+          <div style={s.importCard}>
+            <div style={s.trimestreBtns}>
               {['T1','T2','T3'].map(t=>(
-                <button key={t} onClick={()=>setTrimestreActif(t)} style={trimestreActif===t?styles.trimestreBtnActif:styles.trimestreBtn}>📊 Trimestre {t}</button>
+                <button key={t} onClick={()=>setTrimestreActif(t)} style={trimestreActif===t?s.trimestreBtnActif:s.trimestreBtn}>📊 Trimestre {t}</button>
               ))}
             </div>
-            <p style={styles.importInfo}>📌 Fichier Excel pour <strong>{trimestreActif}</strong> — colonnes requises :</p>
-            <p style={styles.colonnes}>Matricule | Moyenne_{trimestreActif}</p>
+            <p style={s.importInfo}>📌 Fichier Excel pour <strong>{trimestreActif}</strong></p>
             <input type="file" accept=".xlsx,.xls" onChange={e=>setFichierExcel(e.target.files[0])} style={{margin:'1rem 0'}}/>
             <br/>
-            <button onClick={importerTrimestre} disabled={importEnCours} style={styles.btnImportExcel}>
+            <button onClick={importerTrimestre} disabled={importEnCours} style={s.btnImportExcel}>
               {importEnCours?`⏳ Import ${trimestreActif}...`:`📥 Importer ${trimestreActif}`}
             </button>
-            {importStatus&&<p style={importStatus.includes('✅')?styles.succes:styles.erreur}>{importStatus}</p>}
+            {importStatus&&<p style={importStatus.includes('✅')?s.succes:s.erreur}>{importStatus}</p>}
             <hr style={{margin:'2rem 0',border:'none',borderTop:'2px solid #e2e8f0'}}/>
-            <h3 style={styles.sectionTitre}>🧮 Calcul automatique MGA + DFA</h3>
-            <p style={{color:'#64748b',fontSize:'0.9rem'}}>
-              Après avoir importé T1, T2 et T3 :<br/>
-              MGA &lt; 8.5 → <strong style={{color:'red'}}>Exclu</strong> | 8.5 ≤ MGA &lt; 10 → <strong style={{color:'orange'}}>Redoublant</strong> | MGA ≥ 10 → <strong style={{color:'green'}}>Admis</strong>
-            </p>
-            <button onClick={calculerMoyennesAnnuelles} disabled={calcEnCours} style={styles.btnCalculer}>
+            <h3 style={s.sectionTitre}>🧮 Calcul automatique MGA + DFA</h3>
+            <button onClick={calculerMoyennesAnnuelles} disabled={calcEnCours} style={s.btnCalculer}>
               {calcEnCours?'⏳ Calcul...':'🧮 Calculer MGA + DFA'}
             </button>
-            {calcStatus&&<p style={calcStatus.includes('✅')?styles.succes:styles.erreur}>{calcStatus}</p>}
+            {calcStatus&&<p style={calcStatus.includes('✅')?s.succes:s.erreur}>{calcStatus}</p>}
           </div>
         </div>
       )}
 
+      {/* ===== BEPC ===== */}
       {onglet==='bepc' && (
-        <div style={styles.contenu}>
-          <h2 style={styles.titrePage}>🏆 Liste des Admis au BEPC</h2>
-          <div style={styles.importCard}>
-            <div style={styles.bepcInfo}>
-              <p>📌 Liste automatique des élèves de <strong>3ème</strong> avec décision <strong style={{color:'green'}}>Admis</strong>.</p>
-              <p>Classes 3ème détectées : <strong>{classes3eme.length > 0 ? classes3eme.join(', ') : 'Aucune'}</strong></p>
-              <p style={{fontSize:'1.3rem',fontWeight:'bold',color:'#166534'}}>✅ Total admis au BEPC : {totalAdmisBepc} élèves</p>
+        <div style={s.contenu}>
+          <h2 style={s.titrePage}>🏆 Liste des Admis au BEPC</h2>
+          <div style={s.importCard}>
+            <div style={s.bepcInfo}>
+              <p>Classes 3ème : <strong>{classes3eme.join(', ')||'Aucune'}</strong></p>
+              <p style={{fontSize:'1.3rem',fontWeight:'bold',color:'#166534'}}>✅ Total : {totalAdmisBepc} admis</p>
             </div>
-            <div style={styles.tableWrap}>
-              <table style={styles.table}>
-                <thead style={{...styles.tableHead, background:'#166534'}}>
-                  <tr>{['#','Matricule','Nom','Prénom','Classe','MGA','Parent','Téléphone'].map(h=>(
-                    <th key={h} style={styles.th}>{h}</th>
-                  ))}</tr>
+            <div style={s.tableWrap}>
+              <table style={s.table}>
+                <thead style={{...s.tableHead,background:'#166534'}}>
+                  <tr>{['#','Matricule','Nom','Prénom','Classe','MGA','Parent','Téléphone'].map(h=><th key={h} style={s.th}>{h}</th>)}</tr>
                 </thead>
                 <tbody>
-                  {eleves.filter(e => classes3eme.some(c=>c===e.classe) && e.decision_fin_annee==='Admis')
+                  {eleves.filter(e=>classes3eme.some(c=>c===e.classe)&&e.decision_fin_annee==='Admis')
                     .sort((a,b)=>(parseFloat(b.moyenne_generale)||0)-(parseFloat(a.moyenne_generale)||0))
                     .map((e,i)=>(
-                    <tr key={e.id} style={i%2===0?styles.trPair:styles.trImpair}>
-                      <td style={styles.td}>{i+1}</td>
-                      <td style={styles.td}>{e.matricule}</td>
-                      <td style={styles.td}><strong>{e.nom}</strong></td>
-                      <td style={styles.td}>{e.prenom}</td>
-                      <td style={styles.td}><span style={styles.badgeClasse}>{e.classe}</span></td>
-                      <td style={styles.td}><strong style={{color:'green'}}>{e.moyenne_generale||'-'}</strong></td>
-                      <td style={styles.td}>{e.nom_parent||'-'}</td>
-                      <td style={styles.td}>{e.telephone1?<a href={`tel:${e.telephone1}`} style={styles.telLink}>📞 {e.telephone1}</a>:'-'}</td>
+                    <tr key={e.id} style={i%2===0?s.trPair:s.trImpair}>
+                      <td style={s.td}>{i+1}</td><td style={s.td}>{e.matricule}</td>
+                      <td style={s.td}><strong>{e.nom}</strong></td><td style={s.td}>{e.prenom}</td>
+                      <td style={s.td}><span style={s.badgeClasse}>{e.classe}</span></td>
+                      <td style={s.td}><strong style={{color:'green'}}>{e.moyenne_generale||'-'}</strong></td>
+                      <td style={s.td}>{e.nom_parent||'-'}</td>
+                      <td style={s.td}>{e.telephone1?<a href={`tel:${e.telephone1}`} style={s.telLink}>📞 {e.telephone1}</a>:'-'}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
             <br/>
-            <button onClick={imprimerListeBEPC} style={{...styles.btnCalculer, background:'#166534'}}>
-              🖨️ Imprimer la liste des admis BEPC
-            </button>
+            <button onClick={imprimerListeBEPC} style={{...s.btnCalculer,background:'#166534'}}>🖨️ Imprimer liste BEPC</button>
           </div>
         </div>
       )}
 
+      {/* ===== INSCRIPTION ===== */}
       {onglet==='inscription' && (
-        <div style={styles.contenu}>
-          <h2 style={styles.titrePage}>💰 Droits d'inscription — {ANNEE_SCOLAIRE}</h2>
-
-          {/* Sous-onglets */}
-          <div style={styles.sousNav}>
-            <button onClick={()=>setSousOngletInscription('encaissement')}
-              style={sousOngletInscription==='encaissement'?styles.sousNavActif:styles.sousNavBtn}>
-              💰 Encaissement
-            </button>
-            <button onClick={()=>setSousOngletInscription('bilan')}
-              style={sousOngletInscription==='bilan'?styles.sousNavActif:styles.sousNavBtn}>
-              📊 Bilan journalier
-            </button>
+        <div style={s.contenu}>
+          <h2 style={s.titrePage}>💰 Droits d'inscription — {ANNEE_SCOLAIRE}</h2>
+          <div style={s.sousNav}>
+            <button onClick={()=>setSousOngletInscription('encaissement')} style={sousOngletInscription==='encaissement'?s.sousNavActif:s.sousNavBtn}>💰 Encaissement</button>
+            <button onClick={()=>setSousOngletInscription('bilan')} style={sousOngletInscription==='bilan'?s.sousNavActif:s.sousNavBtn}>📊 Bilan journalier</button>
           </div>
-
-          {/* === ENCAISSEMENT === */}
           {sousOngletInscription==='encaissement' && (
             <>
-              <div style={styles.statsInscription}>
-                <div style={styles.statBox}>
-                  <div style={styles.statNum}>{totalPayes}</div>
-                  <div style={styles.statLabel}>✅ Ont payé</div>
-                </div>
-                <div style={{...styles.statBox, background:'#fee2e2'}}>
-                  <div style={{...styles.statNum, color:'#991b1b'}}>{totalNonPayes}</div>
-                  <div style={styles.statLabel}>❌ Non payés</div>
-                </div>
-                <div style={{...styles.statBox, background:'#dcfce7'}}>
-                  <div style={{...styles.statNum, color:'#166534'}}>{montantTotal.toLocaleString()}</div>
-                  <div style={styles.statLabel}>💵 FCFA encaissés</div>
-                </div>
-                <div style={{...styles.statBox, background:'#fef3c7'}}>
-                  <div style={{...styles.statNum, color:'#92400e'}}>{(totalNonPayes * MONTANT_INSCRIPTION).toLocaleString()}</div>
-                  <div style={styles.statLabel}>⏳ FCFA restants</div>
-                </div>
+              <div style={s.statsInscription}>
+                <div style={s.statBox}><div style={s.statNum}>{totalPayes}</div><div style={s.statLabel}>✅ Ont payé</div></div>
+                <div style={{...s.statBox,background:'#fee2e2'}}><div style={{...s.statNum,color:'#991b1b'}}>{totalNonPayes}</div><div style={s.statLabel}>❌ Non payés</div></div>
+                <div style={{...s.statBox,background:'#dcfce7'}}><div style={{...s.statNum,color:'#166534'}}>{montantTotal.toLocaleString()}</div><div style={s.statLabel}>💵 FCFA encaissés</div></div>
+                <div style={{...s.statBox,background:'#fef3c7'}}><div style={{...s.statNum,color:'#92400e'}}>{(totalNonPayes*MONTANT_INSCRIPTION).toLocaleString()}</div><div style={s.statLabel}>⏳ FCFA restants</div></div>
               </div>
-
-              <div style={styles.filtres}>
-                <input placeholder="🔍 Rechercher par nom ou matricule..." value={rechercheInscription}
-                  onChange={e=>rechercherInscription(e.target.value)} style={styles.inputRecherche} />
-                <select value={classeFiltreInscription} onChange={e=>filtrerInscriptionParClasse(e.target.value)} style={styles.selectClasse}>
+              <div style={s.filtres}>
+                <input placeholder="🔍 Rechercher..." value={rechercheInscription} onChange={e=>rechercherInscription(e.target.value)} style={s.inputRecherche}/>
+                <select value={classeFiltreInscription} onChange={e=>filtrerInscriptionParClasse(e.target.value)} style={s.selectClasse}>
                   <option value="">Toutes les classes</option>
                   {classes.map(c=><option key={c} value={c}>{c}</option>)}
                 </select>
-                <button onClick={imprimerListePayes} style={styles.btnImprimerClasse}>
-                  🖨️ Imprimer liste des payés
-                </button>
+                <button onClick={imprimerListePayes} style={s.btnImprimerClasse}>🖨️ Imprimer liste des payés</button>
               </div>
-
-              {messageInscription && (
-                <div style={messageInscription.includes('✅')?styles.alertSucces:styles.alertErreur}>
-                  {messageInscription}
-                </div>
-              )}
-
-              <p style={styles.compteur}>
-                {elevesAffichesInscription.length} élève(s) — ✅ {payesDansVue} payés | ❌ {nonPayesDansVue} non payés
-              </p>
-
-              <div style={styles.tableWrap}>
-                <table style={styles.table}>
-                  <thead style={styles.tableHead}>
-                    <tr>{['#','Matricule','Nom','Prénom','Classe','Parent','Statut paiement','Action'].map(h=>(
-                      <th key={h} style={styles.th}>{h}</th>
-                    ))}</tr>
+              {messageInscription&&<div style={messageInscription.includes('✅')?s.alertSucces:s.alertErreur}>{messageInscription}</div>}
+              <p style={s.compteur}>{elevesAffichesInscription.length} élève(s) — ✅ {payesDansVue} | ❌ {nonPayesDansVue}</p>
+              <div style={s.tableWrap}>
+                <table style={s.table}>
+                  <thead style={s.tableHead}>
+                    <tr>{['#','Matricule','Nom','Prénom','Classe','Parent','Statut','Action'].map(h=><th key={h} style={s.th}>{h}</th>)}</tr>
                   </thead>
                   <tbody>
                     {elevesAffichesInscription.map((e,i)=>(
-                      <tr key={e.id} style={i%2===0?styles.trPair:styles.trImpair}>
-                        <td style={styles.td}>{i+1}</td>
-                        <td style={styles.td}>{e.matricule}</td>
-                        <td style={styles.td}><strong>{e.nom}</strong></td>
-                        <td style={styles.td}>{e.prenom}</td>
-                        <td style={styles.td}><span style={styles.badgeClasse}>{e.classe}</span></td>
-                        <td style={styles.td}>{e.nom_parent||'-'}</td>
-                        <td style={styles.td}>
-                          {paiements[e.id]
-                            ? <span style={styles.badgeAdmis}>✅ Payé — {paiements[e.id].date_paiement ? new Date(paiements[e.id].date_paiement).toLocaleDateString('fr-FR') : ''}</span>
-                            : <span style={styles.badgeExclu}>❌ Non payé</span>
-                          }
-                        </td>
-                        <td style={styles.td}>
-                          <button onClick={()=>togglePaiement(e)} style={paiements[e.id]?styles.btnAnnulerPaiement:styles.btnPayer}>
-                            {paiements[e.id]?'↩️ Annuler':'💰 Encaisser'}
-                          </button>
-                        </td>
+                      <tr key={e.id} style={i%2===0?s.trPair:s.trImpair}>
+                        <td style={s.td}>{i+1}</td><td style={s.td}>{e.matricule}</td>
+                        <td style={s.td}><strong>{e.nom}</strong></td><td style={s.td}>{e.prenom}</td>
+                        <td style={s.td}><span style={s.badgeClasse}>{e.classe}</span></td>
+                        <td style={s.td}>{e.nom_parent||'-'}</td>
+                        <td style={s.td}>{paiements[e.id]?<span style={s.badgeAdmis}>✅ Payé — {paiements[e.id].date_paiement?new Date(paiements[e.id].date_paiement).toLocaleDateString('fr-FR'):''}</span>:<span style={s.badgeExclu}>❌ Non payé</span>}</td>
+                        <td style={s.td}><button onClick={()=>togglePaiement(e)} style={paiements[e.id]?s.btnAnnulerPaiement:s.btnPayer}>{paiements[e.id]?'↩️ Annuler':'💰 Encaisser'}</button></td>
                       </tr>
                     ))}
                   </tbody>
@@ -780,69 +694,167 @@ export default function App() {
               </div>
             </>
           )}
-
-          {/* === BILAN JOURNALIER === */}
           {sousOngletInscription==='bilan' && (
-            <div style={styles.bilanCard}>
-              <h3 style={styles.sectionTitre}>📊 Bilan financier journalier</h3>
-              <p style={{color:'#64748b',fontSize:'0.9rem',marginBottom:'1rem'}}>
-                Sélectionnez une date pour voir les paiements effectués ce jour-là et imprimer le bilan à remettre au chef.
-              </p>
-
-              <div style={styles.bilanDateRow}>
-                <label style={{fontWeight:'600',color:'#1e3a5f',fontSize:'0.95rem'}}>📅 Date :</label>
-                <input type="date" value={dateBilan} onChange={e=>setDateBilan(e.target.value)}
-                  style={styles.inputDate} />
+            <div style={s.bilanCard}>
+              <h3 style={s.sectionTitre}>📊 Bilan financier journalier</h3>
+              <div style={s.bilanDateRow}>
+                <label style={{fontWeight:'600',color:'#1e3a5f'}}>📅 Date :</label>
+                <input type="date" value={dateBilan} onChange={e=>setDateBilan(e.target.value)} style={s.inputDate}/>
               </div>
-
-              {/* Résumé du jour */}
-              <div style={styles.bilanResume}>
-                <div style={styles.bilanResumeItem}>
-                  <div style={styles.bilanResumeNum}>{nbPayesDuJour}</div>
-                  <div style={styles.bilanResumeLabel}>élève(s) payé(s)</div>
-                </div>
-                <div style={{...styles.bilanResumeItem, background:'#dcfce7', borderColor:'#16a34a'}}>
-                  <div style={{...styles.bilanResumeNum, color:'#166534'}}>{montantDuJour.toLocaleString()}</div>
-                  <div style={styles.bilanResumeLabel}>FCFA encaissés</div>
-                </div>
+              <div style={s.bilanResume}>
+                <div style={s.bilanResumeItem}><div style={s.bilanResumeNum}>{nbPayesDuJour}</div><div style={s.bilanResumeLabel}>élève(s) payé(s)</div></div>
+                <div style={{...s.bilanResumeItem,background:'#dcfce7',borderColor:'#16a34a'}}><div style={{...s.bilanResumeNum,color:'#166534'}}>{montantDuJour.toLocaleString()}</div><div style={s.bilanResumeLabel}>FCFA encaissés</div></div>
               </div>
-
-              {/* Liste du jour */}
-              {nbPayesDuJour === 0 ? (
-                <div style={styles.bilanVide}>
-                  <p>😔 Aucun paiement enregistré pour le {new Date(dateBilan+'T00:00:00').toLocaleDateString('fr-FR')}</p>
-                </div>
-              ) : (
-                <div style={styles.tableWrap}>
-                  <table style={styles.table}>
-                    <thead style={{...styles.tableHead, background:'#0f766e'}}>
-                      <tr>{['#','Matricule','Nom','Prénom','Classe','Montant'].map(h=>(
-                        <th key={h} style={styles.th}>{h}</th>
-                      ))}</tr>
+              {nbPayesDuJour===0?<div style={s.bilanVide}><p>😔 Aucun paiement ce jour</p></div>:(
+                <div style={s.tableWrap}>
+                  <table style={s.table}>
+                    <thead style={{...s.tableHead,background:'#0f766e'}}>
+                      <tr>{['#','Matricule','Nom','Prénom','Classe','Montant'].map(h=><th key={h} style={s.th}>{h}</th>)}</tr>
                     </thead>
                     <tbody>
-                      {eleves
-                        .filter(e => elevesDuJourIds.has(e.id))
-                        .sort((a,b)=>(a.nom||'').localeCompare(b.nom||''))
-                        .map((e,i)=>(
-                        <tr key={e.id} style={i%2===0?styles.trPair:styles.trImpair}>
-                          <td style={styles.td}>{i+1}</td>
-                          <td style={styles.td}>{e.matricule}</td>
-                          <td style={styles.td}><strong>{e.nom}</strong></td>
-                          <td style={styles.td}>{e.prenom}</td>
-                          <td style={styles.td}><span style={styles.badgeClasse}>{e.classe}</span></td>
-                          <td style={styles.td}><strong style={{color:'#166534'}}>{MONTANT_INSCRIPTION} FCFA</strong></td>
+                      {eleves.filter(e=>elevesDuJourIds.has(e.id)).sort((a,b)=>(a.nom||'').localeCompare(b.nom||'')).map((e,i)=>(
+                        <tr key={e.id} style={i%2===0?s.trPair:s.trImpair}>
+                          <td style={s.td}>{i+1}</td><td style={s.td}>{e.matricule}</td>
+                          <td style={s.td}><strong>{e.nom}</strong></td><td style={s.td}>{e.prenom}</td>
+                          <td style={s.td}><span style={s.badgeClasse}>{e.classe}</span></td>
+                          <td style={s.td}><strong style={{color:'#166534'}}>{MONTANT_INSCRIPTION} FCFA</strong></td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
               )}
-
               <br/>
-              <button onClick={imprimerBilanJournalier} style={styles.btnBilanImprimer}>
-                🖨️ Imprimer le bilan journalier
-              </button>
+              <button onClick={imprimerBilanJournalier} style={s.btnBilanImprimer}>🖨️ Imprimer le bilan journalier</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== PHOTOS ===== */}
+      {onglet==='photos' && (
+        <div style={s.contenu}>
+          <h2 style={s.titrePage}>📸 Gestion des photos</h2>
+          <div style={s.sousNav}>
+            <button onClick={()=>setSousOngletPhotos('import')} style={sousOngletPhotos==='import'?{...s.sousNavActif,background:'#7c3aed',borderColor:'#7c3aed'}:s.sousNavBtn}>📤 Import groupé</button>
+            <button onClick={()=>setSousOngletPhotos('trombi')} style={sousOngletPhotos==='trombi'?{...s.sousNavActif,background:'#7c3aed',borderColor:'#7c3aed'}:s.sousNavBtn}>🖼️ Trombinoscope</button>
+            <button onClick={()=>setSousOngletPhotos('recherche')} style={sousOngletPhotos==='recherche'?{...s.sousNavActif,background:'#7c3aed',borderColor:'#7c3aed'}:s.sousNavBtn}>🔍 Recherche photo</button>
+          </div>
+
+          {/* IMPORT GROUPÉ */}
+          {sousOngletPhotos==='import' && (
+            <div style={s.importCard}>
+              <h3 style={s.sectionTitre}>📤 Import groupé de photos</h3>
+              <div style={{background:'#faf5ff',border:'2px dashed #7c3aed',borderRadius:'12px',padding:'2rem',textAlign:'center',marginBottom:'1.5rem'}}>
+                <div style={{fontSize:'3rem',marginBottom:'0.5rem'}}>📁</div>
+                <p style={{fontWeight:'600',color:'#5b21b6',marginBottom:'0.5rem'}}>Sélectionnez toutes vos photos d'un coup</p>
+                <p style={{color:'#7c3aed',fontSize:'0.85rem',marginBottom:'1rem'}}>Les fichiers doivent être nommés avec le matricule : <strong>21421986V.JPG</strong></p>
+                <input ref={fileInputRef} type="file" accept="image/*" multiple
+                  onChange={e=>importerPhotosGroupees(e.target.files)}
+                  style={{display:'none'}}/>
+                <button onClick={()=>fileInputRef.current.click()} disabled={uploadEnCours}
+                  style={{background:'#7c3aed',color:'white',border:'none',borderRadius:'8px',padding:'0.75rem 2rem',cursor:'pointer',fontSize:'1rem',fontWeight:'600'}}>
+                  {uploadEnCours?'⏳ Upload en cours...':'📂 Choisir les photos'}
+                </button>
+              </div>
+              {uploadEnCours && (
+                <div style={{marginBottom:'1rem'}}>
+                  <div style={{background:'#e9d5ff',borderRadius:'8px',height:'12px',overflow:'hidden'}}>
+                    <div style={{background:'#7c3aed',height:'100%',width:`${uploadProgress}%`,transition:'width 0.3s'}}></div>
+                  </div>
+                  <p style={{textAlign:'center',color:'#5b21b6',marginTop:'0.5rem'}}>{uploadProgress}%</p>
+                </div>
+              )}
+              {uploadStatus && <p style={uploadStatus.includes('✅')?s.succes:uploadStatus.includes('⏳')?{color:'#5b21b6',fontWeight:'600'}:s.erreur}>{uploadStatus}</p>}
+              <div style={{background:'#f0fdf4',borderRadius:'8px',padding:'1rem',marginTop:'1rem'}}>
+                <p style={{fontWeight:'600',color:'#166534',margin:'0 0 0.5rem'}}>📊 Statistiques photos :</p>
+                <p style={{margin:'0',color:'#374151'}}>📸 Élèves avec photo : <strong>{eleves.filter(e=>e.photo_url).length}</strong> / {eleves.length}</p>
+                <p style={{margin:'4px 0 0',color:'#374151'}}>❌ Sans photo : <strong>{eleves.filter(e=>!e.photo_url).length}</strong></p>
+              </div>
+            </div>
+          )}
+
+          {/* TROMBINOSCOPE */}
+          {sousOngletPhotos==='trombi' && (
+            <div style={s.importCard}>
+              <h3 style={s.sectionTitre}>🖼️ Trombinoscope</h3>
+              <div style={{display:'flex',gap:'1rem',marginBottom:'1.5rem',alignItems:'center',flexWrap:'wrap'}}>
+                <select value={classeTrombi} onChange={e=>setClasseTrombi(e.target.value)} style={{...s.selectClasse,fontSize:'1rem',padding:'0.6rem 1rem'}}>
+                  <option value="">Toutes les classes</option>
+                  {classes.map(c=><option key={c} value={c}>{c}</option>)}
+                </select>
+                <span style={{color:'#64748b',fontSize:'0.9rem'}}>{avecPhoto} photo(s) sur {elevesTrombi.length} élève(s)</span>
+                <button onClick={imprimerTrombinoscope} style={{background:'#7c3aed',color:'white',border:'none',borderRadius:'8px',padding:'0.6rem 1.2rem',cursor:'pointer',fontWeight:'600'}}>
+                  🖨️ Imprimer trombinoscope
+                </button>
+              </div>
+              <div style={{display:'flex',flexWrap:'wrap',gap:'12px'}}>
+                {elevesTrombi.map(e => (
+                  <div key={e.id} style={{width:'130px',textAlign:'center',border:'1px solid #e2e8f0',borderRadius:'10px',padding:'10px',background:'white',boxShadow:'0 2px 6px rgba(0,0,0,0.06)'}}>
+                    {e.photo_url
+                      ? <img src={e.photo_url} alt="" style={{width:'110px',height:'140px',objectFit:'cover',borderRadius:'6px',border:'2px solid #dbeafe'}}/>
+                      : <div style={{width:'110px',height:'140px',background:'#f1f5f9',borderRadius:'6px',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'2.5rem',margin:'0 auto'}}>👤</div>
+                    }
+                    <div style={{marginTop:'6px',fontWeight:'bold',fontSize:'0.78rem',color:'#1e3a5f'}}>{e.nom}</div>
+                    <div style={{fontSize:'0.72rem',color:'#64748b'}}>{e.prenom}</div>
+                    <span style={{...s.badgeClasse,fontSize:'0.68rem'}}>{e.classe}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* RECHERCHE PHOTO */}
+          {sousOngletPhotos==='recherche' && (
+            <div style={s.importCard}>
+              <h3 style={s.sectionTitre}>🔍 Recherche rapide d'un élève</h3>
+              <input placeholder="🔍 Tapez le nom ou matricule de l'élève..." value={recherchePhoto}
+                onChange={e=>rechercherElevePhoto(e.target.value)}
+                style={{...s.inputRecherche,width:'100%',fontSize:'1.1rem',padding:'0.85rem 1rem',marginBottom:'1.5rem',boxSizing:'border-box'}}/>
+              {eleveRecherchePhoto && (
+                <div style={{display:'flex',gap:'2rem',background:'white',borderRadius:'16px',padding:'2rem',boxShadow:'0 4px 16px rgba(0,0,0,0.1)',flexWrap:'wrap',alignItems:'flex-start'}}>
+                  <div style={{textAlign:'center'}}>
+                    {eleveRecherchePhoto.photo_url
+                      ? <img src={eleveRecherchePhoto.photo_url} alt="" style={{width:'180px',height:'220px',objectFit:'cover',borderRadius:'12px',border:'4px solid #7c3aed',boxShadow:'0 4px 16px rgba(124,58,237,0.3)'}}/>
+                      : <div style={{width:'180px',height:'220px',background:'#f1f5f9',borderRadius:'12px',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'5rem',border:'4px solid #e2e8f0'}}>👤</div>
+                    }
+                  </div>
+                  <div style={{flex:1,minWidth:'200px'}}>
+                    <h2 style={{color:'#1e3a5f',fontSize:'1.8rem',margin:'0 0 0.5rem'}}>{eleveRecherchePhoto.nom}</h2>
+                    <h3 style={{color:'#2563eb',fontSize:'1.3rem',margin:'0 0 1.5rem',fontWeight:'400'}}>{eleveRecherchePhoto.prenom}</h3>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.75rem'}}>
+                      <div style={{background:'#dbeafe',borderRadius:'8px',padding:'0.75rem'}}>
+                        <div style={{fontSize:'0.75rem',color:'#64748b'}}>MATRICULE</div>
+                        <div style={{fontWeight:'bold',color:'#1e3a5f',fontSize:'1rem'}}>{eleveRecherchePhoto.matricule||'-'}</div>
+                      </div>
+                      <div style={{background:'#dbeafe',borderRadius:'8px',padding:'0.75rem'}}>
+                        <div style={{fontSize:'0.75rem',color:'#64748b'}}>CLASSE</div>
+                        <div style={{fontWeight:'bold',color:'#1e3a5f',fontSize:'1rem'}}>{eleveRecherchePhoto.classe||'-'}</div>
+                      </div>
+                      <div style={{background:'#f0fdf4',borderRadius:'8px',padding:'0.75rem'}}>
+                        <div style={{fontSize:'0.75rem',color:'#64748b'}}>TÉLÉPHONE</div>
+                        <div style={{fontWeight:'bold',color:'#166534',fontSize:'1rem'}}>{eleveRecherchePhoto.telephone1||'-'}</div>
+                      </div>
+                      <div style={{background:'#f0fdf4',borderRadius:'8px',padding:'0.75rem'}}>
+                        <div style={{fontSize:'0.75rem',color:'#64748b'}}>MGA</div>
+                        <div style={{fontWeight:'bold',color:'#166534',fontSize:'1rem'}}>{eleveRecherchePhoto.moyenne_generale||'-'}</div>
+                      </div>
+                    </div>
+                    <div style={{marginTop:'1rem',background:'#f8fafc',borderRadius:'8px',padding:'0.75rem'}}>
+                      <div style={{fontSize:'0.75rem',color:'#64748b'}}>PARENT</div>
+                      <div style={{fontWeight:'600',color:'#374151'}}>{eleveRecherchePhoto.nom_parent||'-'}</div>
+                    </div>
+                    <div style={{marginTop:'0.75rem'}}>
+                      <span style={eleveRecherchePhoto.decision_fin_annee==='Admis'?s.badgeAdmis:eleveRecherchePhoto.decision_fin_annee==='Redoublant'?s.badgeRedoublant:s.badgeExclu}>
+                        {eleveRecherchePhoto.decision_fin_annee||'Décision non disponible'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {recherchePhoto.length >= 2 && !eleveRecherchePhoto && (
+                <div style={s.bilanVide}><p>😔 Aucun élève trouvé pour "{recherchePhoto}"</p></div>
+              )}
             </div>
           )}
         </div>
@@ -851,13 +863,11 @@ export default function App() {
   );
 }
 
-const styles = {
+const s = {
   app:{fontFamily:'Segoe UI, Arial, sans-serif',minHeight:'100vh',backgroundColor:'#f0f4f8'},
   loginPage:{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'linear-gradient(135deg, #1e3a5f, #2563eb)'},
   loginBox:{background:'white',padding:'2.5rem',borderRadius:'16px',textAlign:'center',width:'320px',boxShadow:'0 8px 32px rgba(0,0,0,0.2)'},
-  loginLogo:{fontSize:'3rem',marginBottom:'0.5rem'},
   loginTitre:{margin:'0 0 0.3rem',color:'#1e3a5f',fontSize:'1.8rem'},
-  loginSousTitre:{color:'#666',marginBottom:'1.5rem',fontSize:'0.9rem'},
   loginInput:{width:'100%',padding:'0.75rem',border:'2px solid #e2e8f0',borderRadius:'8px',fontSize:'1rem',boxSizing:'border-box',marginBottom:'0.5rem'},
   loginBtn:{width:'100%',padding:'0.75rem',background:'#2563eb',color:'white',border:'none',borderRadius:'8px',fontSize:'1rem',cursor:'pointer',marginTop:'0.5rem'},
   header:{background:'linear-gradient(135deg, #1e3a5f, #2563eb)',color:'white',padding:'1rem 1.5rem',display:'flex',justifyContent:'space-between',alignItems:'center'},
@@ -871,7 +881,7 @@ const styles = {
   sousNav:{display:'flex',gap:'0.5rem',marginBottom:'1.5rem',borderBottom:'2px solid #e2e8f0',paddingBottom:'0.5rem'},
   sousNavBtn:{padding:'0.5rem 1.2rem',border:'2px solid #e2e8f0',borderRadius:'8px 8px 0 0',background:'white',cursor:'pointer',fontWeight:'500',fontSize:'0.9rem'},
   sousNavActif:{padding:'0.5rem 1.2rem',border:'2px solid #0f766e',borderBottom:'2px solid white',borderRadius:'8px 8px 0 0',background:'#0f766e',color:'white',cursor:'pointer',fontWeight:'600',fontSize:'0.9rem'},
-  contenu:{padding:'1.5rem',maxWidth:'1200px',margin:'0 auto'},
+  contenu:{padding:'1.5rem',maxWidth:'1400px',margin:'0 auto'},
   filtres:{display:'flex',gap:'0.75rem',marginBottom:'0.75rem',flexWrap:'wrap',alignItems:'center'},
   inputRecherche:{flex:1,minWidth:'200px',padding:'0.6rem 1rem',border:'2px solid #e2e8f0',borderRadius:'8px',fontSize:'0.95rem'},
   selectClasse:{padding:'0.6rem 1rem',border:'2px solid #e2e8f0',borderRadius:'8px',fontSize:'0.95rem'},
@@ -888,8 +898,7 @@ const styles = {
   tableHead:{background:'#1e3a5f'},
   th:{padding:'0.75rem 0.5rem',color:'white',textAlign:'left',fontWeight:'600',fontSize:'0.82rem'},
   td:{padding:'0.55rem 0.5rem',fontSize:'0.85rem',borderBottom:'1px solid #f0f4f8'},
-  trPair:{background:'white'},
-  trImpair:{background:'#f8fafc'},
+  trPair:{background:'white'},trImpair:{background:'#f8fafc'},
   badgeClasse:{background:'#dbeafe',color:'#1e40af',padding:'2px 8px',borderRadius:'12px',fontSize:'0.8rem',fontWeight:'600'},
   badgeAdmis:{background:'#dcfce7',color:'#166534',padding:'2px 8px',borderRadius:'12px',fontSize:'0.8rem',fontWeight:'600'},
   badgeRedoublant:{background:'#fef3c7',color:'#92400e',padding:'2px 8px',borderRadius:'12px',fontSize:'0.8rem',fontWeight:'600'},
@@ -901,12 +910,11 @@ const styles = {
   btnPayer:{background:'#16a34a',color:'white',border:'none',borderRadius:'6px',padding:'5px 10px',cursor:'pointer',fontSize:'0.82rem',fontWeight:'600'},
   btnAnnulerPaiement:{background:'#94a3b8',color:'white',border:'none',borderRadius:'6px',padding:'5px 10px',cursor:'pointer',fontSize:'0.82rem'},
   btnRetour:{background:'#64748b',color:'white',border:'none',borderRadius:'8px',padding:'0.5rem 1rem',cursor:'pointer',marginRight:'0.5rem'},
-  btnImprimer:{background:'#2563eb',color:'white',border:'none',borderRadius:'8px',padding:'0.5rem 1rem',cursor:'pointer',marginRight:'0.5rem'},
   btnImprimerClasse:{background:'#1e3a5f',color:'white',border:'none',borderRadius:'8px',padding:'0.5rem 1rem',cursor:'pointer',fontWeight:'600'},
   btnModifier2:{background:'#f59e0b',color:'white',border:'none',borderRadius:'8px',padding:'0.5rem 1rem',cursor:'pointer'},
   ficheCard:{background:'white',borderRadius:'12px',padding:'2rem',boxShadow:'0 2px 8px rgba(0,0,0,0.08)'},
-  ficheHeader:{display:'flex',alignItems:'center',gap:'1.5rem',marginBottom:'1.5rem',borderBottom:'2px solid #e2e8f0',paddingBottom:'1.5rem'},
-  ficheAvatar:{width:'80px',height:'80px',borderRadius:'50%',background:'#dbeafe',display:'flex',alignItems:'center',justifyContent:'center'},
+  ficheHeader:{display:'flex',alignItems:'flex-start',gap:'1.5rem',marginBottom:'1.5rem',borderBottom:'2px solid #e2e8f0',paddingBottom:'1.5rem'},
+  ficheAvatar:{width:'110px',height:'140px',borderRadius:'8px',background:'#dbeafe',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'},
   ficheNom:{margin:'0 0 0.3rem',color:'#1e3a5f',fontSize:'1.5rem'},
   ficheClasse:{margin:'0',color:'#2563eb',fontWeight:'600'},
   ficheMatricule:{margin:'0',color:'#64748b',fontSize:'0.9rem'},
@@ -924,7 +932,6 @@ const styles = {
   trimestreBtn:{padding:'0.75rem 1.5rem',border:'2px solid #e2e8f0',borderRadius:'8px',background:'white',cursor:'pointer',fontWeight:'600',fontSize:'1rem'},
   trimestreBtnActif:{padding:'0.75rem 1.5rem',border:'2px solid #2563eb',borderRadius:'8px',background:'#2563eb',color:'white',cursor:'pointer',fontWeight:'600',fontSize:'1rem'},
   importInfo:{fontWeight:'600',color:'#1e3a5f'},
-  colonnes:{background:'#f0f4f8',padding:'0.75rem',borderRadius:'8px',fontSize:'0.85rem',color:'#374151'},
   btnImportExcel:{background:'#2563eb',color:'white',border:'none',borderRadius:'8px',padding:'0.75rem 1.5rem',cursor:'pointer',fontSize:'1rem',fontWeight:'600'},
   btnCalculer:{background:'#7c3aed',color:'white',border:'none',borderRadius:'8px',padding:'0.75rem 1.5rem',cursor:'pointer',fontSize:'1rem',fontWeight:'600',marginTop:'0.5rem'},
   bepcInfo:{background:'#dcfce7',borderRadius:'8px',padding:'1rem',marginBottom:'1.5rem'},
@@ -935,7 +942,7 @@ const styles = {
   bilanResumeItem:{background:'#dbeafe',border:'2px solid #2563eb',borderRadius:'12px',padding:'1.2rem',textAlign:'center'},
   bilanResumeNum:{fontSize:'2.2rem',fontWeight:'bold',color:'#1e3a5f'},
   bilanResumeLabel:{fontSize:'0.9rem',color:'#475569',marginTop:'0.3rem'},
-  bilanVide:{background:'#f8fafc',borderRadius:'8px',padding:'2rem',textAlign:'center',color:'#9ca3af',fontSize:'1rem'},
+  bilanVide:{background:'#f8fafc',borderRadius:'8px',padding:'2rem',textAlign:'center',color:'#9ca3af'},
   btnBilanImprimer:{background:'#0f766e',color:'white',border:'none',borderRadius:'8px',padding:'0.8rem 1.8rem',cursor:'pointer',fontSize:'1rem',fontWeight:'600'},
   succes:{color:'green',fontWeight:'600',marginTop:'0.75rem'},
   erreur:{color:'red',fontWeight:'600',marginTop:'0.75rem'},
