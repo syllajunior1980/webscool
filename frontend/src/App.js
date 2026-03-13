@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 
 const API = 'https://webscool.onrender.com/api';
-const MOT_DE_PASSE = 'dsps2024';
-const ETABLISSEMENT = 'COLLÈGE MODERNE BOUAKÉ DAR ES SALAM';
+const MOT_DE_PASSE = 'dares2026';
+const ETABLISSEMENT = 'COLLÃˆGE MODERNE BOUAKÃ‰ DAR ES SALAM';
 const ANNEE_SCOLAIRE = '2025-2026';
 const MONTANT_INSCRIPTION = 1000;
 
@@ -54,7 +54,7 @@ export default function App() {
 
   const seConnecter = () => {
     if (mdp === MOT_DE_PASSE) { setConnecte(true); setErreurMdp(''); }
-    else { setErreurMdp('❌ Mot de passe incorrect'); }
+    else { setErreurMdp('âŒ Mot de passe incorrect'); }
   };
 
   const chargerEleves = async () => {
@@ -103,17 +103,17 @@ export default function App() {
       if (estPaye) {
         await axios.delete(`${API}/inscriptions/${eleve.id}`);
         const newP = {...paiements}; delete newP[eleve.id]; setPaiements(newP);
-        setMessageInscription(`❌ Paiement annulé pour ${eleve.nom} ${eleve.prenom}`);
+        setMessageInscription(`âŒ Paiement annulÃ© pour ${eleve.nom} ${eleve.prenom}`);
       } else {
         const res = await axios.post(`${API}/inscriptions`, {
           eleve_id: eleve.id, montant: MONTANT_INSCRIPTION,
           date_paiement: new Date().toISOString().split('T')[0]
         });
         setPaiements({...paiements, [eleve.id]: res.data});
-        setMessageInscription(`✅ Paiement enregistré pour ${eleve.nom} ${eleve.prenom}`);
+        setMessageInscription(`âœ… Paiement enregistrÃ© pour ${eleve.nom} ${eleve.prenom}`);
       }
       setTimeout(() => setMessageInscription(''), 3000);
-    } catch (err) { setMessageInscription('❌ Erreur: ' + (err.response?.data?.erreur || err.message)); }
+    } catch (err) { setMessageInscription('âŒ Erreur: ' + (err.response?.data?.erreur || err.message)); }
   };
 
   // ===== PHOTOS =====
@@ -121,7 +121,7 @@ export default function App() {
     if (!fichiers || fichiers.length === 0) return;
     setUploadEnCours(true);
     setUploadProgress(0);
-    setUploadStatus(`⏳ Préparation de ${fichiers.length} photos...`);
+    setUploadStatus(`â³ PrÃ©paration de ${fichiers.length} photos...`);
 
     const BATCH = 20;
     let total = 0; let erreurs = 0;
@@ -140,10 +140,10 @@ export default function App() {
       } catch (err) { erreurs += lot.length; }
       const progress = Math.round(((i + BATCH) / tabFichiers.length) * 100);
       setUploadProgress(Math.min(progress, 100));
-      setUploadStatus(`⏳ ${Math.min(i + BATCH, tabFichiers.length)} / ${tabFichiers.length} photos traitées...`);
+      setUploadStatus(`â³ ${Math.min(i + BATCH, tabFichiers.length)} / ${tabFichiers.length} photos traitÃ©es...`);
     }
 
-    setUploadStatus(`✅ ${total} photos importées ! ${erreurs > 0 ? `⚠️ ${erreurs} erreurs` : ''}`);
+    setUploadStatus(`âœ… ${total} photos importÃ©es ! ${erreurs > 0 ? `âš ï¸ ${erreurs} erreurs` : ''}`);
     setUploadEnCours(false);
     chargerEleves();
   };
@@ -159,29 +159,29 @@ export default function App() {
   };
 
   const importerTrimestre = async () => {
-    if (!fichierExcel) { setImportStatus('⚠️ Choisissez un fichier Excel'); return; }
-    setImportEnCours(true); setImportStatus(`⏳ Import ${trimestreActif} en cours...`);
+    if (!fichierExcel) { setImportStatus('âš ï¸ Choisissez un fichier Excel'); return; }
+    setImportEnCours(true); setImportStatus(`â³ Import ${trimestreActif} en cours...`);
     const formData = new FormData();
     formData.append('fichier', fichierExcel); formData.append('trimestre', trimestreActif);
     try {
       const res = await axios.post(`${API}/import/trimestre`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }, timeout: 120000
       });
-      setImportStatus(`✅ ${res.data.mis_a_jour} élèves mis à jour pour ${trimestreActif} !`);
+      setImportStatus(`âœ… ${res.data.mis_a_jour} Ã©lÃ¨ves mis Ã  jour pour ${trimestreActif} !`);
       chargerEleves();
     } catch (err) {
-      setImportStatus('❌ Erreur: ' + JSON.stringify(err.response?.data?.erreur || err.message));
+      setImportStatus('âŒ Erreur: ' + JSON.stringify(err.response?.data?.erreur || err.message));
     }
     setImportEnCours(false);
   };
   const calculerMoyennesAnnuelles = async () => {
-    if (!window.confirm('Calculer MGA et DFA pour tous les élèves ?')) return;
-    setCalcEnCours(true); setCalcStatus('⏳ Calcul en cours...');
+    if (!window.confirm('Calculer MGA et DFA pour tous les Ã©lÃ¨ves ?')) return;
+    setCalcEnCours(true); setCalcStatus('â³ Calcul en cours...');
     try {
       const res = await axios.post(`${API}/eleves/calculer-moyennes`);
-      setCalcStatus(`✅ ${res.data.mis_a_jour} élèves mis à jour ! (Admis: ${res.data.admis}, Redoublants: ${res.data.redoublants}, Exclus: ${res.data.exclus})`);
+      setCalcStatus(`âœ… ${res.data.mis_a_jour} Ã©lÃ¨ves mis Ã  jour ! (Admis: ${res.data.admis}, Redoublants: ${res.data.redoublants}, Exclus: ${res.data.exclus})`);
       chargerEleves();
-    } catch (err) { setCalcStatus('❌ Erreur: ' + (err.response?.data?.erreur || err.message)); }
+    } catch (err) { setCalcStatus('âŒ Erreur: ' + (err.response?.data?.erreur || err.message)); }
     setCalcEnCours(false);
   };
   const ouvrirFiche = (eleve) => { setEleveSelectionne(eleve); setOnglet('fiche'); };
@@ -206,27 +206,27 @@ export default function App() {
   };
   const sauvegarderEleve = async () => {
     if (!formulaire.nom || !formulaire.prenom || !formulaire.classe) {
-      setMessageFormulaire('❌ Nom, prénom et classe sont obligatoires'); return;
+      setMessageFormulaire('âŒ Nom, prÃ©nom et classe sont obligatoires'); return;
     }
     try {
       if (modeFormulaire === 'ajouter') {
         await axios.post(`${API}/eleves`, formulaire);
-        setMessageFormulaire('✅ Élève ajouté !');
+        setMessageFormulaire('âœ… Ã‰lÃ¨ve ajoutÃ© !');
       } else {
         await axios.put(`${API}/eleves/${eleveSelectionne.id}`, formulaire);
-        setMessageFormulaire('✅ Élève modifié !');
+        setMessageFormulaire('âœ… Ã‰lÃ¨ve modifiÃ© !');
       }
       chargerEleves(); chargerClasses();
-    } catch (err) { setMessageFormulaire('❌ Erreur: ' + (err.response?.data?.erreur || err.message)); }
+    } catch (err) { setMessageFormulaire('âŒ Erreur: ' + (err.response?.data?.erreur || err.message)); }
   };
   const supprimerEleve = async (id) => {
-    if (!window.confirm('Supprimer cet élève ?')) return;
+    if (!window.confirm('Supprimer cet Ã©lÃ¨ve ?')) return;
     try { await axios.delete(`${API}/eleves/${id}`); chargerEleves(); }
     catch (err) { alert('Erreur suppression'); }
   };
 
   const imprimerListeClasse = () => {
-    if (!classeFiltre) { alert("Veuillez sélectionner une classe d'abord !"); return; }
+    if (!classeFiltre) { alert("Veuillez sÃ©lectionner une classe d'abord !"); return; }
     const elevesAImprimer = eleves.slice().sort((a,b) => (a.nom||'').localeCompare(b.nom||''));
     const admis = elevesAImprimer.filter(e => e.decision_fin_annee === 'Admis').length;
     const redoublants = elevesAImprimer.filter(e => e.decision_fin_annee === 'Redoublant').length;
@@ -251,17 +251,17 @@ export default function App() {
       thead th{padding:7px 4px;border:1px solid #ccc;font-size:11px;}
       .stats{display:flex;gap:20px;margin-top:15px;padding:10px;background:#f0f4f8;border-radius:6px;flex-wrap:wrap;}
       .footer{margin-top:30px;display:flex;justify-content:space-between;font-size:11px;}</style></head><body>
-      <div class="entete"><h2>${ETABLISSEMENT}</h2><h1>LISTE DES ÉLÈVES DE ${classeFiltre.toUpperCase()}</h1>
-      <p>Année scolaire : ${ANNEE_SCOLAIRE}</p></div>
-      <table><thead><tr><th>N°</th><th>Matricule</th><th>Nom</th><th>Prénom</th><th>T1</th><th>T2</th><th>T3</th><th>MGA</th><th>Décision</th></tr></thead>
+      <div class="entete"><h2>${ETABLISSEMENT}</h2><h1>LISTE DES Ã‰LÃˆVES DE ${classeFiltre.toUpperCase()}</h1>
+      <p>AnnÃ©e scolaire : ${ANNEE_SCOLAIRE}</p></div>
+      <table><thead><tr><th>NÂ°</th><th>Matricule</th><th>Nom</th><th>PrÃ©nom</th><th>T1</th><th>T2</th><th>T3</th><th>MGA</th><th>DÃ©cision</th></tr></thead>
       <tbody>${lignes}</tbody></table>
-      <div class="stats"><span>👥 <strong>Total :</strong> ${elevesAImprimer.length}</span>
-      <span>📈 <strong>Moy. classe :</strong> ${moyenneClasse}</span>
-      <span style="color:green;">✅ <strong>Admis :</strong> ${admis}</span>
-      <span style="color:orange;">🔄 <strong>Redoublants :</strong> ${redoublants}</span>
-      <span style="color:red;">❌ <strong>Exclus :</strong> ${exclus}</span>
-      <span>📊 <strong>Taux :</strong> ${elevesAImprimer.length > 0 ? Math.round(admis/elevesAImprimer.length*100) : 0}%</span></div>
-      <div class="footer"><span>Imprimé le : ${new Date().toLocaleDateString('fr-FR')}</span>
+      <div class="stats"><span>ðŸ‘¥ <strong>Total :</strong> ${elevesAImprimer.length}</span>
+      <span>ðŸ“ˆ <strong>Moy. classe :</strong> ${moyenneClasse}</span>
+      <span style="color:green;">âœ… <strong>Admis :</strong> ${admis}</span>
+      <span style="color:orange;">ðŸ”„ <strong>Redoublants :</strong> ${redoublants}</span>
+      <span style="color:red;">âŒ <strong>Exclus :</strong> ${exclus}</span>
+      <span>ðŸ“Š <strong>Taux :</strong> ${elevesAImprimer.length > 0 ? Math.round(admis/elevesAImprimer.length*100) : 0}%</span></div>
+      <div class="footer"><span>ImprimÃ© le : ${new Date().toLocaleDateString('fr-FR')}</span>
       <span>Signature du Directeur : ________________</span></div>
       <script>window.onload=function(){window.print();}</script></body></html>`;
     const f = window.open('','_blank'); f.document.write(html); f.document.close();
@@ -288,11 +288,11 @@ export default function App() {
       .stats{margin-top:15px;padding:10px;background:#dcfce7;border-radius:6px;}
       .footer{margin-top:30px;display:flex;justify-content:space-between;font-size:11px;}</style></head><body>
       <div class="entete"><h2>${ETABLISSEMENT}</h2><h1>LISTE DES ADMIS AU BEPC</h1>
-      <p>Année scolaire : ${ANNEE_SCOLAIRE}</p></div>
-      <table><thead><tr><th>N°</th><th>Matricule</th><th>Nom</th><th>Prénom</th><th>Classe</th><th>MGA</th><th>Parent</th><th>Téléphone</th></tr></thead>
+      <p>AnnÃ©e scolaire : ${ANNEE_SCOLAIRE}</p></div>
+      <table><thead><tr><th>NÂ°</th><th>Matricule</th><th>Nom</th><th>PrÃ©nom</th><th>Classe</th><th>MGA</th><th>Parent</th><th>TÃ©lÃ©phone</th></tr></thead>
       <tbody>${lignes}</tbody></table>
-      <div class="stats">✅ <strong>Total admis au BEPC : ${admisBepc.length} élèves</strong></div>
-      <div class="footer"><span>Imprimé le : ${new Date().toLocaleDateString('fr-FR')}</span>
+      <div class="stats">âœ… <strong>Total admis au BEPC : ${admisBepc.length} Ã©lÃ¨ves</strong></div>
+      <div class="footer"><span>ImprimÃ© le : ${new Date().toLocaleDateString('fr-FR')}</span>
       <span>Signature : ________________</span></div>
       <script>window.onload=function(){window.print();}</script></body></html>`;
     const f = window.open('','_blank'); f.document.write(html); f.document.close();
@@ -316,14 +316,14 @@ export default function App() {
       .stats{margin-top:15px;padding:10px;background:#dcfce7;border-radius:6px;display:flex;gap:30px;}
       .footer{margin-top:30px;display:flex;justify-content:space-between;font-size:11px;}</style></head><body>
       <div style="text-align:center;margin-bottom:20px;border-bottom:2px solid #000;padding-bottom:10px;">
-      <h2>${ETABLISSEMENT}</h2><h1>LISTE DES ÉLÈVES AYANT PAYÉ LES DROITS D'INSCRIPTION</h1>
-      <p>Année scolaire : ${ANNEE_SCOLAIRE}${filtre?' — Classe : '+filtre:' — Toutes classes'}</p></div>
-      <table><thead><tr><th>N°</th><th>Matricule</th><th>Nom</th><th>Prénom</th><th>Classe</th><th>Date paiement</th><th>Montant</th></tr></thead>
+      <h2>${ETABLISSEMENT}</h2><h1>LISTE DES Ã‰LÃˆVES AYANT PAYÃ‰ LES DROITS D'INSCRIPTION</h1>
+      <p>AnnÃ©e scolaire : ${ANNEE_SCOLAIRE}${filtre?' â€” Classe : '+filtre:' â€” Toutes classes'}</p></div>
+      <table><thead><tr><th>NÂ°</th><th>Matricule</th><th>Nom</th><th>PrÃ©nom</th><th>Classe</th><th>Date paiement</th><th>Montant</th></tr></thead>
       <tbody>${lignes}</tbody></table>
-      <div class="stats"><span>👥 <strong>Total payés :</strong> ${liste.length}</span>
-      <span>💰 <strong>Total encaissé :</strong> ${liste.length * MONTANT_INSCRIPTION} FCFA</span></div>
-      <div class="footer"><span>Imprimé le : ${new Date().toLocaleDateString('fr-FR')}</span>
-      <span>Signature de l'Économe : ________________</span></div>
+      <div class="stats"><span>ðŸ‘¥ <strong>Total payÃ©s :</strong> ${liste.length}</span>
+      <span>ðŸ’° <strong>Total encaissÃ© :</strong> ${liste.length * MONTANT_INSCRIPTION} FCFA</span></div>
+      <div class="footer"><span>ImprimÃ© le : ${new Date().toLocaleDateString('fr-FR')}</span>
+      <span>Signature de l'Ã‰conome : ________________</span></div>
       <script>window.onload=function(){window.print();}</script></body></html>`;
     const f = window.open('','_blank'); f.document.write(html); f.document.close();
   };
@@ -349,19 +349,19 @@ export default function App() {
       .signatures{margin-top:40px;display:flex;justify-content:space-between;}
       .sig-box{text-align:center;width:45%;}.sig-line{border-bottom:1px solid #000;height:50px;margin-top:8px;}</style></head><body>
       <div class="entete"><h2>${ETABLISSEMENT}</h2><h1>BILAN JOURNALIER DES DROITS D'INSCRIPTION</h1>
-      <div style="font-size:13px;font-weight:bold;">Journée du : ${dateAffichee}</div>
-      <p style="font-size:11px;color:#555;">Année scolaire : ${ANNEE_SCOLAIRE}</p></div>
+      <div style="font-size:13px;font-weight:bold;">JournÃ©e du : ${dateAffichee}</div>
+      <p style="font-size:11px;color:#555;">AnnÃ©e scolaire : ${ANNEE_SCOLAIRE}</p></div>
       ${liste.length===0?'<p style="text-align:center;color:#9ca3af;">Aucun paiement ce jour.</p>':
-      `<table><thead><tr><th>N°</th><th>Matricule</th><th>Nom</th><th>Prénom</th><th>Classe</th><th>Montant</th></tr></thead>
+      `<table><thead><tr><th>NÂ°</th><th>Matricule</th><th>Nom</th><th>PrÃ©nom</th><th>Classe</th><th>Montant</th></tr></thead>
       <tbody>${lignes}</tbody></table>`}
-      <div class="recap"><div style="font-size:13px;font-weight:bold;color:#166534;margin-bottom:8px;">RÉCAPITULATIF DE LA JOURNÉE</div>
-      <div style="display:flex;justify-content:space-between;"><span>Nombre d'élèves :</span><span><strong>${liste.length}</strong></span></div>
+      <div class="recap"><div style="font-size:13px;font-weight:bold;color:#166534;margin-bottom:8px;">RÃ‰CAPITULATIF DE LA JOURNÃ‰E</div>
+      <div style="display:flex;justify-content:space-between;"><span>Nombre d'Ã©lÃ¨ves :</span><span><strong>${liste.length}</strong></span></div>
       <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:bold;color:#166534;margin-top:8px;padding-top:8px;border-top:2px solid #16a34a;">
-      <span>TOTAL ENCAISSÉ CE JOUR :</span><span>${(liste.length*MONTANT_INSCRIPTION).toLocaleString()} FCFA</span></div></div>
+      <span>TOTAL ENCAISSÃ‰ CE JOUR :</span><span>${(liste.length*MONTANT_INSCRIPTION).toLocaleString()} FCFA</span></div></div>
       <div class="signatures">
-      <div class="sig-box"><p style="font-weight:bold;">L'Économe / Responsable Financier</p><div class="sig-line"></div></div>
+      <div class="sig-box"><p style="font-weight:bold;">L'Ã‰conome / Responsable Financier</p><div class="sig-line"></div></div>
       <div class="sig-box"><p style="font-weight:bold;">Le Directeur</p><div class="sig-line"></div></div></div>
-      <p style="text-align:right;font-size:10px;color:#9ca3af;margin-top:20px;">Document généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}</p>
+      <p style="text-align:right;font-size:10px;color:#9ca3af;margin-top:20px;">Document gÃ©nÃ©rÃ© le ${new Date().toLocaleDateString('fr-FR')} Ã  ${new Date().toLocaleTimeString('fr-FR')}</p>
       <script>window.onload=function(){window.print();}</script></body></html>`;
     const f = window.open('','_blank'); f.document.write(html); f.document.close();
   };
@@ -378,7 +378,7 @@ export default function App() {
         .toLocaleDateString('fr-FR', {day:'2-digit', month:'long', year:'numeric'});
     };
     const datePaiement = formatDate(paiement?.date_paiement);
-    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Reçu ${eleve.matricule}</title>
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>ReÃ§u ${eleve.matricule}</title>
     <style>
       body{font-family:Arial,sans-serif;margin:0;padding:0;background:#f0f4f8;}
       .page{width:148mm;min-height:105mm;margin:10mm auto;background:white;border:2px solid #1e3a5f;border-radius:8px;padding:0;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.15);}
@@ -407,36 +407,36 @@ export default function App() {
     </style></head><body>
     <div class="page">
       <div class="entete">
-        <div style="font-size:1.8rem;">🎓</div>
+        <div style="font-size:1.8rem;">ðŸŽ“</div>
         <div class="entete-texte">
           <h2>${ETABLISSEMENT}</h2>
-          <p>Année scolaire : ${ANNEE_SCOLAIRE}</p>
+          <p>AnnÃ©e scolaire : ${ANNEE_SCOLAIRE}</p>
         </div>
       </div>
-      <div class="titre-recu">✅ REÇU DE PAIEMENT — DROITS D'INSCRIPTION</div>
+      <div class="titre-recu">âœ… REÃ‡U DE PAIEMENT â€” DROITS D'INSCRIPTION</div>
       <div class="corps">
         ${eleve.photo_url
           ? `<img src="${eleve.photo_url}" class="photo" onerror="this.style.display='none'"/>`
-          : `<div class="photo-placeholder">👤</div>`}
+          : `<div class="photo-placeholder">ðŸ‘¤</div>`}
         <div class="infos">
           <div class="nom">${eleve.nom} ${eleve.prenom}</div>
           <div class="classe">Classe : ${eleve.classe}</div>
           <div class="ligne"><span>Matricule :</span><span>${eleve.matricule||'-'}</span></div>
           <div class="ligne"><span>Date de paiement :</span><span>${datePaiement}</span></div>
-          <div class="ligne"><span>Statut :</span><span><span class="badge-ok">✅ PAYÉ</span></span></div>
+          <div class="ligne"><span>Statut :</span><span><span class="badge-ok">âœ… PAYÃ‰</span></span></div>
         </div>
       </div>
       <div class="montant-box">
-        <span class="montant-label">💰 Montant reçu :</span>
+        <span class="montant-label">ðŸ’° Montant reÃ§u :</span>
         <span class="montant-val">${MONTANT_INSCRIPTION.toLocaleString()} FCFA</span>
       </div>
       <div class="phrase">
-        Le présent reçu certifie que l'élève <strong>${eleve.nom} ${eleve.prenom}</strong> a régulièrement acquitté ses droits d'inscription pour l'année scolaire <strong>${ANNEE_SCOLAIRE}</strong>.<br/>
-        Ce document fait foi auprès de l'administration scolaire et des parents ou tuteurs légaux.
+        Le prÃ©sent reÃ§u certifie que l'Ã©lÃ¨ve <strong>${eleve.nom} ${eleve.prenom}</strong> a rÃ©guliÃ¨rement acquittÃ© ses droits d'inscription pour l'annÃ©e scolaire <strong>${ANNEE_SCOLAIRE}</strong>.<br/>
+        Ce document fait foi auprÃ¨s de l'administration scolaire et des parents ou tuteurs lÃ©gaux.
       </div>
       <div class="signatures">
-        <div class="sig"><div>L'Économe</div><div class="sig-line"></div></div>
-        <div class="sig" style="text-align:center;font-size:9px;color:#9ca3af;">N° : ${eleve.id}-${new Date().getFullYear()}</div>
+        <div class="sig"><div>L'Ã‰conome</div><div class="sig-line"></div></div>
+        <div class="sig" style="text-align:center;font-size:9px;color:#9ca3af;">NÂ° : ${eleve.id}-${new Date().getFullYear()}</div>
         <div class="sig"><div>Le Directeur</div><div class="sig-line"></div></div>
       </div>
     </div>
@@ -458,8 +458,8 @@ export default function App() {
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Trombinoscope</title>
       <style>body{font-family:Arial,sans-serif;margin:20px;}@media print{body{margin:10px;}}
       .entete{text-align:center;margin-bottom:20px;border-bottom:2px solid #000;padding-bottom:10px;}</style></head><body>
-      <div class="entete"><h2>${ETABLISSEMENT}</h2><h1>TROMBINOSCOPE${classeTrombi?' — '+classeTrombi:''}</h1>
-      <p>Année scolaire : ${ANNEE_SCOLAIRE} — ${elevesClasse.length} élève(s)</p></div>
+      <div class="entete"><h2>${ETABLISSEMENT}</h2><h1>TROMBINOSCOPE${classeTrombi?' â€” '+classeTrombi:''}</h1>
+      <p>AnnÃ©e scolaire : ${ANNEE_SCOLAIRE} â€” ${elevesClasse.length} Ã©lÃ¨ve(s)</p></div>
       <div>${cartes}</div>
       <script>window.onload=function(){window.print();}</script></body></html>`;
     const f = window.open('','_blank'); f.document.write(html); f.document.close();
@@ -469,9 +469,9 @@ export default function App() {
     return (
       <div style={s.loginPage}>
         <div style={s.loginBox}>
-          <div style={{fontSize:'3rem',marginBottom:'0.5rem'}}>🎓</div>
+          <div style={{fontSize:'3rem',marginBottom:'0.5rem'}}>ðŸŽ“</div>
           <h1 style={s.loginTitre}>WebScool</h1>
-          <p style={{color:'#666',marginBottom:'1.5rem',fontSize:'0.9rem'}}>Gestion des élèves</p>
+          <p style={{color:'#666',marginBottom:'1.5rem',fontSize:'0.9rem'}}>Gestion des Ã©lÃ¨ves</p>
           <input type="password" placeholder="Mot de passe" value={mdp}
             onChange={e=>setMdp(e.target.value)} onKeyPress={e=>e.key==='Enter'&&seConnecter()}
             style={s.loginInput} />
@@ -506,18 +506,18 @@ export default function App() {
     <div style={s.app}>
       <div style={s.header}>
         <div style={s.headerLeft}>
-          <span style={{fontSize:'1.8rem'}}>🎓</span>
+          <span style={{fontSize:'1.8rem'}}>ðŸŽ“</span>
           <div>
             <div style={s.headerTitre}>WebScool</div>
-            <div style={s.headerSous}>{eleves.length} élèves — {ETABLISSEMENT}</div>
+            <div style={s.headerSous}>{eleves.length} Ã©lÃ¨ves â€” {ETABLISSEMENT}</div>
           </div>
         </div>
-        <button onClick={()=>setConnecte(false)} style={s.btnDeconnecter}>Déconnexion</button>
+        <button onClick={()=>setConnecte(false)} style={s.btnDeconnecter}>DÃ©connexion</button>
       </div>
 
       <div style={s.nav}>
-        {[['liste','📋 Élèves'],['formulaire','➕ Ajouter'],['importer','📥 Importer'],
-          ['bepc','🏆 BEPC'],['inscription','💰 Inscription'],['photos','📸 Photos']].map(([id,label])=>(
+        {[['liste','ðŸ“‹ Ã‰lÃ¨ves'],['formulaire','âž• Ajouter'],['importer','ðŸ“¥ Importer'],
+          ['bepc','ðŸ† BEPC'],['inscription','ðŸ’° Inscription'],['photos','ðŸ“¸ Photos']].map(([id,label])=>(
           <button key={id} onClick={()=>{setOnglet(id);if(id==='formulaire')ouvrirFormulaire();}}
             style={onglet===id?s.navBtnActif:s.navBtn}>{label}</button>
         ))}
@@ -527,30 +527,30 @@ export default function App() {
       {onglet==='liste' && (
         <div style={s.contenu}>
           <div style={s.filtres}>
-            <input placeholder="🔍 Rechercher par nom ou matricule..." value={recherche}
+            <input placeholder="ðŸ” Rechercher par nom ou matricule..." value={recherche}
               onChange={e=>rechercherEleves(e.target.value)} style={s.inputRecherche} />
             <select value={classeFiltre} onChange={e=>filtrerParClasse(e.target.value)} style={s.selectClasse}>
               <option value="">Toutes les classes</option>
               {classes.map(c=><option key={c} value={c}>{c}</option>)}
             </select>
-            {classeFiltre && <button onClick={imprimerListeClasse} style={s.btnImprimerClasse}>🖨️ Imprimer</button>}
+            {classeFiltre && <button onClick={imprimerListeClasse} style={s.btnImprimerClasse}>ðŸ–¨ï¸ Imprimer</button>}
           </div>
           {classeFiltre && elevesClasse.length > 0 && (
             <div style={s.statsClasse}>
-              <span>📊 <strong>{classeFiltre}</strong></span>
-              <span>👥 Total : <strong>{elevesClasse.length}</strong></span>
-              <span>📈 Moy. : <strong>{moyenneClasseFiltre}</strong></span>
-              <span style={{color:'#166534'}}>✅ Admis : <strong>{elevesClasse.filter(e=>e.decision_fin_annee==='Admis').length}</strong></span>
-              <span style={{color:'#92400e'}}>🔄 Redoublants : <strong>{elevesClasse.filter(e=>e.decision_fin_annee==='Redoublant').length}</strong></span>
-              <span style={{color:'#991b1b'}}>❌ Exclus : <strong>{elevesClasse.filter(e=>e.decision_fin_annee==='Exclu').length}</strong></span>
-              <span>📊 Taux : <strong>{Math.round(elevesClasse.filter(e=>e.decision_fin_annee==='Admis').length/elevesClasse.length*100)}%</strong></span>
+              <span>ðŸ“Š <strong>{classeFiltre}</strong></span>
+              <span>ðŸ‘¥ Total : <strong>{elevesClasse.length}</strong></span>
+              <span>ðŸ“ˆ Moy. : <strong>{moyenneClasseFiltre}</strong></span>
+              <span style={{color:'#166534'}}>âœ… Admis : <strong>{elevesClasse.filter(e=>e.decision_fin_annee==='Admis').length}</strong></span>
+              <span style={{color:'#92400e'}}>ðŸ”„ Redoublants : <strong>{elevesClasse.filter(e=>e.decision_fin_annee==='Redoublant').length}</strong></span>
+              <span style={{color:'#991b1b'}}>âŒ Exclus : <strong>{elevesClasse.filter(e=>e.decision_fin_annee==='Exclu').length}</strong></span>
+              <span>ðŸ“Š Taux : <strong>{Math.round(elevesClasse.filter(e=>e.decision_fin_annee==='Admis').length/elevesClasse.length*100)}%</strong></span>
             </div>
           )}
-          <p style={s.compteur}>{eleves.length} élève(s){classeFiltre?` en ${classeFiltre}`:''}</p>
+          <p style={s.compteur}>{eleves.length} Ã©lÃ¨ve(s){classeFiltre?` en ${classeFiltre}`:''}</p>
           <div style={s.tableWrap}>
             <table style={s.table}>
               <thead style={s.tableHead}>
-                <tr>{['#','Photo','Matricule','Nom','Prénom','Classe','Parent','Téléphone','T1','T2','T3','MGA','Décision','Actions'].map(h=>(
+                <tr>{['#','Photo','Matricule','Nom','PrÃ©nom','Classe','Parent','TÃ©lÃ©phone','T1','T2','T3','MGA','DÃ©cision','Actions'].map(h=>(
                   <th key={h} style={s.th}>{h}</th>
                 ))}</tr>
               </thead>
@@ -561,7 +561,7 @@ export default function App() {
                     <td style={s.td}>
                       {e.photo_url
                         ? <img src={e.photo_url} alt="" style={{width:'36px',height:'45px',objectFit:'cover',borderRadius:'4px',border:'1px solid #ddd'}}/>
-                        : <div style={{width:'36px',height:'45px',background:'#e2e8f0',borderRadius:'4px',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1.2rem'}}>👤</div>
+                        : <div style={{width:'36px',height:'45px',background:'#e2e8f0',borderRadius:'4px',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1.2rem'}}>ðŸ‘¤</div>
                       }
                     </td>
                     <td style={s.td}>{e.matricule}</td>
@@ -569,7 +569,7 @@ export default function App() {
                     <td style={s.td}>{e.prenom}</td>
                     <td style={s.td}><span style={s.badgeClasse}>{e.classe}</span></td>
                     <td style={s.td}>{e.nom_parent}</td>
-                    <td style={s.td}>{e.telephone1&&<a href={`tel:${e.telephone1}`} style={s.telLink}>📞 {e.telephone1}</a>}</td>
+                    <td style={s.td}>{e.telephone1&&<a href={`tel:${e.telephone1}`} style={s.telLink}>ðŸ“ž {e.telephone1}</a>}</td>
                     <td style={s.td}>{e.moyenne_t1||'-'}</td>
                     <td style={s.td}>{e.moyenne_t2||'-'}</td>
                     <td style={s.td}>{e.moyenne_t3||'-'}</td>
@@ -580,9 +580,9 @@ export default function App() {
                       </span>
                     </td>
                     <td style={s.td}>
-                      <button onClick={()=>ouvrirFiche(e)} style={s.btnVoir}>👁️</button>
-                      <button onClick={()=>{setEleveSelectionne(e);ouvrirFormulaire(e);}} style={s.btnModifier}>✏️</button>
-                      <button onClick={()=>supprimerEleve(e.id)} style={s.btnSupprimer}>🗑️</button>
+                      <button onClick={()=>ouvrirFiche(e)} style={s.btnVoir}>ðŸ‘ï¸</button>
+                      <button onClick={()=>{setEleveSelectionne(e);ouvrirFormulaire(e);}} style={s.btnModifier}>âœï¸</button>
+                      <button onClick={()=>supprimerEleve(e.id)} style={s.btnSupprimer}>ðŸ—‘ï¸</button>
                     </td>
                   </tr>
                 ))}
@@ -596,15 +596,15 @@ export default function App() {
       {onglet==='fiche' && eleveSelectionne && (
         <div style={s.contenu}>
           <div style={{marginBottom:'1rem'}}>
-            <button onClick={()=>setOnglet('liste')} style={s.btnRetour}>← Retour</button>
-            <button onClick={()=>ouvrirFormulaire(eleveSelectionne)} style={s.btnModifier2}>✏️ Modifier</button>
+            <button onClick={()=>setOnglet('liste')} style={s.btnRetour}>â† Retour</button>
+            <button onClick={()=>ouvrirFormulaire(eleveSelectionne)} style={s.btnModifier2}>âœï¸ Modifier</button>
           </div>
           <div style={s.ficheCard}>
             <div style={s.ficheHeader}>
               <div style={s.ficheAvatar}>
                 {eleveSelectionne.photo_url
                   ? <img src={eleveSelectionne.photo_url} alt="" style={{width:'100px',height:'130px',objectFit:'cover',borderRadius:'8px',border:'3px solid #dbeafe'}}/>
-                  : <span style={{fontSize:'3rem'}}>👤</span>
+                  : <span style={{fontSize:'3rem'}}>ðŸ‘¤</span>
                 }
               </div>
               <div>
@@ -612,29 +612,29 @@ export default function App() {
                 <p style={s.ficheClasse}>Classe : {eleveSelectionne.classe}</p>
                 <p style={s.ficheMatricule}>Matricule : {eleveSelectionne.matricule}</p>
                 <p style={{margin:'4px 0'}}>Inscription : {paiements[eleveSelectionne.id]
-                  ? <span style={s.badgeAdmis}>✅ Payé</span>
-                  : <span style={s.badgeExclu}>❌ Non payé</span>}</p>
+                  ? <span style={s.badgeAdmis}>âœ… PayÃ©</span>
+                  : <span style={s.badgeExclu}>âŒ Non payÃ©</span>}</p>
                 {paiements[eleveSelectionne.id] && (
                   <button onClick={()=>imprimerRecuPaiement(eleveSelectionne)} style={{marginTop:'8px',background:'#0f766e',color:'white',border:'none',borderRadius:'8px',padding:'6px 14px',cursor:'pointer',fontWeight:'600',fontSize:'0.9rem'}}>
-                    🧾 Imprimer le reçu
+                    ðŸ§¾ Imprimer le reÃ§u
                   </button>
                 )}
               </div>
             </div>
             <div style={s.ficheGrid}>
               <div style={s.ficheSection}>
-                <h3 style={s.sectionTitre}>👪 Contact parent</h3>
+                <h3 style={s.sectionTitre}>ðŸ‘ª Contact parent</h3>
                 <p><strong>Nom :</strong> {eleveSelectionne.nom_parent||'-'}</p>
-                <p><strong>Tél 1 :</strong> {eleveSelectionne.telephone1?<a href={`tel:${eleveSelectionne.telephone1}`} style={s.telLink}>{eleveSelectionne.telephone1}</a>:'-'}</p>
-                <p><strong>Tél 2 :</strong> {eleveSelectionne.telephone2?<a href={`tel:${eleveSelectionne.telephone2}`} style={s.telLink}>{eleveSelectionne.telephone2}</a>:'-'}</p>
+                <p><strong>TÃ©l 1 :</strong> {eleveSelectionne.telephone1?<a href={`tel:${eleveSelectionne.telephone1}`} style={s.telLink}>{eleveSelectionne.telephone1}</a>:'-'}</p>
+                <p><strong>TÃ©l 2 :</strong> {eleveSelectionne.telephone2?<a href={`tel:${eleveSelectionne.telephone2}`} style={s.telLink}>{eleveSelectionne.telephone2}</a>:'-'}</p>
               </div>
               <div style={s.ficheSection}>
-                <h3 style={s.sectionTitre}>📊 Résultats scolaires</h3>
+                <h3 style={s.sectionTitre}>ðŸ“Š RÃ©sultats scolaires</h3>
                 <p><strong>T1 :</strong> {eleveSelectionne.moyenne_t1||'-'}</p>
                 <p><strong>T2 :</strong> {eleveSelectionne.moyenne_t2||'-'}</p>
                 <p><strong>T3 :</strong> {eleveSelectionne.moyenne_t3||'-'}</p>
                 <p><strong>MGA :</strong> <span style={{fontWeight:'bold',fontSize:'1.1rem'}}>{eleveSelectionne.moyenne_generale||'-'}</span></p>
-                <p><strong>Décision :</strong> <span style={eleveSelectionne.decision_fin_annee==='Admis'?s.badgeAdmis:eleveSelectionne.decision_fin_annee==='Redoublant'?s.badgeRedoublant:s.badgeExclu}>{eleveSelectionne.decision_fin_annee||'-'}</span></p>
+                <p><strong>DÃ©cision :</strong> <span style={eleveSelectionne.decision_fin_annee==='Admis'?s.badgeAdmis:eleveSelectionne.decision_fin_annee==='Redoublant'?s.badgeRedoublant:s.badgeExclu}>{eleveSelectionne.decision_fin_annee||'-'}</span></p>
               </div>
             </div>
           </div>
@@ -644,25 +644,25 @@ export default function App() {
       {/* ===== FORMULAIRE ===== */}
       {onglet==='formulaire' && (
         <div style={s.contenu}>
-          <h2 style={s.titrePage}>{modeFormulaire==='ajouter'?'➕ Ajouter un élève':'✏️ Modifier un élève'}</h2>
+          <h2 style={s.titrePage}>{modeFormulaire==='ajouter'?'âž• Ajouter un Ã©lÃ¨ve':'âœï¸ Modifier un Ã©lÃ¨ve'}</h2>
           <div style={s.formCard}>
-            <h3 style={s.sectionTitre}>📋 Informations générales</h3>
+            <h3 style={s.sectionTitre}>ðŸ“‹ Informations gÃ©nÃ©rales</h3>
             <div style={s.formGrid}>
               <div><label style={s.label}>Matricule</label><input value={formulaire.matricule} onChange={e=>setFormulaire({...formulaire,matricule:e.target.value})} style={s.input}/></div>
               <div><label style={s.label}>Nom *</label><input value={formulaire.nom} onChange={e=>setFormulaire({...formulaire,nom:e.target.value})} style={s.input}/></div>
-              <div><label style={s.label}>Prénom *</label><input value={formulaire.prenom} onChange={e=>setFormulaire({...formulaire,prenom:e.target.value})} style={s.input}/></div>
+              <div><label style={s.label}>PrÃ©nom *</label><input value={formulaire.prenom} onChange={e=>setFormulaire({...formulaire,prenom:e.target.value})} style={s.input}/></div>
               <div><label style={s.label}>Classe *</label>
                 <input value={formulaire.classe} onChange={e=>setFormulaire({...formulaire,classe:e.target.value})} style={s.input} list="liste-classes"/>
                 <datalist id="liste-classes">{classes.map(c=><option key={c} value={c}/>)}</datalist></div>
             </div>
-            <h3 style={{...s.sectionTitre,marginTop:'1.5rem'}}>👪 Contact parent</h3>
+            <h3 style={{...s.sectionTitre,marginTop:'1.5rem'}}>ðŸ‘ª Contact parent</h3>
             <div style={s.formGrid}>
               <div><label style={s.label}>Nom parent</label><input value={formulaire.nom_parent} onChange={e=>setFormulaire({...formulaire,nom_parent:e.target.value})} style={s.input}/></div>
-              <div><label style={s.label}>Téléphone 1</label><input value={formulaire.telephone1} onChange={e=>setFormulaire({...formulaire,telephone1:e.target.value})} style={s.input} type="tel"/></div>
-              <div><label style={s.label}>Téléphone 2</label><input value={formulaire.telephone2} onChange={e=>setFormulaire({...formulaire,telephone2:e.target.value})} style={s.input} type="tel"/></div>
+              <div><label style={s.label}>TÃ©lÃ©phone 1</label><input value={formulaire.telephone1} onChange={e=>setFormulaire({...formulaire,telephone1:e.target.value})} style={s.input} type="tel"/></div>
+              <div><label style={s.label}>TÃ©lÃ©phone 2</label><input value={formulaire.telephone2} onChange={e=>setFormulaire({...formulaire,telephone2:e.target.value})} style={s.input} type="tel"/></div>
             </div>
-            {messageFormulaire&&<p style={messageFormulaire.includes('✅')?s.succes:s.erreur}>{messageFormulaire}</p>}
-            <button onClick={sauvegarderEleve} style={s.btnSauvegarder}>{modeFormulaire==='ajouter'?'➕ Ajouter':'💾 Sauvegarder'}</button>
+            {messageFormulaire&&<p style={messageFormulaire.includes('âœ…')?s.succes:s.erreur}>{messageFormulaire}</p>}
+            <button onClick={sauvegarderEleve} style={s.btnSauvegarder}>{modeFormulaire==='ajouter'?'âž• Ajouter':'ðŸ’¾ Sauvegarder'}</button>
           </div>
         </div>
       )}
@@ -670,26 +670,26 @@ export default function App() {
       {/* ===== IMPORTER ===== */}
       {onglet==='importer' && (
         <div style={s.contenu}>
-          <h2 style={s.titrePage}>📥 Import des moyennes trimestrielles</h2>
+          <h2 style={s.titrePage}>ðŸ“¥ Import des moyennes trimestrielles</h2>
           <div style={s.importCard}>
             <div style={s.trimestreBtns}>
               {['T1','T2','T3'].map(t=>(
-                <button key={t} onClick={()=>setTrimestreActif(t)} style={trimestreActif===t?s.trimestreBtnActif:s.trimestreBtn}>📊 Trimestre {t}</button>
+                <button key={t} onClick={()=>setTrimestreActif(t)} style={trimestreActif===t?s.trimestreBtnActif:s.trimestreBtn}>ðŸ“Š Trimestre {t}</button>
               ))}
             </div>
-            <p style={s.importInfo}>📌 Fichier Excel pour <strong>{trimestreActif}</strong></p>
+            <p style={s.importInfo}>ðŸ“Œ Fichier Excel pour <strong>{trimestreActif}</strong></p>
             <input type="file" accept=".xlsx,.xls" onChange={e=>setFichierExcel(e.target.files[0])} style={{margin:'1rem 0'}}/>
             <br/>
             <button onClick={importerTrimestre} disabled={importEnCours} style={s.btnImportExcel}>
-              {importEnCours?`⏳ Import ${trimestreActif}...`:`📥 Importer ${trimestreActif}`}
+              {importEnCours?`â³ Import ${trimestreActif}...`:`ðŸ“¥ Importer ${trimestreActif}`}
             </button>
-            {importStatus&&<p style={importStatus.includes('✅')?s.succes:s.erreur}>{importStatus}</p>}
+            {importStatus&&<p style={importStatus.includes('âœ…')?s.succes:s.erreur}>{importStatus}</p>}
             <hr style={{margin:'2rem 0',border:'none',borderTop:'2px solid #e2e8f0'}}/>
-            <h3 style={s.sectionTitre}>🧮 Calcul automatique MGA + DFA</h3>
+            <h3 style={s.sectionTitre}>ðŸ§® Calcul automatique MGA + DFA</h3>
             <button onClick={calculerMoyennesAnnuelles} disabled={calcEnCours} style={s.btnCalculer}>
-              {calcEnCours?'⏳ Calcul...':'🧮 Calculer MGA + DFA'}
+              {calcEnCours?'â³ Calcul...':'ðŸ§® Calculer MGA + DFA'}
             </button>
-            {calcStatus&&<p style={calcStatus.includes('✅')?s.succes:s.erreur}>{calcStatus}</p>}
+            {calcStatus&&<p style={calcStatus.includes('âœ…')?s.succes:s.erreur}>{calcStatus}</p>}
           </div>
         </div>
       )}
@@ -697,16 +697,16 @@ export default function App() {
       {/* ===== BEPC ===== */}
       {onglet==='bepc' && (
         <div style={s.contenu}>
-          <h2 style={s.titrePage}>🏆 Liste des Admis au BEPC</h2>
+          <h2 style={s.titrePage}>ðŸ† Liste des Admis au BEPC</h2>
           <div style={s.importCard}>
             <div style={s.bepcInfo}>
-              <p>Classes 3ème : <strong>{classes3eme.join(', ')||'Aucune'}</strong></p>
-              <p style={{fontSize:'1.3rem',fontWeight:'bold',color:'#166534'}}>✅ Total : {totalAdmisBepc} admis</p>
+              <p>Classes 3Ã¨me : <strong>{classes3eme.join(', ')||'Aucune'}</strong></p>
+              <p style={{fontSize:'1.3rem',fontWeight:'bold',color:'#166534'}}>âœ… Total : {totalAdmisBepc} admis</p>
             </div>
             <div style={s.tableWrap}>
               <table style={s.table}>
                 <thead style={{...s.tableHead,background:'#166534'}}>
-                  <tr>{['#','Matricule','Nom','Prénom','Classe','MGA','Parent','Téléphone'].map(h=><th key={h} style={s.th}>{h}</th>)}</tr>
+                  <tr>{['#','Matricule','Nom','PrÃ©nom','Classe','MGA','Parent','TÃ©lÃ©phone'].map(h=><th key={h} style={s.th}>{h}</th>)}</tr>
                 </thead>
                 <tbody>
                   {eleves.filter(e=>classes3eme.some(c=>c===e.classe)&&e.decision_fin_annee==='Admis')
@@ -718,14 +718,14 @@ export default function App() {
                       <td style={s.td}><span style={s.badgeClasse}>{e.classe}</span></td>
                       <td style={s.td}><strong style={{color:'green'}}>{e.moyenne_generale||'-'}</strong></td>
                       <td style={s.td}>{e.nom_parent||'-'}</td>
-                      <td style={s.td}>{e.telephone1?<a href={`tel:${e.telephone1}`} style={s.telLink}>📞 {e.telephone1}</a>:'-'}</td>
+                      <td style={s.td}>{e.telephone1?<a href={`tel:${e.telephone1}`} style={s.telLink}>ðŸ“ž {e.telephone1}</a>:'-'}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
             <br/>
-            <button onClick={imprimerListeBEPC} style={{...s.btnCalculer,background:'#166534'}}>🖨️ Imprimer liste BEPC</button>
+            <button onClick={imprimerListeBEPC} style={{...s.btnCalculer,background:'#166534'}}>ðŸ–¨ï¸ Imprimer liste BEPC</button>
           </div>
         </div>
       )}
@@ -733,33 +733,33 @@ export default function App() {
       {/* ===== INSCRIPTION ===== */}
       {onglet==='inscription' && (
         <div style={s.contenu}>
-          <h2 style={s.titrePage}>💰 Droits d'inscription — {ANNEE_SCOLAIRE}</h2>
+          <h2 style={s.titrePage}>ðŸ’° Droits d'inscription â€” {ANNEE_SCOLAIRE}</h2>
           <div style={s.sousNav}>
-            <button onClick={()=>setSousOngletInscription('encaissement')} style={sousOngletInscription==='encaissement'?s.sousNavActif:s.sousNavBtn}>💰 Encaissement</button>
-            <button onClick={()=>setSousOngletInscription('bilan')} style={sousOngletInscription==='bilan'?s.sousNavActif:s.sousNavBtn}>📊 Bilan journalier</button>
+            <button onClick={()=>setSousOngletInscription('encaissement')} style={sousOngletInscription==='encaissement'?s.sousNavActif:s.sousNavBtn}>ðŸ’° Encaissement</button>
+            <button onClick={()=>setSousOngletInscription('bilan')} style={sousOngletInscription==='bilan'?s.sousNavActif:s.sousNavBtn}>ðŸ“Š Bilan journalier</button>
           </div>
           {sousOngletInscription==='encaissement' && (
             <>
               <div style={s.statsInscription}>
-                <div style={s.statBox}><div style={s.statNum}>{totalPayes}</div><div style={s.statLabel}>✅ Ont payé</div></div>
-                <div style={{...s.statBox,background:'#fee2e2'}}><div style={{...s.statNum,color:'#991b1b'}}>{totalNonPayes}</div><div style={s.statLabel}>❌ Non payés</div></div>
-                <div style={{...s.statBox,background:'#dcfce7'}}><div style={{...s.statNum,color:'#166534'}}>{montantTotal.toLocaleString()}</div><div style={s.statLabel}>💵 FCFA encaissés</div></div>
-                <div style={{...s.statBox,background:'#fef3c7'}}><div style={{...s.statNum,color:'#92400e'}}>{(totalNonPayes*MONTANT_INSCRIPTION).toLocaleString()}</div><div style={s.statLabel}>⏳ FCFA restants</div></div>
+                <div style={s.statBox}><div style={s.statNum}>{totalPayes}</div><div style={s.statLabel}>âœ… Ont payÃ©</div></div>
+                <div style={{...s.statBox,background:'#fee2e2'}}><div style={{...s.statNum,color:'#991b1b'}}>{totalNonPayes}</div><div style={s.statLabel}>âŒ Non payÃ©s</div></div>
+                <div style={{...s.statBox,background:'#dcfce7'}}><div style={{...s.statNum,color:'#166534'}}>{montantTotal.toLocaleString()}</div><div style={s.statLabel}>ðŸ’µ FCFA encaissÃ©s</div></div>
+                <div style={{...s.statBox,background:'#fef3c7'}}><div style={{...s.statNum,color:'#92400e'}}>{(totalNonPayes*MONTANT_INSCRIPTION).toLocaleString()}</div><div style={s.statLabel}>â³ FCFA restants</div></div>
               </div>
               <div style={s.filtres}>
-                <input placeholder="🔍 Rechercher..." value={rechercheInscription} onChange={e=>rechercherInscription(e.target.value)} style={s.inputRecherche}/>
+                <input placeholder="ðŸ” Rechercher..." value={rechercheInscription} onChange={e=>rechercherInscription(e.target.value)} style={s.inputRecherche}/>
                 <select value={classeFiltreInscription} onChange={e=>filtrerInscriptionParClasse(e.target.value)} style={s.selectClasse}>
                   <option value="">Toutes les classes</option>
                   {classes.map(c=><option key={c} value={c}>{c}</option>)}
                 </select>
-                <button onClick={imprimerListePayes} style={s.btnImprimerClasse}>🖨️ Imprimer liste des payés</button>
+                <button onClick={imprimerListePayes} style={s.btnImprimerClasse}>ðŸ–¨ï¸ Imprimer liste des payÃ©s</button>
               </div>
-              {messageInscription&&<div style={messageInscription.includes('✅')?s.alertSucces:s.alertErreur}>{messageInscription}</div>}
-              <p style={s.compteur}>{elevesAffichesInscription.length} élève(s) — ✅ {payesDansVue} | ❌ {nonPayesDansVue}</p>
+              {messageInscription&&<div style={messageInscription.includes('âœ…')?s.alertSucces:s.alertErreur}>{messageInscription}</div>}
+              <p style={s.compteur}>{elevesAffichesInscription.length} Ã©lÃ¨ve(s) â€” âœ… {payesDansVue} | âŒ {nonPayesDansVue}</p>
               <div style={s.tableWrap}>
                 <table style={s.table}>
                   <thead style={s.tableHead}>
-                    <tr>{['#','Matricule','Nom','Prénom','Classe','Parent','Statut','Action'].map(h=><th key={h} style={s.th}>{h}</th>)}</tr>
+                    <tr>{['#','Matricule','Nom','PrÃ©nom','Classe','Parent','Statut','Action'].map(h=><th key={h} style={s.th}>{h}</th>)}</tr>
                   </thead>
                   <tbody>
                     {elevesAffichesInscription.map((e,i)=>(
@@ -768,10 +768,10 @@ export default function App() {
                         <td style={s.td}><strong>{e.nom}</strong></td><td style={s.td}>{e.prenom}</td>
                         <td style={s.td}><span style={s.badgeClasse}>{e.classe}</span></td>
                         <td style={s.td}>{e.nom_parent||'-'}</td>
-                        <td style={s.td}>{paiements[e.id]?<span style={s.badgeAdmis}>✅ Payé — {paiements[e.id].date_paiement?new Date(paiements[e.id].date_paiement).toLocaleDateString('fr-FR'):''}</span>:<span style={s.badgeExclu}>❌ Non payé</span>}</td>
+                        <td style={s.td}>{paiements[e.id]?<span style={s.badgeAdmis}>âœ… PayÃ© â€” {paiements[e.id].date_paiement?new Date(paiements[e.id].date_paiement).toLocaleDateString('fr-FR'):''}</span>:<span style={s.badgeExclu}>âŒ Non payÃ©</span>}</td>
                         <td style={s.td}>
-                          <button onClick={()=>togglePaiement(e)} style={paiements[e.id]?s.btnAnnulerPaiement:s.btnPayer}>{paiements[e.id]?'↩️ Annuler':'💰 Encaisser'}</button>
-                          {paiements[e.id] && <button onClick={()=>imprimerRecuPaiement(e)} style={{...s.btnVoir,marginLeft:'4px',background:'#0f766e'}}>🧾 Reçu</button>}
+                          <button onClick={()=>togglePaiement(e)} style={paiements[e.id]?s.btnAnnulerPaiement:s.btnPayer}>{paiements[e.id]?'â†©ï¸ Annuler':'ðŸ’° Encaisser'}</button>
+                          {paiements[e.id] && <button onClick={()=>imprimerRecuPaiement(e)} style={{...s.btnVoir,marginLeft:'4px',background:'#0f766e'}}>ðŸ§¾ ReÃ§u</button>}
                         </td>
                       </tr>
                     ))}
@@ -782,20 +782,20 @@ export default function App() {
           )}
           {sousOngletInscription==='bilan' && (
             <div style={s.bilanCard}>
-              <h3 style={s.sectionTitre}>📊 Bilan financier journalier</h3>
+              <h3 style={s.sectionTitre}>ðŸ“Š Bilan financier journalier</h3>
               <div style={s.bilanDateRow}>
-                <label style={{fontWeight:'600',color:'#1e3a5f'}}>📅 Date :</label>
+                <label style={{fontWeight:'600',color:'#1e3a5f'}}>ðŸ“… Date :</label>
                 <input type="date" value={dateBilan} onChange={e=>setDateBilan(e.target.value)} style={s.inputDate}/>
               </div>
               <div style={s.bilanResume}>
-                <div style={s.bilanResumeItem}><div style={s.bilanResumeNum}>{nbPayesDuJour}</div><div style={s.bilanResumeLabel}>élève(s) payé(s)</div></div>
-                <div style={{...s.bilanResumeItem,background:'#dcfce7',borderColor:'#16a34a'}}><div style={{...s.bilanResumeNum,color:'#166534'}}>{montantDuJour.toLocaleString()}</div><div style={s.bilanResumeLabel}>FCFA encaissés</div></div>
+                <div style={s.bilanResumeItem}><div style={s.bilanResumeNum}>{nbPayesDuJour}</div><div style={s.bilanResumeLabel}>Ã©lÃ¨ve(s) payÃ©(s)</div></div>
+                <div style={{...s.bilanResumeItem,background:'#dcfce7',borderColor:'#16a34a'}}><div style={{...s.bilanResumeNum,color:'#166534'}}>{montantDuJour.toLocaleString()}</div><div style={s.bilanResumeLabel}>FCFA encaissÃ©s</div></div>
               </div>
-              {nbPayesDuJour===0?<div style={s.bilanVide}><p>😔 Aucun paiement ce jour</p></div>:(
+              {nbPayesDuJour===0?<div style={s.bilanVide}><p>ðŸ˜” Aucun paiement ce jour</p></div>:(
                 <div style={s.tableWrap}>
                   <table style={s.table}>
                     <thead style={{...s.tableHead,background:'#0f766e'}}>
-                      <tr>{['#','Matricule','Nom','Prénom','Classe','Montant'].map(h=><th key={h} style={s.th}>{h}</th>)}</tr>
+                      <tr>{['#','Matricule','Nom','PrÃ©nom','Classe','Montant'].map(h=><th key={h} style={s.th}>{h}</th>)}</tr>
                     </thead>
                     <tbody>
                       {eleves.filter(e=>elevesDuJourIds.has(e.id)).sort((a,b)=>(a.nom||'').localeCompare(b.nom||'')).map((e,i)=>(
@@ -811,7 +811,7 @@ export default function App() {
                 </div>
               )}
               <br/>
-              <button onClick={imprimerBilanJournalier} style={s.btnBilanImprimer}>🖨️ Imprimer le bilan journalier</button>
+              <button onClick={imprimerBilanJournalier} style={s.btnBilanImprimer}>ðŸ–¨ï¸ Imprimer le bilan journalier</button>
             </div>
           )}
         </div>
@@ -820,27 +820,27 @@ export default function App() {
       {/* ===== PHOTOS ===== */}
       {onglet==='photos' && (
         <div style={s.contenu}>
-          <h2 style={s.titrePage}>📸 Gestion des photos</h2>
+          <h2 style={s.titrePage}>ðŸ“¸ Gestion des photos</h2>
           <div style={s.sousNav}>
-            <button onClick={()=>setSousOngletPhotos('import')} style={sousOngletPhotos==='import'?{...s.sousNavActif,background:'#7c3aed',borderColor:'#7c3aed'}:s.sousNavBtn}>📤 Import groupé</button>
-            <button onClick={()=>setSousOngletPhotos('trombi')} style={sousOngletPhotos==='trombi'?{...s.sousNavActif,background:'#7c3aed',borderColor:'#7c3aed'}:s.sousNavBtn}>🖼️ Trombinoscope</button>
-            <button onClick={()=>setSousOngletPhotos('recherche')} style={sousOngletPhotos==='recherche'?{...s.sousNavActif,background:'#7c3aed',borderColor:'#7c3aed'}:s.sousNavBtn}>🔍 Recherche photo</button>
+            <button onClick={()=>setSousOngletPhotos('import')} style={sousOngletPhotos==='import'?{...s.sousNavActif,background:'#7c3aed',borderColor:'#7c3aed'}:s.sousNavBtn}>ðŸ“¤ Import groupÃ©</button>
+            <button onClick={()=>setSousOngletPhotos('trombi')} style={sousOngletPhotos==='trombi'?{...s.sousNavActif,background:'#7c3aed',borderColor:'#7c3aed'}:s.sousNavBtn}>ðŸ–¼ï¸ Trombinoscope</button>
+            <button onClick={()=>setSousOngletPhotos('recherche')} style={sousOngletPhotos==='recherche'?{...s.sousNavActif,background:'#7c3aed',borderColor:'#7c3aed'}:s.sousNavBtn}>ðŸ” Recherche photo</button>
           </div>
 
-          {/* IMPORT GROUPÉ */}
+          {/* IMPORT GROUPÃ‰ */}
           {sousOngletPhotos==='import' && (
             <div style={s.importCard}>
-              <h3 style={s.sectionTitre}>📤 Import groupé de photos</h3>
+              <h3 style={s.sectionTitre}>ðŸ“¤ Import groupÃ© de photos</h3>
               <div style={{background:'#faf5ff',border:'2px dashed #7c3aed',borderRadius:'12px',padding:'2rem',textAlign:'center',marginBottom:'1.5rem'}}>
-                <div style={{fontSize:'3rem',marginBottom:'0.5rem'}}>📁</div>
-                <p style={{fontWeight:'600',color:'#5b21b6',marginBottom:'0.5rem'}}>Sélectionnez toutes vos photos d'un coup</p>
-                <p style={{color:'#7c3aed',fontSize:'0.85rem',marginBottom:'1rem'}}>Les fichiers doivent être nommés avec le matricule : <strong>21421986V.JPG</strong></p>
+                <div style={{fontSize:'3rem',marginBottom:'0.5rem'}}>ðŸ“</div>
+                <p style={{fontWeight:'600',color:'#5b21b6',marginBottom:'0.5rem'}}>SÃ©lectionnez toutes vos photos d'un coup</p>
+                <p style={{color:'#7c3aed',fontSize:'0.85rem',marginBottom:'1rem'}}>Les fichiers doivent Ãªtre nommÃ©s avec le matricule : <strong>21421986V.JPG</strong></p>
                 <input ref={fileInputRef} type="file" accept="image/*" multiple
                   onChange={e=>importerPhotosGroupees(e.target.files)}
                   style={{display:'none'}}/>
                 <button onClick={()=>fileInputRef.current.click()} disabled={uploadEnCours}
                   style={{background:'#7c3aed',color:'white',border:'none',borderRadius:'8px',padding:'0.75rem 2rem',cursor:'pointer',fontSize:'1rem',fontWeight:'600'}}>
-                  {uploadEnCours?'⏳ Upload en cours...':'📂 Choisir les photos'}
+                  {uploadEnCours?'â³ Upload en cours...':'ðŸ“‚ Choisir les photos'}
                 </button>
               </div>
               {uploadEnCours && (
@@ -851,11 +851,11 @@ export default function App() {
                   <p style={{textAlign:'center',color:'#5b21b6',marginTop:'0.5rem'}}>{uploadProgress}%</p>
                 </div>
               )}
-              {uploadStatus && <p style={uploadStatus.includes('✅')?s.succes:uploadStatus.includes('⏳')?{color:'#5b21b6',fontWeight:'600'}:s.erreur}>{uploadStatus}</p>}
+              {uploadStatus && <p style={uploadStatus.includes('âœ…')?s.succes:uploadStatus.includes('â³')?{color:'#5b21b6',fontWeight:'600'}:s.erreur}>{uploadStatus}</p>}
               <div style={{background:'#f0fdf4',borderRadius:'8px',padding:'1rem',marginTop:'1rem'}}>
-                <p style={{fontWeight:'600',color:'#166534',margin:'0 0 0.5rem'}}>📊 Statistiques photos :</p>
-                <p style={{margin:'0',color:'#374151'}}>📸 Élèves avec photo : <strong>{eleves.filter(e=>e.photo_url).length}</strong> / {eleves.length}</p>
-                <p style={{margin:'4px 0 0',color:'#374151'}}>❌ Sans photo : <strong>{eleves.filter(e=>!e.photo_url).length}</strong></p>
+                <p style={{fontWeight:'600',color:'#166534',margin:'0 0 0.5rem'}}>ðŸ“Š Statistiques photos :</p>
+                <p style={{margin:'0',color:'#374151'}}>ðŸ“¸ Ã‰lÃ¨ves avec photo : <strong>{eleves.filter(e=>e.photo_url).length}</strong> / {eleves.length}</p>
+                <p style={{margin:'4px 0 0',color:'#374151'}}>âŒ Sans photo : <strong>{eleves.filter(e=>!e.photo_url).length}</strong></p>
               </div>
             </div>
           )}
@@ -863,15 +863,15 @@ export default function App() {
           {/* TROMBINOSCOPE */}
           {sousOngletPhotos==='trombi' && (
             <div style={s.importCard}>
-              <h3 style={s.sectionTitre}>🖼️ Trombinoscope</h3>
+              <h3 style={s.sectionTitre}>ðŸ–¼ï¸ Trombinoscope</h3>
               <div style={{display:'flex',gap:'1rem',marginBottom:'1.5rem',alignItems:'center',flexWrap:'wrap'}}>
                 <select value={classeTrombi} onChange={e=>setClasseTrombi(e.target.value)} style={{...s.selectClasse,fontSize:'1rem',padding:'0.6rem 1rem'}}>
                   <option value="">Toutes les classes</option>
                   {classes.map(c=><option key={c} value={c}>{c}</option>)}
                 </select>
-                <span style={{color:'#64748b',fontSize:'0.9rem'}}>{avecPhoto} photo(s) sur {elevesTrombi.length} élève(s)</span>
+                <span style={{color:'#64748b',fontSize:'0.9rem'}}>{avecPhoto} photo(s) sur {elevesTrombi.length} Ã©lÃ¨ve(s)</span>
                 <button onClick={imprimerTrombinoscope} style={{background:'#7c3aed',color:'white',border:'none',borderRadius:'8px',padding:'0.6rem 1.2rem',cursor:'pointer',fontWeight:'600'}}>
-                  🖨️ Imprimer trombinoscope
+                  ðŸ–¨ï¸ Imprimer trombinoscope
                 </button>
               </div>
               <div style={{display:'flex',flexWrap:'wrap',gap:'12px'}}>
@@ -879,7 +879,7 @@ export default function App() {
                   <div key={e.id} style={{width:'130px',textAlign:'center',border:'1px solid #e2e8f0',borderRadius:'10px',padding:'10px',background:'white',boxShadow:'0 2px 6px rgba(0,0,0,0.06)'}}>
                     {e.photo_url
                       ? <img src={e.photo_url} alt="" style={{width:'110px',height:'140px',objectFit:'cover',borderRadius:'6px',border:'2px solid #dbeafe'}}/>
-                      : <div style={{width:'110px',height:'140px',background:'#f1f5f9',borderRadius:'6px',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'2.5rem',margin:'0 auto'}}>👤</div>
+                      : <div style={{width:'110px',height:'140px',background:'#f1f5f9',borderRadius:'6px',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'2.5rem',margin:'0 auto'}}>ðŸ‘¤</div>
                     }
                     <div style={{marginTop:'6px',fontWeight:'bold',fontSize:'0.78rem',color:'#1e3a5f'}}>{e.nom}</div>
                     <div style={{fontSize:'0.72rem',color:'#64748b'}}>{e.prenom}</div>
@@ -893,8 +893,8 @@ export default function App() {
           {/* RECHERCHE PHOTO */}
           {sousOngletPhotos==='recherche' && (
             <div style={s.importCard}>
-              <h3 style={s.sectionTitre}>🔍 Recherche rapide d'un élève</h3>
-              <input placeholder="🔍 Tapez le nom ou matricule de l'élève..." value={recherchePhoto}
+              <h3 style={s.sectionTitre}>ðŸ” Recherche rapide d'un Ã©lÃ¨ve</h3>
+              <input placeholder="ðŸ” Tapez le nom ou matricule de l'Ã©lÃ¨ve..." value={recherchePhoto}
                 onChange={e=>rechercherElevePhoto(e.target.value)}
                 style={{...s.inputRecherche,width:'100%',fontSize:'1.1rem',padding:'0.85rem 1rem',marginBottom:'1.5rem',boxSizing:'border-box'}}/>
               {eleveRecherchePhoto && (
@@ -902,7 +902,7 @@ export default function App() {
                   <div style={{textAlign:'center'}}>
                     {eleveRecherchePhoto.photo_url
                       ? <img src={eleveRecherchePhoto.photo_url} alt="" style={{width:'180px',height:'220px',objectFit:'cover',borderRadius:'12px',border:'4px solid #7c3aed',boxShadow:'0 4px 16px rgba(124,58,237,0.3)'}}/>
-                      : <div style={{width:'180px',height:'220px',background:'#f1f5f9',borderRadius:'12px',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'5rem',border:'4px solid #e2e8f0'}}>👤</div>
+                      : <div style={{width:'180px',height:'220px',background:'#f1f5f9',borderRadius:'12px',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'5rem',border:'4px solid #e2e8f0'}}>ðŸ‘¤</div>
                     }
                   </div>
                   <div style={{flex:1,minWidth:'200px'}}>
@@ -918,7 +918,7 @@ export default function App() {
                         <div style={{fontWeight:'bold',color:'#1e3a5f',fontSize:'1rem'}}>{eleveRecherchePhoto.classe||'-'}</div>
                       </div>
                       <div style={{background:'#f0fdf4',borderRadius:'8px',padding:'0.75rem'}}>
-                        <div style={{fontSize:'0.75rem',color:'#64748b'}}>TÉLÉPHONE</div>
+                        <div style={{fontSize:'0.75rem',color:'#64748b'}}>TÃ‰LÃ‰PHONE</div>
                         <div style={{fontWeight:'bold',color:'#166534',fontSize:'1rem'}}>{eleveRecherchePhoto.telephone1||'-'}</div>
                       </div>
                       <div style={{background:'#f0fdf4',borderRadius:'8px',padding:'0.75rem'}}>
@@ -932,14 +932,14 @@ export default function App() {
                     </div>
                     <div style={{marginTop:'0.75rem'}}>
                       <span style={eleveRecherchePhoto.decision_fin_annee==='Admis'?s.badgeAdmis:eleveRecherchePhoto.decision_fin_annee==='Redoublant'?s.badgeRedoublant:s.badgeExclu}>
-                        {eleveRecherchePhoto.decision_fin_annee||'Décision non disponible'}
+                        {eleveRecherchePhoto.decision_fin_annee||'DÃ©cision non disponible'}
                       </span>
                     </div>
                   </div>
                 </div>
               )}
               {recherchePhoto.length >= 2 && !eleveRecherchePhoto && (
-                <div style={s.bilanVide}><p>😔 Aucun élève trouvé pour "{recherchePhoto}"</p></div>
+                <div style={s.bilanVide}><p>ðŸ˜” Aucun Ã©lÃ¨ve trouvÃ© pour "{recherchePhoto}"</p></div>
               )}
             </div>
           )}
@@ -1033,3 +1033,4 @@ const s = {
   succes:{color:'green',fontWeight:'600',marginTop:'0.75rem'},
   erreur:{color:'red',fontWeight:'600',marginTop:'0.75rem'},
 };
+
