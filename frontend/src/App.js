@@ -94,7 +94,7 @@ export default function App() {
       } catch (e) { /* serveur peut répondre avec erreur mais c'est réveillé */ }
       clearInterval(interval);
       setProgressChargement(100);
-      setMessageChargement('✅ WebScool est prêt !');
+      setMessageChargement(' WebScool est prêt !');
       setTimeout(() => setAppChargee(true), 600);
     };
     wakeUpServeur();
@@ -140,9 +140,9 @@ export default function App() {
     try {
       await axios.post(`${API}/educateurs`, { eleve_id: eleve.id, ...docs });
       setInscriptionsEducateurs(prev => ({...prev, [eleve.id]: { eleve_id: eleve.id, ...docs }}));
-      setMessageEducateur(`✅ Documents de ${eleve.nom} ${eleve.prenom} sauvegardés`);
+      setMessageEducateur(` Documents de ${eleve.nom} ${eleve.prenom} sauvegardés`);
       setTimeout(() => setMessageEducateur(''), 3000);
-    } catch (err) { setMessageEducateur('❌ Erreur: ' + err.message); }
+    } catch (err) { setMessageEducateur(' Erreur: ' + err.message); }
     setSauvegardeEnCours(prev => ({...prev, [eleve.id]: false}));
   };
 
@@ -221,15 +221,15 @@ export default function App() {
     <div class="entete"><h2>${ETABLISSEMENT}</h2><h1>BILAN INSCRIPTIONS — ÉDUCATEURS</h1>
     <p>Année scolaire : ${ANNEE_SCOLAIRE} — Imprimé le ${new Date().toLocaleDateString('fr-FR')}</p></div>
     <div class="stats">
-      <span>👥 <strong>Total élèves :</strong> ${eleves.length}</span>
-      <span style="color:green;">✅ <strong>Inscrits :</strong> ${inscrits.length}</span>
-      <span style="color:red;">❌ <strong>Non inscrits :</strong> ${nonInscrits.length}</span>
-      <span>📊 <strong>Taux :</strong> ${eleves.length > 0 ? Math.round(inscrits.length/eleves.length*100) : 0}%</span>
+      <span> <strong>Total élèves :</strong> ${eleves.length}</span>
+      <span style="color:green;"> <strong>Inscrits :</strong> ${inscrits.length}</span>
+      <span style="color:red;"> <strong>Non inscrits :</strong> ${nonInscrits.length}</span>
+      <span>▦ <strong>Taux :</strong> ${eleves.length > 0 ? Math.round(inscrits.length/eleves.length*100) : 0}%</span>
     </div>
-    <h2>✅ ÉLÈVES INSCRITS (${inscrits.length})</h2>
+    <h2> ÉLÈVES INSCRITS (${inscrits.length})</h2>
     <table><thead><tr><th>N°</th><th>Matricule</th><th>Nom</th><th>Prénom</th><th>Classe</th><th>Docs</th></tr></thead>
     <tbody>${lignesInscrits}</tbody></table>
-    <h2 style="color:red;">❌ ÉLÈVES NON INSCRITS (${nonInscrits.length})</h2>
+    <h2 style="color:red;"> ÉLÈVES NON INSCRITS (${nonInscrits.length})</h2>
     <table><thead><tr><th>N°</th><th>Matricule</th><th>Nom</th><th>Prénom</th><th>Classe</th><th>Parent</th><th>Téléphone</th></tr></thead>
     <tbody>${lignesNonInscrits}</tbody></table>
     <div class="footer"><span>L'Éducateur : ________________</span><span>Le Directeur : ________________</span></div>
@@ -264,22 +264,22 @@ export default function App() {
     <div class="entete"><h2>${ETABLISSEMENT}</h2><h1>CONTRÔLE CROISÉ DES INSCRIPTIONS</h1>
     <p>Année scolaire : ${ANNEE_SCOLAIRE} — ${new Date().toLocaleDateString('fr-FR')}</p></div>
     <div class="stats">
-      <span>👥 Total : <strong>${eleves.length}</strong></span>
-      <span style="color:green;">✅ Inscrits aux 2 : <strong>${deuxListes.length}</strong></span>
-      <span style="color:orange;">⚠️ Économat seul : <strong>${ecoSeul.length}</strong></span>
-      <span style="color:purple;">⚠️ Éducateurs seul : <strong>${eduSeul.length}</strong></span>
-      <span style="color:red;">❌ Aucun : <strong>${aucun.length}</strong></span>
+      <span> Total : <strong>${eleves.length}</strong></span>
+      <span style="color:green;"> Inscrits aux 2 : <strong>${deuxListes.length}</strong></span>
+      <span style="color:orange;">! Économat seul : <strong>${ecoSeul.length}</strong></span>
+      <span style="color:purple;">! Éducateurs seul : <strong>${eduSeul.length}</strong></span>
+      <span style="color:red;"> Aucun : <strong>${aucun.length}</strong></span>
     </div>
-    <h2 style="background:#dcfce7;color:#166534;">✅ INSCRITS AUX DEUX (${deuxListes.length})</h2>
+    <h2 style="background:#dcfce7;color:#166534;"> INSCRITS AUX DEUX (${deuxListes.length})</h2>
     <table><thead><tr><th>N°</th><th>Matricule</th><th>Nom</th><th>Prénom</th><th>Classe</th><th>Parent</th><th>Téléphone</th></tr></thead>
     <tbody>${mkTable(deuxListes,'#166534')}</tbody></table>
-    <h2 style="background:#fef3c7;color:#92400e;">⚠️ INSCRITS ÉCONOMAT SEULEMENT (${ecoSeul.length})</h2>
+    <h2 style="background:#fef3c7;color:#92400e;">! INSCRITS ÉCONOMAT SEULEMENT (${ecoSeul.length})</h2>
     <table><thead><tr><th>N°</th><th>Matricule</th><th>Nom</th><th>Prénom</th><th>Classe</th><th>Parent</th><th>Téléphone</th></tr></thead>
     <tbody>${mkTable(ecoSeul,'#92400e')}</tbody></table>
-    <h2 style="background:#ede9fe;color:#5b21b6;">⚠️ INSCRITS ÉDUCATEURS SEULEMENT (${eduSeul.length})</h2>
+    <h2 style="background:#ede9fe;color:#5b21b6;">! INSCRITS ÉDUCATEURS SEULEMENT (${eduSeul.length})</h2>
     <table><thead><tr><th>N°</th><th>Matricule</th><th>Nom</th><th>Prénom</th><th>Classe</th><th>Parent</th><th>Téléphone</th></tr></thead>
     <tbody>${mkTable(eduSeul,'#5b21b6')}</tbody></table>
-    <h2 style="background:#fee2e2;color:#991b1b;">❌ NON INSCRITS DU TOUT (${aucun.length})</h2>
+    <h2 style="background:#fee2e2;color:#991b1b;"> NON INSCRITS DU TOUT (${aucun.length})</h2>
     <table><thead><tr><th>N°</th><th>Matricule</th><th>Nom</th><th>Prénom</th><th>Classe</th><th>Parent</th><th>Téléphone</th></tr></thead>
     <tbody>${mkTable(aucun,'#991b1b')}</tbody></table>
     <div class="footer"><span>L'Éducateur : ________________</span><span>L'Économe : ________________</span><span>Le Directeur : ________________</span></div>
@@ -335,7 +335,7 @@ export default function App() {
     if (!fichiers || fichiers.length === 0) return;
     setUploadEnCours(true);
     setUploadProgress(0);
-    setUploadStatus(`⏳ Préparation de ${fichiers.length} photos...`);
+    setUploadStatus(`◷ Préparation de ${fichiers.length} photos...`);
 
     const BATCH = 20;
     let total = 0; let erreurs = 0;
@@ -354,10 +354,10 @@ export default function App() {
       } catch (err) { erreurs += lot.length; }
       const progress = Math.round(((i + BATCH) / tabFichiers.length) * 100);
       setUploadProgress(Math.min(progress, 100));
-      setUploadStatus(`⏳ ${Math.min(i + BATCH, tabFichiers.length)} / ${tabFichiers.length} photos traitées...`);
+      setUploadStatus(`◷ ${Math.min(i + BATCH, tabFichiers.length)} / ${tabFichiers.length} photos traitées...`);
     }
 
-    setUploadStatus(`�?? ${total} photos importées ! ${erreurs > 0 ? `�?�️ ${erreurs} erreurs` : ''}`);
+    setUploadStatus(`�?? ${total} photos importées ! ${erreurs > 0 ? `�?� ${erreurs} erreurs` : ''}`);
     setUploadEnCours(false);
     chargerEleves();
   };
@@ -373,8 +373,8 @@ export default function App() {
   };
 
   const importerTrimestre = async () => {
-    if (!fichierExcel) { setImportStatus('�?�️ Choisissez un fichier Excel'); return; }
-    setImportEnCours(true); setImportStatus(`⏳ Import ${trimestreActif} en cours...`);
+    if (!fichierExcel) { setImportStatus('�?� Choisissez un fichier Excel'); return; }
+    setImportEnCours(true); setImportStatus(`◷ Import ${trimestreActif} en cours...`);
     const formData = new FormData();
     formData.append('fichier', fichierExcel); formData.append('trimestre', trimestreActif);
     try {
@@ -390,7 +390,7 @@ export default function App() {
   };
   const calculerMoyennesAnnuelles = async () => {
     if (!window.confirm('Calculer MGA et DFA pour tous les élèves ?')) return;
-    setCalcEnCours(true); setCalcStatus('⏳ Calcul en cours...');
+    setCalcEnCours(true); setCalcStatus('◷ Calcul en cours...');
     try {
       const res = await axios.post(`${API}/eleves/calculer-moyennes`);
       setCalcStatus(`�?? ${res.data.mis_a_jour} élèves mis à jour ! (Admis: ${res.data.admis}, Redoublants: ${res.data.redoublants}, Exclus: ${res.data.exclus})`);
@@ -697,7 +697,7 @@ export default function App() {
           <div style={{
             fontSize:'4rem', marginBottom:'0.5rem',
             animation:'pulse 1.5s ease-in-out infinite'
-          }}>🎓</div>
+          }}></div>
           <h1 style={{
             margin:'0 0 0.25rem', color:'#1e3a5f',
             fontSize:'2rem', fontWeight:'800', letterSpacing:'1px'
@@ -730,14 +730,14 @@ export default function App() {
 
           {/* Message */}
           <p style={{
-            color: messageChargement.includes('✅') ? '#166534' : '#475569',
+            color: messageChargement.includes('') ? '#166534' : '#475569',
             fontSize:'0.9rem', fontWeight:'600',
             margin:'0',
             minHeight:'1.5rem'
           }}>{messageChargement}</p>
 
           {/* Points d'animation */}
-          {!messageChargement.includes('✅') && (
+          {!messageChargement.includes('') && (
             <div style={{marginTop:'1.5rem', display:'flex', justifyContent:'center', gap:'6px'}}>
               {[0,1,2].map(i => (
                 <div key={i} style={{
@@ -753,7 +753,7 @@ export default function App() {
             color:'#94a3b8', fontSize:'0.75rem',
             marginTop:'1.5rem', marginBottom:'0'
           }}>
-            ⏳ Le serveur se réveille, merci de patienter...
+            ◷ Le serveur se réveille, merci de patienter...
           </p>
         </div>
 
@@ -824,7 +824,7 @@ export default function App() {
 
       <div style={s.nav}>
         {[['liste','�??? �?lèves'],['formulaire','�?? Ajouter'],['importer','�??� Importer'],
-          ['bepc','🏆 BEPC'],['inscription','💰 Inscription'],['photos','📸 Photos'],['educateurs','🏫 Éducateurs'],['controle','🔍 Contrôle']].map(([id,label])=>(
+          ['bepc','◆ BEPC'],['inscription','$ Inscription'],['photos','⊙ Photos'],['educateurs','⌂ Éducateurs'],['controle','◎ Contrôle']].map(([id,label])=>(
           <button key={id} onClick={()=>{setOnglet(id);if(id==='formulaire')ouvrirFormulaire();}}
             style={onglet===id?s.navBtnActif:s.navBtn}>{label}</button>
         ))}
@@ -840,7 +840,7 @@ export default function App() {
               <option value="">Toutes les classes</option>
               {classes.map(c=><option key={c} value={c}>{c}</option>)}
             </select>
-            {classeFiltre && <button onClick={imprimerListeClasse} style={s.btnImprimerClasse}>�??�️ Imprimer</button>}
+            {classeFiltre && <button onClick={imprimerListeClasse} style={s.btnImprimerClasse}>�??� Imprimer</button>}
           </div>
           {classeFiltre && elevesClasse.length > 0 && (
             <div style={s.statsClasse}>
@@ -887,9 +887,9 @@ export default function App() {
                       </span>
                     </td>
                     <td style={s.td}>
-                      <button onClick={()=>ouvrirFiche(e)} style={s.btnVoir}>�??�️</button>
-                      <button onClick={()=>{setEleveSelectionne(e);ouvrirFormulaire(e);}} style={s.btnModifier}>�?�️</button>
-                      <button onClick={()=>supprimerEleve(e.id)} style={s.btnSupprimer}>�???️</button>
+                      <button onClick={()=>ouvrirFiche(e)} style={s.btnVoir}>�??�</button>
+                      <button onClick={()=>{setEleveSelectionne(e);ouvrirFormulaire(e);}} style={s.btnModifier}>�?�</button>
+                      <button onClick={()=>supprimerEleve(e.id)} style={s.btnSupprimer}>�???</button>
                     </td>
                   </tr>
                 ))}
@@ -904,7 +904,7 @@ export default function App() {
         <div style={s.contenu}>
           <div style={{marginBottom:'1rem'}}>
             <button onClick={()=>setOnglet('liste')} style={s.btnRetour}>�?� Retour</button>
-            <button onClick={()=>ouvrirFormulaire(eleveSelectionne)} style={s.btnModifier2}>�?�️ Modifier</button>
+            <button onClick={()=>ouvrirFormulaire(eleveSelectionne)} style={s.btnModifier2}>�?� Modifier</button>
           </div>
           <div style={s.ficheCard}>
             <div style={s.ficheHeader}>
@@ -951,7 +951,7 @@ export default function App() {
       {/* ===== FORMULAIRE ===== */}
       {onglet==='formulaire' && (
         <div style={s.contenu}>
-          <h2 style={s.titrePage}>{modeFormulaire==='ajouter'?'�?? Ajouter un élève':'�?�️ Modifier un élève'}</h2>
+          <h2 style={s.titrePage}>{modeFormulaire==='ajouter'?'�?? Ajouter un élève':'�?� Modifier un élève'}</h2>
           <div style={s.formCard}>
             <h3 style={s.sectionTitre}>�??? Informations générales</h3>
             <div style={s.formGrid}>
@@ -988,13 +988,13 @@ export default function App() {
             <input type="file" accept=".xlsx,.xls" onChange={e=>setFichierExcel(e.target.files[0])} style={{margin:'1rem 0'}}/>
             <br/>
             <button onClick={importerTrimestre} disabled={importEnCours} style={s.btnImportExcel}>
-              {importEnCours?`⏳ Import ${trimestreActif}...`:`�??� Importer ${trimestreActif}`}
+              {importEnCours?`◷ Import ${trimestreActif}...`:`�??� Importer ${trimestreActif}`}
             </button>
             {importStatus&&<p style={importStatus.includes('�??')?s.succes:s.erreur}>{importStatus}</p>}
             <hr style={{margin:'2rem 0',border:'none',borderTop:'2px solid #e2e8f0'}}/>
             <h3 style={s.sectionTitre}>�?�� Calcul automatique MGA + DFA</h3>
             <button onClick={calculerMoyennesAnnuelles} disabled={calcEnCours} style={s.btnCalculer}>
-              {calcEnCours?'⏳ Calcul...':'�?�� Calculer MGA + DFA'}
+              {calcEnCours?'◷ Calcul...':'�?�� Calculer MGA + DFA'}
             </button>
             {calcStatus&&<p style={calcStatus.includes('�??')?s.succes:s.erreur}>{calcStatus}</p>}
           </div>
@@ -1032,7 +1032,7 @@ export default function App() {
               </table>
             </div>
             <br/>
-            <button onClick={imprimerListeBEPC} style={{...s.btnCalculer,background:'#166534'}}>�??�️ Imprimer liste BEPC</button>
+            <button onClick={imprimerListeBEPC} style={{...s.btnCalculer,background:'#166534'}}>�??� Imprimer liste BEPC</button>
           </div>
         </div>
       )}
@@ -1051,7 +1051,7 @@ export default function App() {
                 <div style={s.statBox}><div style={s.statNum}>{totalPayes}</div><div style={s.statLabel}>�?? Ont payé</div></div>
                 <div style={{...s.statBox,background:'#fee2e2'}}><div style={{...s.statNum,color:'#991b1b'}}>{totalNonPayes}</div><div style={s.statLabel}>�? Non payés</div></div>
                 <div style={{...s.statBox,background:'#dcfce7'}}><div style={{...s.statNum,color:'#166534'}}>{montantTotal.toLocaleString()}</div><div style={s.statLabel}>�??� FCFA encaissés</div></div>
-                <div style={{...s.statBox,background:'#fef3c7'}}><div style={{...s.statNum,color:'#92400e'}}>{(totalNonPayes*MONTANT_INSCRIPTION).toLocaleString()}</div><div style={s.statLabel}>⏳ FCFA restants</div></div>
+                <div style={{...s.statBox,background:'#fef3c7'}}><div style={{...s.statNum,color:'#92400e'}}>{(totalNonPayes*MONTANT_INSCRIPTION).toLocaleString()}</div><div style={s.statLabel}>◷ FCFA restants</div></div>
               </div>
               <div style={s.filtres}>
                 <input placeholder="�??� Rechercher..." value={rechercheInscription} onChange={e=>rechercherInscription(e.target.value)} style={s.inputRecherche}/>
@@ -1059,7 +1059,7 @@ export default function App() {
                   <option value="">Toutes les classes</option>
                   {classes.map(c=><option key={c} value={c}>{c}</option>)}
                 </select>
-                <button onClick={imprimerListePayes} style={s.btnImprimerClasse}>�??�️ Imprimer liste des payés</button>
+                <button onClick={imprimerListePayes} style={s.btnImprimerClasse}>�??� Imprimer liste des payés</button>
               </div>
               {messageInscription&&<div style={messageInscription.includes('�??')?s.alertSucces:s.alertErreur}>{messageInscription}</div>}
               <p style={s.compteur}>{elevesAffichesInscription.length} élève(s) �?? �?? {payesDansVue} | �? {nonPayesDansVue}</p>
@@ -1077,7 +1077,7 @@ export default function App() {
                         <td style={s.td}>{e.nom_parent||'-'}</td>
                         <td style={s.td}>{paiements[e.id]?<span style={s.badgeAdmis}>�?? Payé �?? {paiements[e.id].date_paiement?new Date(paiements[e.id].date_paiement).toLocaleDateString('fr-FR'):''}</span>:<span style={s.badgeExclu}>�? Non payé</span>}</td>
                         <td style={s.td}>
-                          <button onClick={()=>togglePaiement(e)} style={paiements[e.id]?s.btnAnnulerPaiement:s.btnPayer}>{paiements[e.id]?'�?�️ Annuler':'�??� Encaisser'}</button>
+                          <button onClick={()=>togglePaiement(e)} style={paiements[e.id]?s.btnAnnulerPaiement:s.btnPayer}>{paiements[e.id]?'�?� Annuler':'�??� Encaisser'}</button>
                           {paiements[e.id] && <button onClick={()=>imprimerRecuPaiement(e)} style={{...s.btnVoir,marginLeft:'4px',background:'#0f766e'}}>�?�� Reçu</button>}
                         </td>
                       </tr>
@@ -1118,7 +1118,7 @@ export default function App() {
                 </div>
               )}
               <br/>
-              <button onClick={imprimerBilanJournalier} style={s.btnBilanImprimer}>�??�️ Imprimer le bilan journalier</button>
+              <button onClick={imprimerBilanJournalier} style={s.btnBilanImprimer}>�??� Imprimer le bilan journalier</button>
             </div>
           )}
         </div>
@@ -1130,7 +1130,7 @@ export default function App() {
           <h2 style={s.titrePage}>�??� Gestion des photos</h2>
           <div style={s.sousNav}>
             <button onClick={()=>setSousOngletPhotos('import')} style={sousOngletPhotos==='import'?{...s.sousNavActif,background:'#7c3aed',borderColor:'#7c3aed'}:s.sousNavBtn}>�??� Import groupé</button>
-            <button onClick={()=>setSousOngletPhotos('trombi')} style={sousOngletPhotos==='trombi'?{...s.sousNavActif,background:'#7c3aed',borderColor:'#7c3aed'}:s.sousNavBtn}>�??�️ Trombinoscope</button>
+            <button onClick={()=>setSousOngletPhotos('trombi')} style={sousOngletPhotos==='trombi'?{...s.sousNavActif,background:'#7c3aed',borderColor:'#7c3aed'}:s.sousNavBtn}>�??� Trombinoscope</button>
             <button onClick={()=>setSousOngletPhotos('recherche')} style={sousOngletPhotos==='recherche'?{...s.sousNavActif,background:'#7c3aed',borderColor:'#7c3aed'}:s.sousNavBtn}>�??� Recherche photo</button>
           </div>
 
@@ -1147,7 +1147,7 @@ export default function App() {
                   style={{display:'none'}}/>
                 <button onClick={()=>fileInputRef.current.click()} disabled={uploadEnCours}
                   style={{background:'#7c3aed',color:'white',border:'none',borderRadius:'8px',padding:'0.75rem 2rem',cursor:'pointer',fontSize:'1rem',fontWeight:'600'}}>
-                  {uploadEnCours?'⏳ Upload en cours...':'�??? Choisir les photos'}
+                  {uploadEnCours?'◷ Upload en cours...':'�??? Choisir les photos'}
                 </button>
               </div>
               {uploadEnCours && (
@@ -1158,7 +1158,7 @@ export default function App() {
                   <p style={{textAlign:'center',color:'#5b21b6',marginTop:'0.5rem'}}>{uploadProgress}%</p>
                 </div>
               )}
-              {uploadStatus && <p style={uploadStatus.includes('�??')?s.succes:uploadStatus.includes('⏳')?{color:'#5b21b6',fontWeight:'600'}:s.erreur}>{uploadStatus}</p>}
+              {uploadStatus && <p style={uploadStatus.includes('�??')?s.succes:uploadStatus.includes('◷')?{color:'#5b21b6',fontWeight:'600'}:s.erreur}>{uploadStatus}</p>}
               <div style={{background:'#f0fdf4',borderRadius:'8px',padding:'1rem',marginTop:'1rem'}}>
                 <p style={{fontWeight:'600',color:'#166534',margin:'0 0 0.5rem'}}>�??? Statistiques photos :</p>
                 <p style={{margin:'0',color:'#374151'}}>�??� �?lèves avec photo : <strong>{eleves.filter(e=>e.photo_url).length}</strong> / {eleves.length}</p>
@@ -1170,7 +1170,7 @@ export default function App() {
           {/* TROMBINOSCOPE */}
           {sousOngletPhotos==='trombi' && (
             <div style={s.importCard}>
-              <h3 style={s.sectionTitre}>�??�️ Trombinoscope</h3>
+              <h3 style={s.sectionTitre}>�??� Trombinoscope</h3>
               <div style={{display:'flex',gap:'1rem',marginBottom:'1.5rem',alignItems:'center',flexWrap:'wrap'}}>
                 <select value={classeTrombi} onChange={e=>setClasseTrombi(e.target.value)} style={{...s.selectClasse,fontSize:'1rem',padding:'0.6rem 1rem'}}>
                   <option value="">Toutes les classes</option>
@@ -1178,7 +1178,7 @@ export default function App() {
                 </select>
                 <span style={{color:'#64748b',fontSize:'0.9rem'}}>{avecPhoto} photo(s) sur {elevesTrombi.length} élève(s)</span>
                 <button onClick={imprimerTrombinoscope} style={{background:'#7c3aed',color:'white',border:'none',borderRadius:'8px',padding:'0.6rem 1.2rem',cursor:'pointer',fontWeight:'600'}}>
-                  �??�️ Imprimer trombinoscope
+                  �??� Imprimer trombinoscope
                 </button>
               </div>
               <div style={{display:'flex',flexWrap:'wrap',gap:'12px'}}>
@@ -1256,24 +1256,24 @@ export default function App() {
       {/* ===== ÉDUCATEURS ===== */}
       {onglet==='educateurs' && (
         <div style={s.contenu}>
-          <h2 style={s.titrePage}>🏫 Inscriptions — Éducateurs</h2>
+          <h2 style={s.titrePage}>⌂ Inscriptions — Éducateurs</h2>
           <div style={s.sousNav}>
-            <button onClick={()=>setSousOngletEducateur('saisie')} style={sousOngletEducateur==='saisie'?{...s.sousNavActif,background:'#0369a1',borderColor:'#0369a1'}:s.sousNavBtn}>📋 Saisie documents</button>
-            <button onClick={()=>setSousOngletEducateur('bilan')} style={sousOngletEducateur==='bilan'?{...s.sousNavActif,background:'#0369a1',borderColor:'#0369a1'}:s.sousNavBtn}>📊 Bilan</button>
+            <button onClick={()=>setSousOngletEducateur('saisie')} style={sousOngletEducateur==='saisie'?{...s.sousNavActif,background:'#0369a1',borderColor:'#0369a1'}:s.sousNavBtn}>≡ Saisie documents</button>
+            <button onClick={()=>setSousOngletEducateur('bilan')} style={sousOngletEducateur==='bilan'?{...s.sousNavActif,background:'#0369a1',borderColor:'#0369a1'}:s.sousNavBtn}>▦ Bilan</button>
           </div>
 
           {sousOngletEducateur==='saisie' && (
             <>
               <div style={s.filtres}>
-                <input placeholder="🔍 Rechercher un élève..." value={rechercheEducateur}
+                <input placeholder="◎ Rechercher un élève..." value={rechercheEducateur}
                   onChange={e=>rechercherEleveEducateur(e.target.value)} style={s.inputRecherche}/>
                 <select value={classeFiltreEducateur} onChange={e=>filtrerEducateurParClasse(e.target.value)} style={s.selectClasse}>
                   <option value="">Toutes les classes</option>
                   {classes.map(c=><option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
-              {messageEducateur && <div style={messageEducateur.includes('✅')?s.alertSucces:s.alertErreur}>{messageEducateur}</div>}
-              <p style={s.compteur}>{elevesEducateur.length} élève(s) — ✅ {elevesEducateur.filter(e=>estInscritEducateur(e.id)).length} inscrits | ❌ {elevesEducateur.filter(e=>!estInscritEducateur(e.id)).length} non inscrits</p>
+              {messageEducateur && <div style={messageEducateur.includes('')?s.alertSucces:s.alertErreur}>{messageEducateur}</div>}
+              <p style={s.compteur}>{elevesEducateur.length} élève(s) —  {elevesEducateur.filter(e=>estInscritEducateur(e.id)).length} inscrits |  {elevesEducateur.filter(e=>!estInscritEducateur(e.id)).length} non inscrits</p>
               <div style={s.tableWrap}>
                 <table style={s.table}>
                   <thead style={{...s.tableHead,background:'#0369a1'}}>
@@ -1310,8 +1310,8 @@ export default function App() {
                           </td>
                           <td style={s.td}>
                             {inscrit
-                              ? <span style={s.badgeAdmis}>✅ Inscrit</span>
-                              : <span style={s.badgeExclu}>❌ Non inscrit</span>
+                              ? <span style={s.badgeAdmis}> Inscrit</span>
+                              : <span style={s.badgeExclu}> Non inscrit</span>
                             }
                           </td>
                         </tr>
@@ -1325,12 +1325,12 @@ export default function App() {
 
           {sousOngletEducateur==='bilan' && (
             <div style={s.importCard}>
-              <h3 style={s.sectionTitre}>📊 Bilan des inscriptions éducateurs</h3>
+              <h3 style={s.sectionTitre}>▦ Bilan des inscriptions éducateurs</h3>
               <div style={s.statsInscription}>
-                <div style={s.statBox}><div style={s.statNum}>{eleves.filter(e=>estInscritEducateur(e.id)).length}</div><div style={s.statLabel}>✅ Inscrits</div></div>
-                <div style={{...s.statBox,background:'#fee2e2'}}><div style={{...s.statNum,color:'#991b1b'}}>{eleves.filter(e=>!estInscritEducateur(e.id)).length}</div><div style={s.statLabel}>❌ Non inscrits</div></div>
-                <div style={{...s.statBox,background:'#dbeafe'}}><div style={{...s.statNum,color:'#1e3a5f'}}>{eleves.length}</div><div style={s.statLabel}>👥 Total élèves</div></div>
-                <div style={{...s.statBox,background:'#dcfce7'}}><div style={{...s.statNum,color:'#166534'}}>{eleves.length>0?Math.round(eleves.filter(e=>estInscritEducateur(e.id)).length/eleves.length*100):0}%</div><div style={s.statLabel}>📈 Taux inscription</div></div>
+                <div style={s.statBox}><div style={s.statNum}>{eleves.filter(e=>estInscritEducateur(e.id)).length}</div><div style={s.statLabel}> Inscrits</div></div>
+                <div style={{...s.statBox,background:'#fee2e2'}}><div style={{...s.statNum,color:'#991b1b'}}>{eleves.filter(e=>!estInscritEducateur(e.id)).length}</div><div style={s.statLabel}> Non inscrits</div></div>
+                <div style={{...s.statBox,background:'#dbeafe'}}><div style={{...s.statNum,color:'#1e3a5f'}}>{eleves.length}</div><div style={s.statLabel}> Total élèves</div></div>
+                <div style={{...s.statBox,background:'#dcfce7'}}><div style={{...s.statNum,color:'#166534'}}>{eleves.length>0?Math.round(eleves.filter(e=>estInscritEducateur(e.id)).length/eleves.length*100):0}%</div><div style={s.statLabel}>↑ Taux inscription</div></div>
               </div>
               <h4 style={{color:'#0369a1',marginBottom:'0.75rem'}}>Documents par élève :</h4>
               <div style={s.tableWrap}>
@@ -1358,11 +1358,11 @@ export default function App() {
                           <td style={s.td}><span style={s.badgeClasse}>{e.classe}</span></td>
                           {DOCUMENTS_EDUCATEURS.map(d=>(
                             <td key={d.key} style={{...s.td,textAlign:'center'}}>
-                              {ie[d.key] ? '✅' : '❌'}
+                              {ie[d.key] ? '' : ''}
                             </td>
                           ))}
                           <td style={{...s.td,textAlign:'center',fontWeight:'bold',color:nb===10?'#166534':nb>=5?'#92400e':'#991b1b'}}>{nb}/10</td>
-                          <td style={s.td}>{estInscritEducateur(e.id)?<span style={s.badgeAdmis}>✅ Inscrit</span>:<span style={s.badgeExclu}>❌ Manquant</span>}</td>
+                          <td style={s.td}>{estInscritEducateur(e.id)?<span style={s.badgeAdmis}> Inscrit</span>:<span style={s.badgeExclu}> Manquant</span>}</td>
                         </tr>
                       );
                     })}
@@ -1370,7 +1370,7 @@ export default function App() {
                 </table>
               </div>
               <br/>
-              <button onClick={imprimerBilanEducateurs} style={{...s.btnCalculer,background:'#0369a1'}}>🖨️ Imprimer le bilan</button>
+              <button onClick={imprimerBilanEducateurs} style={{...s.btnCalculer,background:'#0369a1'}}>⎙ Imprimer le bilan</button>
             </div>
           )}
         </div>
@@ -1379,7 +1379,7 @@ export default function App() {
       {/* ===== CONTRÔLE ===== */}
       {onglet==='controle' && (
         <div style={s.contenu}>
-          <h2 style={s.titrePage}>🔍 Contrôle croisé des inscriptions</h2>
+          <h2 style={s.titrePage}>◎ Contrôle croisé des inscriptions</h2>
           {(()=>{
             const inscritsEco = new Set(Object.keys(paiements).map(id => parseInt(id)));
             const inscritsEdu = new Set(eleves.filter(e => estInscritEducateur(e.id)).map(e => e.id));
@@ -1391,7 +1391,7 @@ export default function App() {
               <div style={{marginBottom:'2rem'}}>
                 <h3 style={{color:couleur,background:couleur+'22',padding:'0.6rem 1rem',borderRadius:'8px',marginBottom:'0.75rem'}}>{titre} — {liste.length} élève(s)</h3>
                 {liste.length===0
-                  ? <div style={{...s.bilanVide,padding:'1rem'}}>Aucun élève dans cette catégorie ✅</div>
+                  ? <div style={{...s.bilanVide,padding:'1rem'}}>Aucun élève dans cette catégorie </div>
                   : <div style={s.tableWrap}><table style={s.table}>
                     <thead style={{...s.tableHead,background:couleur}}>
                       <tr>{['#','Matricule','Nom','Prénom','Classe','Parent','Téléphone'].map(h=><th key={h} style={s.th}>{h}</th>)}</tr>
@@ -1404,7 +1404,7 @@ export default function App() {
                         <td style={s.td}>{e.prenom}</td>
                         <td style={s.td}><span style={s.badgeClasse}>{e.classe}</span></td>
                         <td style={s.td}>{e.nom_parent||'-'}</td>
-                        <td style={s.td}>{e.telephone1?<a href={'tel:'+e.telephone1} style={s.telLink}>📞 {e.telephone1}</a>:'-'}</td>
+                        <td style={s.td}>{e.telephone1?<a href={'tel:'+e.telephone1} style={s.telLink}> {e.telephone1}</a>:'-'}</td>
                       </tr>
                     ))}</tbody>
                   </table></div>
@@ -1414,18 +1414,18 @@ export default function App() {
             return (
               <>
                 <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:'1rem',marginBottom:'1.5rem'}}>
-                  <div style={{...s.statBox,background:'#dcfce7',border:'2px solid #16a34a'}}><div style={{...s.statNum,color:'#166534'}}>{deuxListes.length}</div><div style={s.statLabel}>✅ Inscrits aux 2</div></div>
-                  <div style={{...s.statBox,background:'#fef3c7',border:'2px solid #d97706'}}><div style={{...s.statNum,color:'#92400e'}}>{ecoSeul.length}</div><div style={s.statLabel}>💰 Économat seul</div></div>
-                  <div style={{...s.statBox,background:'#ede9fe',border:'2px solid #7c3aed'}}><div style={{...s.statNum,color:'#5b21b6'}}>{eduSeul.length}</div><div style={s.statLabel}>🏫 Éducateurs seul</div></div>
-                  <div style={{...s.statBox,background:'#fee2e2',border:'2px solid #ef4444'}}><div style={{...s.statNum,color:'#991b1b'}}>{aucun.length}</div><div style={s.statLabel}>❌ Non inscrits</div></div>
+                  <div style={{...s.statBox,background:'#dcfce7',border:'2px solid #16a34a'}}><div style={{...s.statNum,color:'#166534'}}>{deuxListes.length}</div><div style={s.statLabel}> Inscrits aux 2</div></div>
+                  <div style={{...s.statBox,background:'#fef3c7',border:'2px solid #d97706'}}><div style={{...s.statNum,color:'#92400e'}}>{ecoSeul.length}</div><div style={s.statLabel}>$ Économat seul</div></div>
+                  <div style={{...s.statBox,background:'#ede9fe',border:'2px solid #7c3aed'}}><div style={{...s.statNum,color:'#5b21b6'}}>{eduSeul.length}</div><div style={s.statLabel}>⌂ Éducateurs seul</div></div>
+                  <div style={{...s.statBox,background:'#fee2e2',border:'2px solid #ef4444'}}><div style={{...s.statNum,color:'#991b1b'}}>{aucun.length}</div><div style={s.statLabel}> Non inscrits</div></div>
                 </div>
                 <div style={{marginBottom:'1rem'}}>
-                  <button onClick={imprimerBilanControle} style={{...s.btnCalculer,background:'#1e3a5f'}}>🖨️ Imprimer rapport de contrôle complet</button>
+                  <button onClick={imprimerBilanControle} style={{...s.btnCalculer,background:'#1e3a5f'}}>⎙ Imprimer rapport de contrôle complet</button>
                 </div>
-                <TableControle liste={deuxListes} couleur="#16a34a" titre="✅ Inscrits aux deux (Économat + Éducateurs)"/>
-                <TableControle liste={ecoSeul} couleur="#d97706" titre="⚠️ Inscrits à l'Économat SEULEMENT (manquent chez éducateurs)"/>
-                <TableControle liste={eduSeul} couleur="#7c3aed" titre="⚠️ Inscrits chez les Éducateurs SEULEMENT (manquent à l'Économat)"/>
-                <TableControle liste={aucun} couleur="#ef4444" titre="❌ Non inscrits du tout"/>
+                <TableControle liste={deuxListes} couleur="#16a34a" titre=" Inscrits aux deux (Économat + Éducateurs)"/>
+                <TableControle liste={ecoSeul} couleur="#d97706" titre="! Inscrits à l'Économat SEULEMENT (manquent chez éducateurs)"/>
+                <TableControle liste={eduSeul} couleur="#7c3aed" titre="! Inscrits chez les Éducateurs SEULEMENT (manquent à l'Économat)"/>
+                <TableControle liste={aucun} couleur="#ef4444" titre=" Non inscrits du tout"/>
               </>
             );
           })()}
@@ -1520,5 +1520,3 @@ const s = {
   erreur:{color:'red',fontWeight:'600',marginTop:'0.75rem'},
   eduDocTh:{padding:'6px 4px',color:'white',textAlign:'center',fontWeight:'600',fontSize:'0.7rem',maxWidth:'65px',wordBreak:'break-word'},
 };
-
-
