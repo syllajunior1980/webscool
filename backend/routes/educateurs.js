@@ -30,36 +30,37 @@ router.get('/eleve/:eleve_id', async (req, res) => {
 router.post('/', async (req, res) => {
   const {
     eleve_id,
-    extrait_naissance, chemise_cartonnee, photos, fiche_inscription,
-    fiche_bonne_conduite, recu_economat, fiche_renseignement,
-    bulletin_transfert, photocopie_diplome, enveloppe_timbree,
+    extrait, chemise_rabat, enveloppe_timbree, bulletin,
+    photos_identite, fiche_renseignement, fiche_inscription_ligne,
+    carnet_correspondance, livret_scolaire, diplome,
     observations
   } = req.body;
   try {
     const result = await pool.query(`
       INSERT INTO inscriptions_educateurs
-        (eleve_id, extrait_naissance, chemise_cartonnee, photos, fiche_inscription,
-         fiche_bonne_conduite, recu_economat, fiche_renseignement,
-         bulletin_transfert, photocopie_diplome, enveloppe_timbree, observations)
+        (eleve_id, extrait, chemise_rabat, enveloppe_timbree, bulletin,
+         photos_identite, fiche_renseignement, fiche_inscription_ligne,
+         carnet_correspondance, livret_scolaire, diplome, observations)
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
       ON CONFLICT (eleve_id) DO UPDATE SET
-        extrait_naissance=EXCLUDED.extrait_naissance,
-        chemise_cartonnee=EXCLUDED.chemise_cartonnee,
-        photos=EXCLUDED.photos,
-        fiche_inscription=EXCLUDED.fiche_inscription,
-        fiche_bonne_conduite=EXCLUDED.fiche_bonne_conduite,
-        recu_economat=EXCLUDED.recu_economat,
-        fiche_renseignement=EXCLUDED.fiche_renseignement,
-        bulletin_transfert=EXCLUDED.bulletin_transfert,
-        photocopie_diplome=EXCLUDED.photocopie_diplome,
+        extrait=EXCLUDED.extrait,
+        chemise_rabat=EXCLUDED.chemise_rabat,
         enveloppe_timbree=EXCLUDED.enveloppe_timbree,
+        bulletin=EXCLUDED.bulletin,
+        photos_identite=EXCLUDED.photos_identite,
+        fiche_renseignement=EXCLUDED.fiche_renseignement,
+        fiche_inscription_ligne=EXCLUDED.fiche_inscription_ligne,
+        carnet_correspondance=EXCLUDED.carnet_correspondance,
+        livret_scolaire=EXCLUDED.livret_scolaire,
+        diplome=EXCLUDED.diplome,
         observations=EXCLUDED.observations,
         date_inscription=CURRENT_TIMESTAMP
       RETURNING *`,
-      [eleve_id, extrait_naissance||false, chemise_cartonnee||false, photos||false,
-       fiche_inscription||false, fiche_bonne_conduite||false, recu_economat||false,
-       fiche_renseignement||false, bulletin_transfert||false, photocopie_diplome||false,
-       enveloppe_timbree||false, observations||'']
+      [eleve_id,
+       extrait||false, chemise_rabat||false, enveloppe_timbree||false, bulletin||false,
+       photos_identite||false, fiche_renseignement||false, fiche_inscription_ligne||false,
+       carnet_correspondance||false, livret_scolaire||false, diplome||false,
+       observations||'']
     );
     res.json(result.rows[0]);
   } catch (err) { res.status(500).json({ erreur: err.message }); }
