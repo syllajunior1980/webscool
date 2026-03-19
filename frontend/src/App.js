@@ -844,12 +844,12 @@ export default function App() {
           </div>
           {classeFiltre && elevesClasse.length > 0 && (
             <div style={s.statsClasse}>
-              <span>{classeFiltre}</strong></span>
+              <span><strong>{classeFiltre}</strong></span>
               <span> Total : <strong>{elevesClasse.length}</strong></span>
               <span>Moy. : <strong>{moyenneClasseFiltre}</strong></span>
               <span style={{color:'#166534'}}> Admis : <strong>{elevesClasse.filter(e=>e.decision_fin_annee==='Admis').length}</strong></span>
               <span style={{color:'#92400e'}}>Redoublants : <strong>{elevesClasse.filter(e=>e.decision_fin_annee==='Redoublant').length}</strong></span>
-              <span style={{color:'#991b1b'}}<strong>❌ Exclus : <strong>{elevesClasse.filter(e=>e.decision_fin_annee==='Exclu').length}</strong></span>
+              <span style={{color:'#991b1b'}}>? Exclus : <strong>{elevesClasse.filter(e=>e.decision_fin_annee==='Exclu').length}</strong></span>
               <span>Taux : <strong>{Math.round(elevesClasse.filter(e=>e.decision_fin_annee==='Admis').length/elevesClasse.length*100)}%</strong></span>
             </div>
           )}
@@ -887,7 +887,7 @@ export default function App() {
                       </span>
                     </td>
                     <td style={s.td}>
-                      <button onClick={()=>ouvrirFiche(e)} style={s.btnVoir}></button>
+                      <button onClick={()=>ouvrirFiche(e)} style={s.btnVoir}>👁</button>
                       <button onClick={()=>{setEleveSelectionne(e);ouvrirFormulaire(e);}} style={s.btnModifier}>✏️</button>
                       <button onClick={()=>supprimerEleve(e.id)} style={s.btnSupprimer}>Sup</button>
                     </td>
