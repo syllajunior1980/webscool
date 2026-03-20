@@ -2,7 +2,8 @@ require('dotenv').config();
 const pool = require('./database');
 
 pool.query(`
-  CREATE TABLE IF NOT EXISTS inscriptions_educateurs (
+  DROP TABLE IF EXISTS inscriptions_educateurs;
+  CREATE TABLE inscriptions_educateurs (
     id SERIAL PRIMARY KEY,
     eleve_id INTEGER UNIQUE REFERENCES eleves(id) ON DELETE CASCADE,
     extrait BOOLEAN DEFAULT false,
@@ -19,7 +20,7 @@ pool.query(`
     date_inscription TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )
 `).then(() => {
-  console.log('✅ Table inscriptions_educateurs créée avec les nouvelles colonnes !');
+  console.log('✅ Table inscriptions_educateurs créée avec les 10 bonnes colonnes !');
   process.exit();
 }).catch(e => {
   console.error('Erreur:', e.message);

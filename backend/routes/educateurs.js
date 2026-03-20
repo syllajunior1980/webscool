@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../database');
 
-// GET toutes les inscriptions éducateurs
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -15,7 +14,6 @@ router.get('/', async (req, res) => {
   } catch (err) { res.status(500).json({ erreur: err.message }); }
 });
 
-// GET par élève
 router.get('/eleve/:eleve_id', async (req, res) => {
   try {
     const result = await pool.query(
@@ -26,7 +24,6 @@ router.get('/eleve/:eleve_id', async (req, res) => {
   } catch (err) { res.status(500).json({ erreur: err.message }); }
 });
 
-// POST ou UPDATE inscription éducateur
 router.post('/', async (req, res) => {
   const {
     eleve_id,
@@ -66,7 +63,6 @@ router.post('/', async (req, res) => {
   } catch (err) { res.status(500).json({ erreur: err.message }); }
 });
 
-// DELETE
 router.delete('/:eleve_id', async (req, res) => {
   try {
     await pool.query('DELETE FROM inscriptions_educateurs WHERE eleve_id = $1', [req.params.eleve_id]);
