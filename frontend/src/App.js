@@ -53,16 +53,16 @@ export default function App() {
 
   // ===== ÉDUCATEURS =====
   const DOCUMENTS_EDUCATEURS = [
-    { key: 'extrait_naissance', label: 'Extrait de naissance' },
-    { key: 'chemise_cartonnee', label: 'Chemise cartonnée' },
-    { key: 'photos', label: 'Photos' },
-    { key: 'fiche_inscription', label: "Fiche d'inscription" },
-    { key: 'fiche_bonne_conduite', label: 'Fiche de bonne conduite' },
-    { key: 'recu_economat', label: 'Reçu économat' },
-    { key: 'fiche_renseignement', label: 'Fiche de renseignement' },
-    { key: 'bulletin_transfert', label: 'Bulletin (cas transfert)' },
-    { key: 'photocopie_diplome', label: 'Photocopie diplôme (nouveaux affectés)' },
+    { key: 'extrait', label: 'Extrait' },
+    { key: 'chemise_rabat', label: 'Chemise à rabat' },
     { key: 'enveloppe_timbree', label: 'Enveloppe timbrée' },
+    { key: 'bulletin', label: 'Bulletin' },
+    { key: 'photos_identite', label: "Photos d'identité" },
+    { key: 'fiche_renseignement', label: 'Fiche de renseignement' },
+    { key: 'fiche_inscription_ligne', label: 'Fiche inscription en ligne' },
+    { key: 'carnet_correspondance', label: 'Carnet de correspondance' },
+    { key: 'livret_scolaire', label: 'Livret scolaire' },
+    { key: 'diplome', label: 'Diplôme' },
   ];
   const [inscriptionsEducateurs, setInscriptionsEducateurs] = useState({});
   const [rechercheEducateur, setRechercheEducateur] = useState('');
@@ -106,7 +106,7 @@ export default function App() {
 
   const seConnecter = () => {
     if (mdp === MOT_DE_PASSE) { setConnecte(true); setErreurMdp(''); }
-    else { setErreurMdp('❌ Mot de passe incorrect'); }
+    else { setErreurMdp('? Mot de passe incorrect'); }
   };
 
   const chargerEleves = async () => {
@@ -151,9 +151,9 @@ export default function App() {
     const newDocs = { ...actuel, [docKey]: !actuel[docKey] };
     // Enlever champs non-docs
     const docsOnly = {};
-    ['extrait_naissance','chemise_cartonnee','photos','fiche_inscription',
-     'fiche_bonne_conduite','recu_economat','fiche_renseignement',
-     'bulletin_transfert','photocopie_diplome','enveloppe_timbree','observations'].forEach(k => {
+    ['extrait','chemise_rabat','enveloppe_timbree','bulletin',
+     'photos_identite','fiche_renseignement','fiche_inscription_ligne',
+     'carnet_correspondance','livret_scolaire','diplome','observations'].forEach(k => {
       docsOnly[k] = newDocs[k] || false;
     });
     await sauvegarderDocuments(eleve, docsOnly);
@@ -176,16 +176,16 @@ export default function App() {
   const compterDocsEleve = (eleveId) => {
     const ie = inscriptionsEducateurs[eleveId];
     if (!ie) return 0;
-    return ['extrait_naissance','chemise_cartonnee','photos','fiche_inscription',
-      'fiche_bonne_conduite','recu_economat','fiche_renseignement',
-      'bulletin_transfert','photocopie_diplome','enveloppe_timbree'].filter(k => ie[k]).length;
+    return ['extrait','chemise_rabat','enveloppe_timbree','bulletin',
+      'photos_identite','fiche_renseignement','fiche_inscription_ligne',
+      'carnet_correspondance','livret_scolaire','diplome'].filter(k => ie[k]).length;
   };
 
   const estInscritEducateur = (eleveId) => {
     const ie = inscriptionsEducateurs[eleveId];
     if (!ie) return false;
-    // Au moins reçu économat coché = inscrit
-    return ie.recu_economat === true;
+    // Inscrit si au moins 1 document coché
+    return compterDocsEleve(eleveId) > 0;
   };
 
   const imprimerBilanEducateurs = () => {
@@ -317,7 +317,7 @@ export default function App() {
       if (estPaye) {
         await axios.delete(`${API}/inscriptions/${eleve.id}`);
         const newP = {...paiements}; delete newP[eleve.id]; setPaiements(newP);
-        setMessageInscription(`❌ Paiement annulé pour ${eleve.nom} ${eleve.prenom}`);
+        setMessageInscription(`? Paiement annulé pour ${eleve.nom} ${eleve.prenom}`);
       } else {
         const res = await axios.post(`${API}/inscriptions`, {
           eleve_id: eleve.id, montant: MONTANT_INSCRIPTION,
@@ -373,7 +373,7 @@ export default function App() {
   };
 
   const importerTrimestre = async () => {
-    if (!fichierExcel) { setImportStatus('❌ Choisissez un fichier Excel'); return; }
+    if (!fichierExcel) { setImportStatus('? Choisissez un fichier Excel'); return; }
     setImportEnCours(true); setImportStatus(` Import ${trimestreActif} en cours...`);
     const formData = new FormData();
     formData.append('fichier', fichierExcel); formData.append('trimestre', trimestreActif);
@@ -420,15 +420,15 @@ export default function App() {
   };
   const sauvegarderEleve = async () => {
     if (!formulaire.nom || !formulaire.prenom || !formulaire.classe) {
-      setMessageFormulaire('❌ Nom, prénom et classe sont obligatoires'); return;
+      setMessageFormulaire('? Nom, prénom et classe sont obligatoires'); return;
     }
     try {
       if (modeFormulaire === 'ajouter') {
         await axios.post(`${API}/eleves`, formulaire);
-        setMessageFormulaire('✅ Élève ajouté !');
+        setMessageFormulaire(' ?lève ajouté !');
       } else {
         await axios.put(`${API}/eleves/${eleveSelectionne.id}`, formulaire);
-        setMessageFormulaire('✅ Élève modifié !');
+        setMessageFormulaire(' ?lève modifié !');
       }
       chargerEleves(); chargerClasses();
     } catch (err) { setMessageFormulaire('? Erreur: ' + (err.response?.data?.erreur || err.message)); }
@@ -465,7 +465,7 @@ export default function App() {
       thead th{padding:7px 4px;border:1px solid #ccc;font-size:11px;}
       .stats{display:flex;gap:20px;margin-top:15px;padding:10px;background:#f0f4f8;border-radius:6px;flex-wrap:wrap;}
       .footer{margin-top:30px;display:flex;justify-content:space-between;font-size:11px;}</style></head><body>
-      <div class="entete"><h2>${ETABLISSEMENT}</h2><h1>LISTE DES ÉLÈVES DE ${classeFiltre.toUpperCase()}</h1>
+      <div class="entete"><h2>${ETABLISSEMENT}</h2><h1>LISTE DES ?L?VES DE ${classeFiltre.toUpperCase()}</h1>
       <p>Année scolaire : ${ANNEE_SCOLAIRE}</p></div>
       <table><thead><tr><th>N</th><th>Matricule</th><th>Nom</th><th>Prénom</th><th>T1</th><th>T2</th><th>T3</th><th>MGA</th><th>Décision</th></tr></thead>
       <tbody>${lignes}</tbody></table>
@@ -473,7 +473,7 @@ export default function App() {
       <span>Moyenne classe :</strong> ${moyenneClasse}</span>
       <span style="color:green;"> <strong>Admis :</strong> ${admis}</span>
       <span style="color:orange;">Redoublants :</strong> ${redoublants}</span>
-      <span style="color:red;"> <strong>Exclus :</strong> ${exclus}</span>
+      <span style="color:red;">? <strong>Exclus :</strong> ${exclus}</span>
       <span>Taux :</strong> ${elevesAImprimer.length > 0 ? Math.round(admis/elevesAImprimer.length*100) : 0}%</span></div>
       <div class="footer"><span>Imprimé le : ${new Date().toLocaleDateString('fr-FR')}</span>
       <span>Signature du Directeur : ________________</span></div>
@@ -530,14 +530,14 @@ export default function App() {
       .stats{margin-top:15px;padding:10px;background:#dcfce7;border-radius:6px;display:flex;gap:30px;}
       .footer{margin-top:30px;display:flex;justify-content:space-between;font-size:11px;}</style></head><body>
       <div style="text-align:center;margin-bottom:20px;border-bottom:2px solid #000;padding-bottom:10px;">
-      <h2>${ETABLISSEMENT}</h2><h1>LISTE DES ÉLÈVES AYANT PAYÉ LES DROITS D'INSCRIPTION</h1>
+      <h2>${ETABLISSEMENT}</h2><h1>LISTE DES ?L?VES AYANT PAY? LES DROITS D'INSCRIPTION</h1>
       <p>Année scolaire : ${ANNEE_SCOLAIRE}${filtre?'  Classe : '+filtre:'  Toutes classes'}</p></div>
       <table><thead><tr><th>N</th><th>Matricule</th><th>Nom</th><th>Prénom</th><th>Classe</th><th>Date paiement</th><th>Montant</th></tr></thead>
       <tbody>${lignes}</tbody></table>
       <div class="stats"><span> <strong>Total payés :</strong> ${liste.length}</span>
       <span> <strong>Total encaissé :</strong> ${liste.length * MONTANT_INSCRIPTION} FCFA</span></div>
       <div class="footer"><span>Imprimé le : ${new Date().toLocaleDateString('fr-FR')}</span>
-      <span>Signature de l'Économe : ________________</span></div>
+      <span>Signature de l'?conome : ________________</span></div>
       <script>window.onload=function(){window.print();}</script></body></html>`;
     const f = window.open('','_blank'); f.document.write(html); f.document.close();
   };
@@ -568,12 +568,12 @@ export default function App() {
       ${liste.length===0?'<p style="text-align:center;color:#9ca3af;">Aucun paiement ce jour.</p>':
       `<table><thead><tr><th>N</th><th>Matricule</th><th>Nom</th><th>Prénom</th><th>Classe</th><th>Montant</th></tr></thead>
       <tbody>${lignes}</tbody></table>`}
-      <div class="recap"><div style="font-size:13px;font-weight:bold;color:#166534;margin-bottom:8px;">RÉCAPITULATIF DE LA JOURNÉE</div>
+      <div class="recap"><div style="font-size:13px;font-weight:bold;color:#166534;margin-bottom:8px;">R?CAPITULATIF DE LA JOURN?E</div>
       <div style="display:flex;justify-content:space-between;"><span>Nombre d'élèves :</span><span><strong>${liste.length}</strong></span></div>
       <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:bold;color:#166534;margin-top:8px;padding-top:8px;border-top:2px solid #16a34a;">
       <span>TOTAL ENCAISS? CE JOUR :</span><span>${(liste.length*MONTANT_INSCRIPTION).toLocaleString()} FCFA</span></div></div>
       <div class="signatures">
-      <div class="sig-box"><p style="font-weight:bold;">L'Économe / Responsable Financier</p><div class="sig-line"></div></div>
+      <div class="sig-box"><p style="font-weight:bold;">L'?conome / Responsable Financier</p><div class="sig-line"></div></div>
       <div class="sig-box"><p style="font-weight:bold;">Le Directeur</p><div class="sig-line"></div></div></div>
       <p style="text-align:right;font-size:10px;color:#9ca3af;margin-top:20px;">Document généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}</p>
       <script>window.onload=function(){window.print();}</script></body></html>`;
@@ -627,7 +627,7 @@ export default function App() {
           <p>Année scolaire : ${ANNEE_SCOLAIRE}</p>
         </div>
       </div>
-      <div class="titre-recu"> REÇU DE PAIEMENT  DROITS D'INSCRIPTION</div>
+      <div class="titre-recu"> RE?U DE PAIEMENT  DROITS D'INSCRIPTION</div>
       <div class="corps">
         ${eleve.photo_url
           ? `<img src="${eleve.photo_url}" class="photo" onerror="this.style.display='none'"/>`
@@ -637,7 +637,7 @@ export default function App() {
           <div class="classe">Classe : ${eleve.classe}</div>
           <div class="ligne"><span>Matricule :</span><span>${eleve.matricule||'-'}</span></div>
           <div class="ligne"><span>Date de paiement :</span><span>${datePaiement}</span></div>
-          <div class="ligne"><span>Statut :</span><span><span class="badge-ok"> PAYÉ</span></span></div>
+          <div class="ligne"><span>Statut :</span><span><span class="badge-ok"> PAY?</span></span></div>
         </div>
       </div>
       <div class="montant-box">
@@ -649,7 +649,7 @@ export default function App() {
         Ce document fait foi auprès de l'administration scolaire et des parents ou tuteurs légaux.
       </div>
       <div class="signatures">
-        <div class="sig"><div>L'Économe</div><div class="sig-line"></div></div>
+        <div class="sig"><div>L'?conome</div><div class="sig-line"></div></div>
         <div class="sig" style="text-align:center;font-size:9px;color:#9ca3af;">N : ${eleve.id}-${new Date().getFullYear()}</div>
         <div class="sig"><div>Le Directeur</div><div class="sig-line"></div></div>
       </div>
@@ -887,7 +887,7 @@ export default function App() {
                       </span>
                     </td>
                     <td style={s.td}>
-                      <button onClick={()=>ouvrirFiche(e)} style={s.btnVoir}>👁</button>
+                      <button onClick={()=>ouvrirFiche(e)} style={s.btnVoir}></button>
                       <button onClick={()=>{setEleveSelectionne(e);ouvrirFormulaire(e);}} style={s.btnModifier}>✏️</button>
                       <button onClick={()=>supprimerEleve(e.id)} style={s.btnSupprimer}>Sup</button>
                     </td>
@@ -992,9 +992,9 @@ export default function App() {
             </button>
             {importStatus&&<p style={importStatus.includes('')?s.succes:s.erreur}>{importStatus}</p>}
             <hr style={{margin:'2rem 0',border:'none',borderTop:'2px solid #e2e8f0'}}/>
-            <h3 style={s.sectionTitre}>⚙️ Calcul automatique MGA + DFA</h3>
+            <h3 style={s.sectionTitre}>? Calcul automatique MGA + DFA</h3>
             <button onClick={calculerMoyennesAnnuelles} disabled={calcEnCours} style={s.btnCalculer}>
-              {calcEnCours?' Calcul...':'⚙️ Calculer MGA + DFA'}
+              {calcEnCours?' Calcul...':'? Calculer MGA + DFA'}
             </button>
             {calcStatus&&<p style={calcStatus.includes('')?s.succes:s.erreur}>{calcStatus}</p>}
           </div>
@@ -1049,7 +1049,7 @@ export default function App() {
             <>
               <div style={s.statsInscription}>
                 <div style={s.statBox}><div style={s.statNum}>{totalPayes}</div><div style={s.statLabel}> Ont payé</div></div>
-                <div style={{...s.statBox,background:'#fee2e2'}}><div style={{...s.statNum,color:'#991b1b'}}>{totalNonPayes}</div><div style={s.statLabel}>❌ Non payés</div></div>
+                <div style={{...s.statBox,background:'#fee2e2'}}><div style={{...s.statNum,color:'#991b1b'}}>{totalNonPayes}</div><div style={s.statLabel}>? Non payés</div></div>
                 <div style={{...s.statBox,background:'#dcfce7'}}><div style={{...s.statNum,color:'#166534'}}>{montantTotal.toLocaleString()}</div><div style={s.statLabel}> FCFA encaissés</div></div>
                 <div style={{...s.statBox,background:'#fef3c7'}}><div style={{...s.statNum,color:'#92400e'}}>{(totalNonPayes*MONTANT_INSCRIPTION).toLocaleString()}</div><div style={s.statLabel}> FCFA restants</div></div>
               </div>
@@ -1134,7 +1134,7 @@ export default function App() {
             <button onClick={()=>setSousOngletPhotos('recherche')} style={sousOngletPhotos==='recherche'?{...s.sousNavActif,background:'#7c3aed',borderColor:'#7c3aed'}:s.sousNavBtn}> Recherche photo</button>
           </div>
 
-          {/* IMPORT GROUPÉ */}
+          {/* IMPORT GROUP? */}
           {sousOngletPhotos==='import' && (
             <div style={s.importCard}>
               <h3 style={s.sectionTitre}> Import groupé de photos</h3>
@@ -1225,7 +1225,7 @@ export default function App() {
                         <div style={{fontWeight:'bold',color:'#1e3a5f',fontSize:'1rem'}}>{eleveRecherchePhoto.classe||'-'}</div>
                       </div>
                       <div style={{background:'#f0fdf4',borderRadius:'8px',padding:'0.75rem'}}>
-                        <div style={{fontSize:'0.75rem',color:'#64748b'}}>TÉLÉPHONE</div>
+                        <div style={{fontSize:'0.75rem',color:'#64748b'}}>T?L?PHONE</div>
                         <div style={{fontWeight:'bold',color:'#166534',fontSize:'1rem'}}>{eleveRecherchePhoto.telephone1||'-'}</div>
                       </div>
                       <div style={{background:'#f0fdf4',borderRadius:'8px',padding:'0.75rem'}}>
@@ -1259,6 +1259,7 @@ export default function App() {
           <h2 style={s.titrePage}> Inscriptions  Éducateurs</h2>
           <div style={s.sousNav}>
             <button onClick={()=>setSousOngletEducateur('saisie')} style={sousOngletEducateur==='saisie'?{...s.sousNavActif,background:'#0369a1',borderColor:'#0369a1'}:s.sousNavBtn}>Saisie documents</button>
+            <button onClick={()=>setSousOngletEducateur('liste')} style={sousOngletEducateur==='liste'?{...s.sousNavActif,background:'#0369a1',borderColor:'#0369a1'}:s.sousNavBtn}> Liste inscrits</button>
             <button onClick={()=>setSousOngletEducateur('bilan')} style={sousOngletEducateur==='bilan'?{...s.sousNavActif,background:'#0369a1',borderColor:'#0369a1'}:s.sousNavBtn}> Bilan</button>
           </div>
 
