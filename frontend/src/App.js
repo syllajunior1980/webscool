@@ -1026,9 +1026,9 @@ export default function App() {
             </button>
             {importStatus&&<p style={importStatus.includes('')?s.succes:s.erreur}>{importStatus}</p>}
             <hr style={{margin:'2rem 0',border:'none',borderTop:'2px solid #e2e8f0'}}/>
-            <h3 style={s.sectionTitre}>? Calcul automatique MGA + DFA</h3>
+            <h3 style={s.sectionTitre}>📊 Calcul automatique MGA + DFA</h3>
             <button onClick={calculerMoyennesAnnuelles} disabled={calcEnCours} style={s.btnCalculer}>
-              {calcEnCours?' Calcul...':'? Calculer MGA + DFA'}
+              {calcEnCours?' Calcul...':'📊 Calculer MGA + DFA'}
             </button>
             {calcStatus&&<p style={calcStatus.includes('')?s.succes:s.erreur}>{calcStatus}</p>}
           </div>
@@ -1606,3 +1606,4 @@ const s = {
   erreur:{color:'red',fontWeight:'600',marginTop:'0.75rem'},
   eduDocTh:{padding:'6px 4px',color:'white',textAlign:'center',fontWeight:'600',fontSize:'0.7rem',maxWidth:'65px',wordBreak:'break-word'},
 };
+
