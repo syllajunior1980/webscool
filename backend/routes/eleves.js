@@ -65,6 +65,26 @@ router.post('/calculer-moyennes', async (req, res) => {
   } catch (err) { res.status(500).json({ erreur: err.message }); }
 });
 
+// POST réinitialiser pour nouvelle année
+router.post('/reinitialiser-annee', async (req, res) => {
+  try {
+    // Remettre à zéro les moyennes et décisions
+    await pool.query(`
+      UPDATE eleves SET
+        moyenne_t1 = NULL,
+        moyenne_t2 = NULL,
+        moyenne_t3 = NULL,
+        moyenne_generale = NULL,
+        decision_fin_annee = NULL
+    `);
+    // Supprimer toutes les inscriptions économat
+    await pool.query('DELETE FROM inscriptions');
+    // Supprimer toutes les inscriptions éducateurs
+    await pool.query('DELETE FROM inscriptions_educateurs');
+    res.json({ message: 'Réinitialisation effectuée pour la nouvelle année' });
+  } catch (err) { res.status(500).json({ erreur: err.message }); }
+});
+
 // GET un eleve
 router.get('/:id', async (req, res) => {
   try {
