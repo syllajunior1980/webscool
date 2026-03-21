@@ -373,22 +373,22 @@ export default function App() {
   };
 
   const telechargerModele = (trimestre) => {
-    const XLSX = window.XLSX;
-    // Créer données exemple
-    const data = [
-      { matricule: '21421986V', [`moyennes trimestres ${trimestre.replace('T','')}`]: 12.5 },
-      { matricule: '23666672E', [`moyennes trimestres ${trimestre.replace('T','')}`]: 14.0 },
-      { matricule: '23654577C', [`moyennes trimestres ${trimestre.replace('T','')}`]: 9.75 },
+    const num = trimestre.replace('T','');
+    const colMoy = `moy_trim${num}`;
+    const lignes = [
+      ['matricule', colMoy],
+      ['21421986V', 12.5],
+      ['23666672E', 14.0],
+      ['23654577C', 9.75],
+      ['24505433Y', 11.29],
+      ['21012369K', 8.48],
     ];
-    // Créer CSV simple téléchargeable
-    const entete = `matricule,moyennes trimestres ${trimestre.replace('T','')}`;
-    const lignes = data.map(r => `${r.matricule},${r[`moyennes trimestres ${trimestre.replace('T','')}`]}`);
-    const contenu = [entete, ...lignes].join('\n');
-    const blob = new Blob([contenu], { type: 'text/csv;charset=utf-8;' });
+    const contenu = lignes.map(r => r.join('\t')).join('\n');
+    const blob = new Blob(['\uFEFF' + contenu], { type: 'text/tab-separated-values;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `modele_import_${trimestre}.csv`;
+    a.download = `modele_import_${trimestre}.xls`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -1005,19 +1005,21 @@ export default function App() {
                 <button key={t} onClick={()=>setTrimestreActif(t)} style={trimestreActif===t?s.trimestreBtnActif:s.trimestreBtn}>Trimestre {t}</button>
               ))}
             </div>
-            {/* Bouton modèle */}
-            <div style={{background:'#f0fdf4',border:'1px solid #86efac',borderRadius:'10px',padding:'1rem',marginBottom:'1rem'}}>
-              <p style={{fontWeight:'600',color:'#166534',marginBottom:'0.5rem',fontSize:'0.9rem'}}>📥 Télécharger le modèle Excel pour {trimestreActif}</p>
-              <p style={{fontSize:'0.8rem',color:'#64748b',marginBottom:'0.75rem'}}>
-                Le fichier doit avoir 2 colonnes : <strong>matricule</strong> et <strong>moyennes trimestres {trimestreActif.replace('T','')}</strong>
+            {/* Zone modèle */}
+            <div style={{background:'#f0fdf4',border:'1.5px solid #86efac',borderRadius:'10px',padding:'1rem',marginBottom:'1.25rem'}}>
+              <p style={{fontWeight:'700',color:'#166534',marginBottom:'4px',fontSize:'0.9rem'}}>📥 Modèle à utiliser pour {trimestreActif}</p>
+              <p style={{fontSize:'0.8rem',color:'#475569',marginBottom:'0.75rem'}}>
+                Votre fichier doit avoir exactement ces 2 colonnes :
+                <span style={{fontFamily:'monospace',background:'#dcfce7',padding:'2px 6px',borderRadius:'4px',marginLeft:'6px',fontWeight:'700'}}>matricule</span>
+                <span style={{fontFamily:'monospace',background:'#dcfce7',padding:'2px 6px',borderRadius:'4px',marginLeft:'6px',fontWeight:'700'}}>moy_trim{trimestreActif.replace('T','')}</span>
               </p>
               <button onClick={()=>telechargerModele(trimestreActif)}
-                style={{background:'#16a34a',color:'white',border:'none',borderRadius:'8px',padding:'0.6rem 1.2rem',cursor:'pointer',fontWeight:'600',fontSize:'0.9rem'}}>
-                ⬇️ Télécharger modèle {trimestreActif}
+                style={{background:'#16a34a',color:'white',border:'none',borderRadius:'8px',padding:'0.55rem 1.2rem',cursor:'pointer',fontWeight:'600',fontSize:'0.88rem'}}>
+                ⬇️ Télécharger modèle {trimestreActif} (.xls)
               </button>
             </div>
-            <p style={s.importInfo}>Choisir votre fichier Excel pour <strong>{trimestreActif}</strong></p>
-            <input type="file" accept=".xlsx,.xls" onChange={e=>setFichierExcel(e.target.files[0])} style={{margin:'1rem 0'}}/>
+            <p style={s.importInfo}>Choisir votre fichier pour <strong>{trimestreActif}</strong></p>
+            <input type="file" accept=".xlsx,.xls,.csv" onChange={e=>setFichierExcel(e.target.files[0])} style={{margin:'1rem 0'}}/>
             <br/>
             <button onClick={importerTrimestre} disabled={importEnCours} style={s.btnImportExcel}>
               {importEnCours?` Import ${trimestreActif}...`:`Importer ${trimestreActif}`}

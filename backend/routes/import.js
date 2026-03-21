@@ -71,24 +71,24 @@ router.post('/trimestre', upload.single('fichier'), async (req, res) => {
         let moyenne = null;
         if (trimestre === 'T1') {
           moyenne = parseFloat(
+            row['moy_trim1'] || row['Moy_trim1'] || row['MOY_TRIM1'] ||
             row['Moyenne_T1'] || row['moyenne_t1'] || row['Moy_T1'] ||
             row['moyennes trimestres 1'] || row['Moyenne T1'] ||
-            row['moyenne t1'] || row['MOYENNE T1'] ||
-            row['Moy T1'] || row['Moyenne'] || row['moyenne'] || ''
+            row['moyenne t1'] || row['Moyenne'] || row['moyenne'] || ''
           ) || null;
         } else if (trimestre === 'T2') {
           moyenne = parseFloat(
+            row['moy_trim2'] || row['Moy_trim2'] || row['MOY_TRIM2'] ||
             row['Moyenne_T2'] || row['moyenne_t2'] || row['Moy_T2'] ||
             row['moyennes trimestres 2'] || row['Moyenne T2'] ||
-            row['moyenne t2'] || row['MOYENNE T2'] ||
-            row['Moy T2'] || row['Moyenne'] || row['moyenne'] || ''
+            row['moyenne t2'] || row['Moyenne'] || row['moyenne'] || ''
           ) || null;
         } else if (trimestre === 'T3') {
           moyenne = parseFloat(
+            row['moy_trim3'] || row['Moy_trim3'] || row['MOY_TRIM3'] ||
             row['Moyenne_T3'] || row['moyenne_t3'] || row['Moy_T3'] ||
             row['moyennes trimestres 3'] || row['Moyenne T3'] ||
-            row['moyenne t3'] || row['MOYENNE T3'] ||
-            row['Moy T3'] || row['Moyenne'] || row['moyenne'] || ''
+            row['moyenne t3'] || row['Moyenne'] || row['moyenne'] || ''
           ) || null;
         }
 
