@@ -6,7 +6,7 @@ const pool = require('../database');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
-// Import complet (existant)
+// Import complet élèves
 router.post('/', upload.single('fichier'), async (req, res) => {
   if (!req.file) return res.status(400).json({ erreur: 'Aucun fichier' });
   try {
@@ -16,19 +16,19 @@ router.post('/', upload.single('fichier'), async (req, res) => {
     let importes = 0, erreurs = [];
     for (const row of data) {
       try {
-        const matricule = String(row['Matricule'] || row['matricule'] || '').trim();
-        const nom = String(row['Nom'] || row['nom'] || '').trim();
-        const prenom = String(row['Prenom'] || row['prenom'] || '').trim();
-        const classe = String(row['Classe'] || row['classe'] || '').trim();
-        const numero_extrait = String(row['N° Extrait'] || row['numero_extrait'] || '').trim();
-        const moyenne_t1 = parseFloat(row['Moy_T1'] || row['moyenne_t1']) || null;
-        const moyenne_t2 = parseFloat(row['Moy_T2'] || row['moyenne_t2']) || null;
-        const moyenne_t3 = parseFloat(row['Moy_T3'] || row['moyenne_t3']) || null;
-        const moyenne_generale = parseFloat(row['Moy_Gen'] || row['moyenne_generale']) || null;
-        const decision_fin_annee = String(row['Decision'] || row['decision_fin_annee'] || '').trim();
-        const nom_parent = String(row['Nom_Parent'] || row['nom_parent'] || '').trim();
-        const telephone1 = String(row['Telephone1'] || row['telephone1'] || '').trim();
-        const telephone2 = String(row['Telephone2'] || row['telephone2'] || '').trim();
+        const matricule = String(row['Matricule'] || row['matricule'] || row['MATRICULE'] || '').trim();
+        const nom = String(row['Nom'] || row['nom'] || row['NOM'] || '').trim();
+        const prenom = String(row['Prenom'] || row['prenom'] || row['PRENOM'] || row['Prénom'] || row['prénom'] || '').trim();
+        const classe = String(row['Classe'] || row['classe'] || row['CLASSE'] || '').trim();
+        const numero_extrait = String(row['N° Extrait'] || row['numero_extrait'] || row['Extrait'] || '').trim();
+        const moyenne_t1 = parseFloat(row['Moy_T1'] || row['moyenne_t1'] || row['Moyenne_T1'] || row['moyennes trimestres 1'] || row['Moyenne T1'] || '') || null;
+        const moyenne_t2 = parseFloat(row['Moy_T2'] || row['moyenne_t2'] || row['Moyenne_T2'] || row['moyennes trimestres 2'] || row['Moyenne T2'] || '') || null;
+        const moyenne_t3 = parseFloat(row['Moy_T3'] || row['moyenne_t3'] || row['Moyenne_T3'] || row['moyennes trimestres 3'] || row['Moyenne T3'] || '') || null;
+        const moyenne_generale = parseFloat(row['Moy_Gen'] || row['moyenne_generale'] || row['Moyenne_Generale'] || row['Moyenne Generale'] || '') || null;
+        const decision_fin_annee = String(row['Decision'] || row['decision_fin_annee'] || row['Décision'] || row['decision'] || '').trim();
+        const nom_parent = String(row['Nom_Parent'] || row['nom_parent'] || row['Parent'] || row['parent'] || '').trim();
+        const telephone1 = String(row['Telephone1'] || row['telephone1'] || row['Téléphone1'] || row['Tel1'] || '').trim();
+        const telephone2 = String(row['Telephone2'] || row['telephone2'] || row['Téléphone2'] || row['Tel2'] || '').trim();
         if (!nom || !prenom) continue;
         await pool.query(
           `INSERT INTO eleves (matricule, nom, prenom, classe, numero_extrait, moyenne_t1, moyenne_t2, moyenne_t3, moyenne_generale, decision_fin_annee, nom_parent, telephone1, telephone2)
@@ -48,7 +48,7 @@ router.post('/', upload.single('fichier'), async (req, res) => {
   } catch (err) { res.status(500).json({ erreur: err.message }); }
 });
 
-// Import trimestre (nouveau)
+// Import trimestre
 router.post('/trimestre', upload.single('fichier'), async (req, res) => {
   if (!req.file) return res.status(400).json({ erreur: 'Aucun fichier' });
   const trimestre = req.body.trimestre || 'T1';
@@ -62,10 +62,36 @@ router.post('/trimestre', upload.single('fichier'), async (req, res) => {
     let mis_a_jour = 0, erreurs = [];
     for (const row of data) {
       try {
-        const matricule = String(row['Matricule'] || row['matricule'] || '').trim();
-        const moyenneKey = 'Moyenne_' + trimestre;
-        const moyenneKey2 = 'moyenne_' + trimestre.toLowerCase();
-        const moyenne = parseFloat(row[moyenneKey] || row[moyenneKey2] || row['Moyenne'] || row['moyenne']) || null;
+        // Accepter toutes les variantes possibles de matricule
+        const matricule = String(
+          row['Matricule'] || row['matricule'] || row['MATRICULE'] || ''
+        ).trim();
+
+        // Accepter toutes les variantes possibles de moyenne selon le trimestre
+        let moyenne = null;
+        if (trimestre === 'T1') {
+          moyenne = parseFloat(
+            row['Moyenne_T1'] || row['moyenne_t1'] || row['Moy_T1'] ||
+            row['moyennes trimestres 1'] || row['Moyenne T1'] ||
+            row['moyenne t1'] || row['MOYENNE T1'] ||
+            row['Moy T1'] || row['Moyenne'] || row['moyenne'] || ''
+          ) || null;
+        } else if (trimestre === 'T2') {
+          moyenne = parseFloat(
+            row['Moyenne_T2'] || row['moyenne_t2'] || row['Moy_T2'] ||
+            row['moyennes trimestres 2'] || row['Moyenne T2'] ||
+            row['moyenne t2'] || row['MOYENNE T2'] ||
+            row['Moy T2'] || row['Moyenne'] || row['moyenne'] || ''
+          ) || null;
+        } else if (trimestre === 'T3') {
+          moyenne = parseFloat(
+            row['Moyenne_T3'] || row['moyenne_t3'] || row['Moy_T3'] ||
+            row['moyennes trimestres 3'] || row['Moyenne T3'] ||
+            row['moyenne t3'] || row['MOYENNE T3'] ||
+            row['Moy T3'] || row['Moyenne'] || row['moyenne'] || ''
+          ) || null;
+        }
+
         if (!matricule || moyenne === null) continue;
         const result = await pool.query(
           `UPDATE eleves SET ${colonne} = $1 WHERE matricule = $2`,
