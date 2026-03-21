@@ -393,6 +393,64 @@ export default function App() {
     URL.revokeObjectURL(url);
   };
 
+  const telechargerModeleEleves = () => {
+    const lignes = [
+      ['matricule','nom','prenom','classe','nom_parent','telephone1','telephone2'],
+      ['21421986V','ABDON','GRACE EMMANUELA SARAH','6eme6','ABDON','0759109875',''],
+      ['23666672E','ABDON','MELEDJE BEST','5eme4','ABDON','0759109875',''],
+      ['23654577C','ABDON','MELEDJE N\'GUESSAN FLORESSE','5eme2','ABDON','0759109875',''],
+    ];
+    const contenu = lignes.map(r => r.join('\t')).join('\n');
+    const blob = new Blob(['\uFEFF' + contenu], { type: 'text/tab-separated-values;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'modele_import_eleves.xls';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // ===== RÉPARTITION CLASSES =====
+  const [sousOngletRepartition, setSousOngletRepartition] = useState('repartition');
+  const [classeSource, setClasseSource] = useState('');
+  const [classeCible, setClasseCible] = useState('');
+  const [elevesSelectionnesRepartition, setElevesSelectionnesRepartition] = useState([]);
+  const [messageRepartition, setMessageRepartition] = useState('');
+
+  const toggleSelectionEleve = (eleveId) => {
+    setElevesSelectionnesRepartition(prev =>
+      prev.includes(eleveId) ? prev.filter(id => id !== eleveId) : [...prev, eleveId]
+    );
+  };
+
+  const affecterClasseCible = async () => {
+    if (!classeCible) { setMessageRepartition('Veuillez sélectionner une classe de destination'); return; }
+    if (elevesSelectionnesRepartition.length === 0) { setMessageRepartition('Veuillez sélectionner au moins un élève'); return; }
+    try {
+      for (const eleveId of elevesSelectionnesRepartition) {
+        await axios.put(`${API}/eleves/${eleveId}`, { classe: classeCible });
+      }
+      setMessageRepartition(`✅ ${elevesSelectionnesRepartition.length} élève(s) affecté(s) en ${classeCible} !`);
+      setElevesSelectionnesRepartition([]);
+      chargerEleves();
+      setTimeout(() => setMessageRepartition(''), 4000);
+    } catch (err) { setMessageRepartition('❌ Erreur: ' + err.message); }
+  };
+
+  // ===== RÉINITIALISATION =====
+  const reinitialiserAnnee = async () => {
+    if (!window.confirm('⚠️ ATTENTION ! Cette action va effacer TOUTES les moyennes, inscriptions économat et éducateurs pour la nouvelle année scolaire. Les élèves seront conservés. Confirmer ?')) return;
+    if (!window.confirm('Dernière confirmation : êtes-vous sûr de vouloir réinitialiser pour la nouvelle année ?')) return;
+    try {
+      await axios.post(`${API}/eleves/reinitialiser-annee`);
+      setMessageFormulaire('✅ Réinitialisation effectuée pour la nouvelle année !');
+      chargerEleves();
+      chargerPaiements();
+      chargerInscriptionsEducateurs();
+      alert('✅ Réinitialisation terminée ! Nouvelle année prête.');
+    } catch (err) { alert('❌ Erreur: ' + err.message); }
+  };
+
   const importerTrimestre = async () => {
     if (!fichierExcel) { setImportStatus('? Choisissez un fichier Excel'); return; }
     setImportEnCours(true); setImportStatus(` Import ${trimestreActif} en cours...`);
@@ -845,7 +903,7 @@ export default function App() {
 
       <div style={s.nav}>
         {[['liste','Eleves'],['formulaire','Ajouter'],['importer','Importer'],
-          ['bepc','BEPC'],['inscription','Inscription'],['photos','Photos'],['educateurs',' Éducateurs'],['controle',' Contrôle']].map(([id,label])=>(
+          ['bepc','BEPC'],['inscription','Inscription'],['photos','Photos'],['educateurs',' Éducateurs'],['controle',' Contrôle'],['repartition','🏫 Répartition']].map(([id,label])=>(
           <button key={id} onClick={()=>{setOnglet(id);if(id==='formulaire')ouvrirFormulaire();}}
             style={onglet===id?s.navBtnActif:s.navBtn}>{label}</button>
         ))}
@@ -999,6 +1057,23 @@ export default function App() {
       {onglet==='importer' && (
         <div style={s.contenu}>
           <h2 style={s.titrePage}> Import des moyennes trimestrielles</h2>
+          {/* Modèle élèves */}
+          <div style={{background:'#eff6ff',border:'1.5px solid #93c5fd',borderRadius:'10px',padding:'1rem',marginBottom:'1.25rem'}}>
+            <p style={{fontWeight:'700',color:'#1e40af',marginBottom:'4px',fontSize:'0.9rem'}}>👥 Modèle import liste des élèves</p>
+            <p style={{fontSize:'0.8rem',color:'#475569',marginBottom:'0.75rem'}}>
+              Colonnes : <span style={{fontFamily:'monospace',background:'#dbeafe',padding:'2px 5px',borderRadius:'4px'}}>matricule</span>{' '}
+              <span style={{fontFamily:'monospace',background:'#dbeafe',padding:'2px 5px',borderRadius:'4px'}}>nom</span>{' '}
+              <span style={{fontFamily:'monospace',background:'#dbeafe',padding:'2px 5px',borderRadius:'4px'}}>prenom</span>{' '}
+              <span style={{fontFamily:'monospace',background:'#dbeafe',padding:'2px 5px',borderRadius:'4px'}}>classe</span>{' '}
+              <span style={{fontFamily:'monospace',background:'#dbeafe',padding:'2px 5px',borderRadius:'4px'}}>nom_parent</span>{' '}
+              <span style={{fontFamily:'monospace',background:'#dbeafe',padding:'2px 5px',borderRadius:'4px'}}>telephone1</span>{' '}
+              <span style={{fontFamily:'monospace',background:'#dbeafe',padding:'2px 5px',borderRadius:'4px'}}>telephone2</span>
+            </p>
+            <button onClick={telechargerModeleEleves}
+              style={{background:'#2563eb',color:'white',border:'none',borderRadius:'8px',padding:'0.55rem 1.2rem',cursor:'pointer',fontWeight:'600',fontSize:'0.88rem'}}>
+              ⬇️ Télécharger modèle élèves (.xls)
+            </button>
+          </div>
           <div style={s.importCard}>
             <div style={s.trimestreBtns}>
               {['T1','T2','T3'].map(t=>(
@@ -1031,6 +1106,15 @@ export default function App() {
               {calcEnCours?' Calcul...':'📊 Calculer MGA + DFA'}
             </button>
             {calcStatus&&<p style={calcStatus.includes('')?s.succes:s.erreur}>{calcStatus}</p>}
+            <hr style={{margin:'2rem 0',border:'none',borderTop:'2px solid #e2e8f0'}}/>
+            <h3 style={{...s.sectionTitre,color:'#991b1b'}}>🔄 Réinitialisation nouvelle année</h3>
+            <p style={{fontSize:'0.85rem',color:'#64748b',marginBottom:'0.75rem'}}>
+              Efface les moyennes, inscriptions économat et éducateurs. Les élèves et photos sont conservés.
+            </p>
+            <button onClick={reinitialiserAnnee}
+              style={{background:'#dc2626',color:'white',border:'none',borderRadius:'8px',padding:'0.75rem 1.5rem',cursor:'pointer',fontSize:'1rem',fontWeight:'600'}}>
+              🔄 Réinitialiser pour nouvelle année
+            </button>
           </div>
         </div>
       )}
@@ -1517,6 +1601,100 @@ export default function App() {
           })()}
         </div>
       )}
+      {/* ===== RÉPARTITION ===== */}
+      {onglet==='repartition' && (
+        <div style={s.contenu}>
+          <h2 style={s.titrePage}>🏫 Répartition des classes — Nouvelle année</h2>
+          <div style={{background:'#fef3c7',border:'1.5px solid #fcd34d',borderRadius:'10px',padding:'1rem',marginBottom:'1.25rem'}}>
+            <p style={{fontWeight:'700',color:'#92400e',fontSize:'0.9rem',marginBottom:'4px'}}>ℹ️ Comment ça marche</p>
+            <p style={{fontSize:'0.82rem',color:'#64748b'}}>
+              1. Choisissez la classe source (ex: 6eme1) → 2. Cochez les élèves Admis → 3. Choisissez la classe de destination (ex: 5eme1) → 4. Cliquez "Affecter"
+            </p>
+          </div>
+          <div style={s.importCard}>
+            <div style={{display:'flex',gap:'1rem',marginBottom:'1rem',flexWrap:'wrap',alignItems:'center'}}>
+              <div>
+                <label style={{...s.label,marginBottom:'4px'}}>Classe source (actuelle)</label>
+                <select value={classeSource} onChange={e=>{setClasseSource(e.target.value);setElevesSelectionnesRepartition([]);}} style={s.selectClasse}>
+                  <option value="">-- Choisir --</option>
+                  {classes.map(c=><option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div style={{fontSize:'1.5rem',marginTop:'1.2rem'}}>→</div>
+              <div>
+                <label style={{...s.label,marginBottom:'4px'}}>Classe destination (nouvelle)</label>
+                <select value={classeCible} onChange={e=>setClasseCible(e.target.value)} style={s.selectClasse}>
+                  <option value="">-- Choisir --</option>
+                  {classes.map(c=><option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div style={{marginTop:'1.2rem'}}>
+                <button onClick={affecterClasseCible}
+                  style={{background:'#1e3a5f',color:'white',border:'none',borderRadius:'8px',padding:'0.6rem 1.2rem',cursor:'pointer',fontWeight:'700',fontSize:'0.9rem'}}>
+                  ✅ Affecter ({elevesSelectionnesRepartition.length} sélectionné{elevesSelectionnesRepartition.length>1?'s':''})
+                </button>
+              </div>
+            </div>
+            {messageRepartition && <div style={messageRepartition.includes('✅')?s.alertSucces:s.alertErreur}>{messageRepartition}</div>}
+            {classeSource && (
+              <>
+                <div style={{display:'flex',gap:'0.5rem',marginBottom:'0.75rem',alignItems:'center'}}>
+                  <button onClick={()=>{
+                    const admis = eleves.filter(e=>e.classe===classeSource && e.decision_fin_annee==='Admis').map(e=>e.id);
+                    setElevesSelectionnesRepartition(admis);
+                  }} style={{...s.btnSecondaire,fontSize:'0.8rem'}}>
+                    ✅ Sélectionner tous les Admis
+                  </button>
+                  <button onClick={()=>setElevesSelectionnesRepartition([])}
+                    style={{...s.btnSecondaire,fontSize:'0.8rem',color:'#64748b',borderColor:'#64748b'}}>
+                    Désélectionner tout
+                  </button>
+                </div>
+                <div style={s.tableWrap}>
+                  <table style={s.table}>
+                    <thead style={s.tableHead}>
+                      <tr>
+                        <th style={s.th}>☑</th>
+                        <th style={s.th}>Matricule</th>
+                        <th style={s.th}>Nom</th>
+                        <th style={s.th}>Prénom</th>
+                        <th style={s.th}>Classe</th>
+                        <th style={s.th}>MGA</th>
+                        <th style={s.th}>Décision</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {eleves.filter(e=>e.classe===classeSource).sort((a,b)=>(a.nom||'').localeCompare(b.nom||'')).map((e,i)=>(
+                        <tr key={e.id} style={{...(i%2===0?s.trPair:s.trImpair), cursor:'pointer'}}
+                          onClick={()=>toggleSelectionEleve(e.id)}>
+                          <td style={s.td}>
+                            <input type="checkbox" checked={elevesSelectionnesRepartition.includes(e.id)}
+                              onChange={()=>toggleSelectionEleve(e.id)}
+                              style={{width:'16px',height:'16px',cursor:'pointer'}}/>
+                          </td>
+                          <td style={s.td}>{e.matricule}</td>
+                          <td style={s.td}><strong>{e.nom}</strong></td>
+                          <td style={s.td}>{e.prenom}</td>
+                          <td style={s.td}><span style={s.badgeClasse}>{e.classe}</span></td>
+                          <td style={s.td}><strong>{e.moyenne_generale||'-'}</strong></td>
+                          <td style={s.td}>
+                            <span style={e.decision_fin_annee==='Admis'?s.badgeAdmis:e.decision_fin_annee==='Redoublant'?s.badgeRedoublant:s.badgeExclu}>
+                              {e.decision_fin_annee||'-'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+            {!classeSource && (
+              <div style={s.bilanVide}><p>Sélectionnez une classe source pour voir les élèves</p></div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1584,7 +1762,7 @@ const s = {
   formGrid:{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))',gap:'1rem'},
   label:{display:'block',marginBottom:'0.3rem',fontWeight:'600',fontSize:'0.88rem',color:'#374151'},
   input:{width:'100%',padding:'0.6rem',border:'2px solid #e2e8f0',borderRadius:'8px',fontSize:'0.95rem',boxSizing:'border-box'},
-  btnSauvegarder:{marginTop:'1.5rem',background:'#2563eb',color:'white',border:'none',borderRadius:'8px',padding:'0.75rem 2rem',cursor:'pointer',fontSize:'1rem',fontWeight:'600'},
+  btnSecondaire:{padding:'0.5rem 1rem',background:'white',color:'#1e3a5f',border:'1.5px solid #1e3a5f',borderRadius:'8px',cursor:'pointer',fontSize:'0.88rem'},
   importCard:{background:'white',borderRadius:'12px',padding:'1.5rem',boxShadow:'0 2px 8px rgba(0,0,0,0.07)'},
   trimestreBtns:{display:'flex',gap:'1rem',marginBottom:'1.5rem',flexWrap:'wrap'},
   trimestreBtn:{padding:'0.75rem 1.5rem',border:'2px solid #e2e8f0',borderRadius:'8px',background:'white',cursor:'pointer',fontWeight:'600',fontSize:'1rem'},
