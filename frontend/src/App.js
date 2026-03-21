@@ -1324,6 +1324,57 @@ export default function App() {
             </>
           )}
 
+          {sousOngletEducateur==='liste' && (
+            <div style={s.importCard}>
+              <div style={s.statsInscription}>
+                <div style={s.statBox}><div style={s.statNum}>{eleves.filter(e=>estInscritEducateur(e.id)).length}</div><div style={s.statLabel}>✅ Inscrits</div></div>
+                <div style={{...s.statBox,background:'#fee2e2'}}><div style={{...s.statNum,color:'#991b1b'}}>{eleves.filter(e=>!estInscritEducateur(e.id)).length}</div><div style={s.statLabel}>❌ Non inscrits</div></div>
+              </div>
+              <h3 style={{color:'#0369a1',marginBottom:'0.75rem'}}>✅ Élèves inscrits ({eleves.filter(e=>estInscritEducateur(e.id)).length})</h3>
+              <div style={s.tableWrap}>
+                <table style={s.table}>
+                  <thead style={{...s.tableHead,background:'#0369a1'}}>
+                    <tr>{['#','Matricule','Nom','Prénom','Classe','Docs','Économat'].map(h=><th key={h} style={s.th}>{h}</th>)}</tr>
+                  </thead>
+                  <tbody>
+                    {eleves.filter(e=>estInscritEducateur(e.id)).sort((a,b)=>(a.nom||'').localeCompare(b.nom||'')).map((e,i)=>(
+                      <tr key={e.id} style={i%2===0?s.trPair:s.trImpair}>
+                        <td style={s.td}>{i+1}</td>
+                        <td style={s.td}>{e.matricule}</td>
+                        <td style={s.td}><strong>{e.nom}</strong></td>
+                        <td style={s.td}>{e.prenom}</td>
+                        <td style={s.td}><span style={s.badgeClasse}>{e.classe}</span></td>
+                        <td style={{...s.td,textAlign:'center',fontWeight:'bold',color:'#0369a1'}}>{compterDocsEleve(e.id)}/10</td>
+                        <td style={s.td}>{paiements[e.id]?<span style={s.badgeAdmis}>✅ Payé</span>:<span style={s.badgeExclu}>❌ Non payé</span>}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <h3 style={{color:'#991b1b',marginTop:'1.5rem',marginBottom:'0.75rem'}}>❌ Élèves non inscrits ({eleves.filter(e=>!estInscritEducateur(e.id)).length})</h3>
+              <div style={s.tableWrap}>
+                <table style={s.table}>
+                  <thead style={{...s.tableHead,background:'#991b1b'}}>
+                    <tr>{['#','Matricule','Nom','Prénom','Classe','Parent','Téléphone'].map(h=><th key={h} style={s.th}>{h}</th>)}</tr>
+                  </thead>
+                  <tbody>
+                    {eleves.filter(e=>!estInscritEducateur(e.id)).sort((a,b)=>(a.nom||'').localeCompare(b.nom||'')).map((e,i)=>(
+                      <tr key={e.id} style={i%2===0?s.trPair:s.trImpair}>
+                        <td style={s.td}>{i+1}</td>
+                        <td style={s.td}>{e.matricule}</td>
+                        <td style={s.td}><strong style={{color:'#991b1b'}}>{e.nom}</strong></td>
+                        <td style={s.td}>{e.prenom}</td>
+                        <td style={s.td}><span style={s.badgeClasse}>{e.classe}</span></td>
+                        <td style={s.td}>{e.nom_parent||'-'}</td>
+                        <td style={s.td}>{e.telephone1?<a href={`tel:${e.telephone1}`} style={s.telLink}>📞 {e.telephone1}</a>:'-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {sousOngletEducateur==='bilan' && (
             <div style={s.importCard}>
               <h3 style={s.sectionTitre}> Bilan des inscriptions éducateurs</h3>
