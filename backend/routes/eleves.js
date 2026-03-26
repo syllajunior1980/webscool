@@ -65,23 +65,13 @@ router.post('/calculer-moyennes', async (req, res) => {
   } catch (err) { res.status(500).json({ erreur: err.message }); }
 });
 
-// POST réinitialiser pour nouvelle année
+// POST réinitialiser pour nouvelle année (TOUT effacer)
 router.post('/reinitialiser-annee', async (req, res) => {
   try {
-    // Remettre à zéro les moyennes et décisions
-    await pool.query(`
-      UPDATE eleves SET
-        moyenne_t1 = NULL,
-        moyenne_t2 = NULL,
-        moyenne_t3 = NULL,
-        moyenne_generale = NULL,
-        decision_fin_annee = NULL
-    `);
-    // Supprimer toutes les inscriptions économat
     await pool.query('DELETE FROM inscriptions');
-    // Supprimer toutes les inscriptions éducateurs
     await pool.query('DELETE FROM inscriptions_educateurs');
-    res.json({ message: 'Réinitialisation effectuée pour la nouvelle année' });
+    await pool.query('DELETE FROM eleves');
+    res.json({ message: 'Réinitialisation complète — tous les élèves et inscriptions supprimés' });
   } catch (err) { res.status(500).json({ erreur: err.message }); }
 });
 
@@ -96,12 +86,12 @@ router.get('/:id', async (req, res) => {
 
 // POST ajouter
 router.post('/', async (req, res) => {
-  const { matricule, nom, prenom, classe, numero_extrait, moyenne_t1, moyenne_t2, moyenne_t3, moyenne_generale, decision_fin_annee, nom_parent, telephone1, telephone2 } = req.body;
+  const { matricule, nom, prenom, classe, numero_extrait, sexe, statut, qualite, moyenne_t1, moyenne_t2, moyenne_t3, moyenne_generale, decision_fin_annee, nom_parent, telephone1, telephone2 } = req.body;
   try {
     const result = await pool.query(
-      `INSERT INTO eleves (matricule, nom, prenom, classe, numero_extrait, moyenne_t1, moyenne_t2, moyenne_t3, moyenne_generale, decision_fin_annee, nom_parent, telephone1, telephone2)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
-      [matricule, nom, prenom, classe, numero_extrait, moyenne_t1||null, moyenne_t2||null, moyenne_t3||null, moyenne_generale||null, decision_fin_annee, nom_parent, telephone1, telephone2]
+      `INSERT INTO eleves (matricule, nom, prenom, classe, numero_extrait, sexe, statut, qualite, moyenne_t1, moyenne_t2, moyenne_t3, moyenne_generale, decision_fin_annee, nom_parent, telephone1, telephone2)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
+      [matricule, nom, prenom, classe, numero_extrait, sexe||'', statut||'', qualite||'', moyenne_t1||null, moyenne_t2||null, moyenne_t3||null, moyenne_generale||null, decision_fin_annee, nom_parent, telephone1, telephone2]
     );
     res.json(result.rows[0]);
   } catch (err) { res.status(500).json({ erreur: err.message }); }
@@ -109,14 +99,15 @@ router.post('/', async (req, res) => {
 
 // PUT modifier
 router.put('/:id', async (req, res) => {
-  const { matricule, nom, prenom, classe, numero_extrait, moyenne_t1, moyenne_t2, moyenne_t3, moyenne_generale, decision_fin_annee, nom_parent, telephone1, telephone2 } = req.body;
+  const { matricule, nom, prenom, classe, numero_extrait, sexe, statut, qualite, moyenne_t1, moyenne_t2, moyenne_t3, moyenne_generale, decision_fin_annee, nom_parent, telephone1, telephone2 } = req.body;
   try {
     const result = await pool.query(
       `UPDATE eleves SET matricule=$1, nom=$2, prenom=$3, classe=$4, numero_extrait=$5,
-       moyenne_t1=$6, moyenne_t2=$7, moyenne_t3=$8, moyenne_generale=$9,
-       decision_fin_annee=$10, nom_parent=$11, telephone1=$12, telephone2=$13
-       WHERE id=$14 RETURNING *`,
-      [matricule, nom, prenom, classe, numero_extrait, moyenne_t1||null, moyenne_t2||null, moyenne_t3||null, moyenne_generale||null, decision_fin_annee, nom_parent, telephone1, telephone2, req.params.id]
+       sexe=$6, statut=$7, qualite=$8,
+       moyenne_t1=$9, moyenne_t2=$10, moyenne_t3=$11, moyenne_generale=$12,
+       decision_fin_annee=$13, nom_parent=$14, telephone1=$15, telephone2=$16
+       WHERE id=$17 RETURNING *`,
+      [matricule, nom, prenom, classe, numero_extrait, sexe||'', statut||'', qualite||'', moyenne_t1||null, moyenne_t2||null, moyenne_t3||null, moyenne_generale||null, decision_fin_annee, nom_parent, telephone1, telephone2, req.params.id]
     );
     res.json(result.rows[0]);
   } catch (err) { res.status(500).json({ erreur: err.message }); }
