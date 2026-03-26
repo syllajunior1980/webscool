@@ -21,7 +21,17 @@ router.post('/', upload.single('fichier'), async (req, res) => {
         const prenom = String(row['Prenom'] || row['prenom'] || row['PRENOM'] || row['Prénom'] || row['prénom'] || '').trim();
         const classe = String(row['Classe'] || row['classe'] || row['CLASSE'] || '').trim();
         const numero_extrait = String(row['N° Extrait'] || row['numero_extrait'] || row['Extrait'] || '').trim();
-        const sexe = String(row['Sexe'] || row['sexe'] || row['SEXE'] || '').trim();
+
+        // Conversion sexe : Masculin→M, Feminin/Féminin→F
+        const sexeBrut = String(row['Sexe'] || row['sexe'] || row['SEXE'] || '').trim();
+        const sexe = sexeBrut === 'Masculin' ? 'M'
+                   : sexeBrut === 'Feminin'  ? 'F'
+                   : sexeBrut === 'Féminin'  ? 'F'
+                   : sexeBrut === 'masculin' ? 'M'
+                   : sexeBrut === 'feminin'  ? 'F'
+                   : sexeBrut === 'féminin'  ? 'F'
+                   : sexeBrut;
+
         const statut = String(row['Statut'] || row['statut'] || row['STATUT'] || '').trim();
         const qualite = String(row['Qualite'] || row['qualite'] || row['QUALITE'] || row['Qualité'] || row['qualité'] || '').trim();
         const moyenne_t1 = parseFloat(row['Moy_T1'] || row['moyenne_t1'] || row['Moyenne_T1'] || row['moyennes trimestres 1'] || row['Moyenne T1'] || '') || null;
