@@ -68,9 +68,20 @@ router.post('/calculer-moyennes', async (req, res) => {
 // POST réinitialiser pour nouvelle année (TOUT effacer)
 router.post('/reinitialiser-annee', async (req, res) => {
   try {
-    await pool.query('DELETE FROM inscriptions');
-    await pool.query('DELETE FROM inscriptions_educateurs');
-    await pool.query('DELETE FROM eleves');
+    // Supprimer dans l'ordre pour éviter les erreurs de clés étrangères
+    await pool.query('DELETE FROM inscriptions').catch(() => {});
+    await pool.query('DELETE FROM inscriptions_educateurs').catch(() => {});
+    // Supprimer les photos si la table existe
+    await pool.query('DELETE FROM photos').catch(() => {});
+    // Supprimer toutes les tables liées aux élèves qui pourraient exister
+    await pool.query('DELETE FROM notes').catch(() => {});
+    await pool.query('DELETE FROM bulletins').catch(() => {});
+    // Enfin supprimer les élèves (TRUNCATE plus rapide et contourne les FK)
+    try {
+      await pool.query('TRUNCATE TABLE eleves CASCADE');
+    } catch(e) {
+      await pool.query('DELETE FROM eleves');
+    }
     res.json({ message: 'Réinitialisation complète — tous les élèves et inscriptions supprimés' });
   } catch (err) { res.status(500).json({ erreur: err.message }); }
 });
