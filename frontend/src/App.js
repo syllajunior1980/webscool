@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 
 const API = 'https://webscool.onrender.com/api';
@@ -393,14 +393,38 @@ export default function App() {
   };
 
   const reinitialiserAnnee = async () => {
-    if (!window.confirm('⚠️ ATTENTION ! Cette action va effacer TOUTES les moyennes, inscriptions économat et éducateurs pour la nouvelle année scolaire. Les élèves seront conservés. Confirmer ?')) return;
-    if (!window.confirm('Dernière confirmation : êtes-vous sûr de vouloir réinitialiser pour la nouvelle année ?')) return;
+    if (!window.confirm('⚠️ ATTENTION ! Cette action va effacer TOUT : tous les élèves, moyennes, inscriptions économat et éducateurs. Cette action est IRRÉVERSIBLE. Confirmer ?')) return;
+    if (!window.confirm('🔴 DERNIÈRE CONFIRMATION : TOUS les élèves seront supprimés définitivement. Êtes-vous absolument sûr ?')) return;
     try {
-      await axios.post(`${API}/eleves/reinitialiser-annee`);
-      setMessageFormulaire('✅ Réinitialisation effectuée pour la nouvelle année !');
-      chargerEleves(); chargerPaiements(); chargerInscriptionsEducateurs();
-      alert('✅ Réinitialisation terminée ! Nouvelle année prête.');
-    } catch (err) { alert('❌ Erreur: ' + err.message); }
+      // 1. Appel au serveur et attente de la réponse complète
+      const res = await axios.post(`${API}/eleves/reinitialiser-annee`);
+
+      // 2. Vérifier que le serveur confirme le succès
+      if (res.data && res.data.succes === false) {
+        alert('❌ Réinitialisation incomplète : ' + res.data.message);
+        return;
+      }
+
+      // 3. Vider l'affichage local SEULEMENT après confirmation serveur
+      setEleves([]);
+      setElevesInscription([]);
+      setElevesEducateur([]);
+      setPaiements({});
+      setInscriptionsEducateurs({});
+      setClasses([]);
+
+      // 4. Recharger depuis le serveur pour confirmer que c'est vide
+      await chargerEleves();
+      await chargerPaiements();
+      await chargerInscriptionsEducateurs();
+      await chargerClasses();
+
+      const nb = res.data?.eleves_supprimes || 0;
+      setMessageFormulaire('✅ Réinitialisation complète ! Tous les élèves supprimés.');
+      alert(`✅ Réinitialisation terminée !\n${nb} élève(s) supprimé(s).\nNouvelle année prête.`);
+    } catch (err) {
+      alert('❌ Erreur lors de la réinitialisation : ' + (err.response?.data?.message || err.message));
+    }
   };
 
   const importerTrimestre = async () => {
@@ -1226,7 +1250,7 @@ export default function App() {
             <hr style={{margin:'2rem 0',border:'none',borderTop:'2px solid #e2e8f0'}}/>
             <h3 style={{...s.sectionTitre,color:'#991b1b'}}>🔄 Réinitialisation nouvelle année</h3>
             <p style={{fontSize:'0.85rem',color:'#64748b',marginBottom:'0.75rem'}}>
-              Efface les moyennes, inscriptions économat et éducateurs. Les élèves et photos sont conservés.
+              Efface les moyennes, inscriptions économat et éducateurs,Les élèves et photos.
             </p>
             <button onClick={reinitialiserAnnee}
               style={{background:'#dc2626',color:'white',border:'none',borderRadius:'8px',padding:'0.75rem 1.5rem',cursor:'pointer',fontSize:'1rem',fontWeight:'600'}}>
