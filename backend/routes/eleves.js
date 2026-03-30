@@ -65,25 +65,74 @@ router.post('/calculer-moyennes', async (req, res) => {
   } catch (err) { res.status(500).json({ erreur: err.message }); }
 });
 
-// POST réinitialiser pour nouvelle année (TOUT effacer)
+// ============================================================
+// POST réinitialiser pour nouvelle année
+// ETAPE 1 : vérifier d'abord que tous les élèves sont supprimés
+// ETAPE 2 : si non → supprimer tout proprement
+// ============================================================
 router.post('/reinitialiser-annee', async (req, res) => {
   try {
-    // Supprimer dans l'ordre pour éviter les erreurs de clés étrangères
+
+    // --- ETAPE 1 : Vérifier combien d'élèves restent dans la base ---
+    const check = await pool.query('SELECT COUNT(*) FROM eleves');
+    const nombreEleves = parseInt(check.rows[0].count);
+
+    if (nombreEleves === 0) {
+      // La base est déjà vide, rien à faire
+      return res.json({
+        succes: true,
+        message: 'La base est déjà vide. Aucun élève à supprimer.',
+        eleves_supprimes: 0
+      });
+    }
+
+    // --- ETAPE 2 : Supprimer dans l'ordre (clés étrangères d'abord) ---
+
+    // 2a. Supprimer inscriptions économat
     await pool.query('DELETE FROM inscriptions').catch(() => {});
+
+    // 2b. Supprimer inscriptions éducateurs
     await pool.query('DELETE FROM inscriptions_educateurs').catch(() => {});
-    // Supprimer les photos si la table existe
+
+    // 2c. Supprimer autres tables liées si elles existent
     await pool.query('DELETE FROM photos').catch(() => {});
-    // Supprimer toutes les tables liées aux élèves qui pourraient exister
     await pool.query('DELETE FROM notes').catch(() => {});
     await pool.query('DELETE FROM bulletins').catch(() => {});
-    // Enfin supprimer les élèves (TRUNCATE plus rapide et contourne les FK)
+
+    // 2d. Supprimer tous les élèves (TRUNCATE CASCADE = plus rapide et sûr)
     try {
-      await pool.query('TRUNCATE TABLE eleves CASCADE');
-    } catch(e) {
+      await pool.query('TRUNCATE TABLE eleves RESTART IDENTITY CASCADE');
+    } catch (e) {
+      // Fallback si TRUNCATE échoue
       await pool.query('DELETE FROM eleves');
     }
-    res.json({ message: 'Réinitialisation complète — tous les élèves et inscriptions supprimés' });
-  } catch (err) { res.status(500).json({ erreur: err.message }); }
+
+    // --- ETAPE 3 : Vérifier que la suppression est bien complète ---
+    const verification = await pool.query('SELECT COUNT(*) FROM eleves');
+    const resteEleves = parseInt(verification.rows[0].count);
+
+    if (resteEleves > 0) {
+      // Echec partiel — des élèves restent encore
+      return res.status(500).json({
+        succes: false,
+        message: `Attention : ${resteEleves} élève(s) n'ont pas pu être supprimés. Veuillez réessayer.`,
+        eleves_restants: resteEleves
+      });
+    }
+
+    // Tout est supprimé avec succès
+    res.json({
+      succes: true,
+      message: `Réinitialisation complète — ${nombreEleves} élève(s) et toutes les inscriptions supprimés avec succès.`,
+      eleves_supprimes: nombreEleves
+    });
+
+  } catch (err) {
+    res.status(500).json({
+      succes: false,
+      message: 'Erreur lors de la réinitialisation : ' + err.message
+    });
+  }
 });
 
 // GET un eleve
