@@ -396,17 +396,35 @@ export default function App() {
     if (!window.confirm('⚠️ ATTENTION ! Cette action va effacer TOUT : tous les élèves, moyennes, inscriptions économat et éducateurs. Cette action est IRRÉVERSIBLE. Confirmer ?')) return;
     if (!window.confirm('🔴 DERNIÈRE CONFIRMATION : TOUS les élèves seront supprimés définitivement. Êtes-vous absolument sûr ?')) return;
     try {
-      await axios.post(`${API}/eleves/reinitialiser-annee`);
+      // 1. Appel au serveur et attente de la réponse complète
+      const res = await axios.post(`${API}/eleves/reinitialiser-annee`);
+
+      // 2. Vérifier que le serveur confirme le succès
+      if (res.data && res.data.succes === false) {
+        alert('❌ Réinitialisation incomplète : ' + res.data.message);
+        return;
+      }
+
+      // 3. Vider l'affichage local SEULEMENT après confirmation serveur
       setEleves([]);
       setElevesInscription([]);
       setElevesEducateur([]);
       setPaiements({});
       setInscriptionsEducateurs({});
       setClasses([]);
-      chargerEleves(); chargerPaiements(); chargerInscriptionsEducateurs(); chargerClasses();
+
+      // 4. Recharger depuis le serveur pour confirmer que c'est vide
+      await chargerEleves();
+      await chargerPaiements();
+      await chargerInscriptionsEducateurs();
+      await chargerClasses();
+
+      const nb = res.data?.eleves_supprimes || 0;
       setMessageFormulaire('✅ Réinitialisation complète ! Tous les élèves supprimés.');
-      alert('✅ Réinitialisation terminée ! Nouvelle année prête.');
-    } catch (err) { alert('❌ Erreur: ' + err.message); }
+      alert(`✅ Réinitialisation terminée !\n${nb} élève(s) supprimé(s).\nNouvelle année prête.`);
+    } catch (err) {
+      alert('❌ Erreur lors de la réinitialisation : ' + (err.response?.data?.message || err.message));
+    }
   };
 
   const importerTrimestre = async () => {
