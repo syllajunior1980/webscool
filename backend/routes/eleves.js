@@ -65,24 +65,74 @@ router.post('/calculer-moyennes', async (req, res) => {
   } catch (err) { res.status(500).json({ erreur: err.message }); }
 });
 
+// ============================================================
 // POST réinitialiser pour nouvelle année
+// ETAPE 1 : vérifier d'abord que tous les élèves sont supprimés
+// ETAPE 2 : si non → supprimer tout proprement
+// ============================================================
 router.post('/reinitialiser-annee', async (req, res) => {
   try {
-    // Remettre à zéro les moyennes et décisions
-    await pool.query(`
-      UPDATE eleves SET
-        moyenne_t1 = NULL,
-        moyenne_t2 = NULL,
-        moyenne_t3 = NULL,
-        moyenne_generale = NULL,
-        decision_fin_annee = NULL
-    `);
-    // Supprimer toutes les inscriptions économat
-    await pool.query('DELETE FROM inscriptions');
-    // Supprimer toutes les inscriptions éducateurs
-    await pool.query('DELETE FROM inscriptions_educateurs');
-    res.json({ message: 'Réinitialisation effectuée pour la nouvelle année' });
-  } catch (err) { res.status(500).json({ erreur: err.message }); }
+
+    // --- ETAPE 1 : Vérifier combien d'élèves restent dans la base ---
+    const check = await pool.query('SELECT COUNT(*) FROM eleves');
+    const nombreEleves = parseInt(check.rows[0].count);
+
+    if (nombreEleves === 0) {
+      // La base est déjà vide, rien à faire
+      return res.json({
+        succes: true,
+        message: 'La base est déjà vide. Aucun élève à supprimer.',
+        eleves_supprimes: 0
+      });
+    }
+
+    // --- ETAPE 2 : Supprimer dans l'ordre (clés étrangères d'abord) ---
+
+    // 2a. Supprimer inscriptions économat
+    await pool.query('DELETE FROM inscriptions').catch(() => {});
+
+    // 2b. Supprimer inscriptions éducateurs
+    await pool.query('DELETE FROM inscriptions_educateurs').catch(() => {});
+
+    // 2c. Supprimer autres tables liées si elles existent
+    await pool.query('DELETE FROM photos').catch(() => {});
+    await pool.query('DELETE FROM notes').catch(() => {});
+    await pool.query('DELETE FROM bulletins').catch(() => {});
+
+    // 2d. Supprimer tous les élèves (TRUNCATE CASCADE = plus rapide et sûr)
+    try {
+      await pool.query('TRUNCATE TABLE eleves RESTART IDENTITY CASCADE');
+    } catch (e) {
+      // Fallback si TRUNCATE échoue
+      await pool.query('DELETE FROM eleves');
+    }
+
+    // --- ETAPE 3 : Vérifier que la suppression est bien complète ---
+    const verification = await pool.query('SELECT COUNT(*) FROM eleves');
+    const resteEleves = parseInt(verification.rows[0].count);
+
+    if (resteEleves > 0) {
+      // Echec partiel — des élèves restent encore
+      return res.status(500).json({
+        succes: false,
+        message: `Attention : ${resteEleves} élève(s) n'ont pas pu être supprimés. Veuillez réessayer.`,
+        eleves_restants: resteEleves
+      });
+    }
+
+    // Tout est supprimé avec succès
+    res.json({
+      succes: true,
+      message: `Réinitialisation complète — ${nombreEleves} élève(s) et toutes les inscriptions supprimés avec succès.`,
+      eleves_supprimes: nombreEleves
+    });
+
+  } catch (err) {
+    res.status(500).json({
+      succes: false,
+      message: 'Erreur lors de la réinitialisation : ' + err.message
+    });
+  }
 });
 
 // GET un eleve
@@ -96,12 +146,12 @@ router.get('/:id', async (req, res) => {
 
 // POST ajouter
 router.post('/', async (req, res) => {
-  const { matricule, nom, prenom, classe, numero_extrait, moyenne_t1, moyenne_t2, moyenne_t3, moyenne_generale, decision_fin_annee, nom_parent, telephone1, telephone2 } = req.body;
+  const { matricule, nom, prenom, classe, numero_extrait, sexe, statut, qualite, moyenne_t1, moyenne_t2, moyenne_t3, moyenne_generale, decision_fin_annee, nom_parent, telephone1, telephone2 } = req.body;
   try {
     const result = await pool.query(
-      `INSERT INTO eleves (matricule, nom, prenom, classe, numero_extrait, moyenne_t1, moyenne_t2, moyenne_t3, moyenne_generale, decision_fin_annee, nom_parent, telephone1, telephone2)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
-      [matricule, nom, prenom, classe, numero_extrait, moyenne_t1||null, moyenne_t2||null, moyenne_t3||null, moyenne_generale||null, decision_fin_annee, nom_parent, telephone1, telephone2]
+      `INSERT INTO eleves (matricule, nom, prenom, classe, numero_extrait, sexe, statut, qualite, moyenne_t1, moyenne_t2, moyenne_t3, moyenne_generale, decision_fin_annee, nom_parent, telephone1, telephone2)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
+      [matricule, nom, prenom, classe, numero_extrait, sexe||'', statut||'', qualite||'', moyenne_t1||null, moyenne_t2||null, moyenne_t3||null, moyenne_generale||null, decision_fin_annee, nom_parent, telephone1, telephone2]
     );
     res.json(result.rows[0]);
   } catch (err) { res.status(500).json({ erreur: err.message }); }
@@ -109,14 +159,15 @@ router.post('/', async (req, res) => {
 
 // PUT modifier
 router.put('/:id', async (req, res) => {
-  const { matricule, nom, prenom, classe, numero_extrait, moyenne_t1, moyenne_t2, moyenne_t3, moyenne_generale, decision_fin_annee, nom_parent, telephone1, telephone2 } = req.body;
+  const { matricule, nom, prenom, classe, numero_extrait, sexe, statut, qualite, moyenne_t1, moyenne_t2, moyenne_t3, moyenne_generale, decision_fin_annee, nom_parent, telephone1, telephone2 } = req.body;
   try {
     const result = await pool.query(
       `UPDATE eleves SET matricule=$1, nom=$2, prenom=$3, classe=$4, numero_extrait=$5,
-       moyenne_t1=$6, moyenne_t2=$7, moyenne_t3=$8, moyenne_generale=$9,
-       decision_fin_annee=$10, nom_parent=$11, telephone1=$12, telephone2=$13
-       WHERE id=$14 RETURNING *`,
-      [matricule, nom, prenom, classe, numero_extrait, moyenne_t1||null, moyenne_t2||null, moyenne_t3||null, moyenne_generale||null, decision_fin_annee, nom_parent, telephone1, telephone2, req.params.id]
+       sexe=$6, statut=$7, qualite=$8,
+       moyenne_t1=$9, moyenne_t2=$10, moyenne_t3=$11, moyenne_generale=$12,
+       decision_fin_annee=$13, nom_parent=$14, telephone1=$15, telephone2=$16
+       WHERE id=$17 RETURNING *`,
+      [matricule, nom, prenom, classe, numero_extrait, sexe||'', statut||'', qualite||'', moyenne_t1||null, moyenne_t2||null, moyenne_t3||null, moyenne_generale||null, decision_fin_annee, nom_parent, telephone1, telephone2, req.params.id]
     );
     res.json(result.rows[0]);
   } catch (err) { res.status(500).json({ erreur: err.message }); }
