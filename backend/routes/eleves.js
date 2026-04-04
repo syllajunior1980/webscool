@@ -146,12 +146,15 @@ router.get('/:id', async (req, res) => {
 
 // POST ajouter
 router.post('/', async (req, res) => {
-  const { matricule, nom, prenom, classe, numero_extrait, sexe, statut, qualite, moyenne_t1, moyenne_t2, moyenne_t3, moyenne_generale, decision_fin_annee, nom_parent, telephone1, telephone2 } = req.body;
+  const { matricule, nom, prenom, classe, numero_extrait, sexe, statut, qualite, date_naissance, lieu_naissance, moyenne_t1, moyenne_t2, moyenne_t3, moyenne_generale, decision_fin_annee, nom_parent, telephone1, telephone2 } = req.body;
   try {
+    // Ajouter les colonnes si elles n'existent pas encore
+    await pool.query(`ALTER TABLE eleves ADD COLUMN IF NOT EXISTS date_naissance DATE`).catch(()=>{});
+    await pool.query(`ALTER TABLE eleves ADD COLUMN IF NOT EXISTS lieu_naissance VARCHAR(150)`).catch(()=>{});
     const result = await pool.query(
-      `INSERT INTO eleves (matricule, nom, prenom, classe, numero_extrait, sexe, statut, qualite, moyenne_t1, moyenne_t2, moyenne_t3, moyenne_generale, decision_fin_annee, nom_parent, telephone1, telephone2)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
-      [matricule, nom, prenom, classe, numero_extrait, sexe||'', statut||'', qualite||'', moyenne_t1||null, moyenne_t2||null, moyenne_t3||null, moyenne_generale||null, decision_fin_annee, nom_parent, telephone1, telephone2]
+      `INSERT INTO eleves (matricule, nom, prenom, classe, numero_extrait, sexe, statut, qualite, date_naissance, lieu_naissance, moyenne_t1, moyenne_t2, moyenne_t3, moyenne_generale, decision_fin_annee, nom_parent, telephone1, telephone2)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING *`,
+      [matricule, nom, prenom, classe, numero_extrait, sexe||'', statut||'', qualite||'', date_naissance||null, lieu_naissance||'', moyenne_t1||null, moyenne_t2||null, moyenne_t3||null, moyenne_generale||null, decision_fin_annee, nom_parent, telephone1, telephone2]
     );
     res.json(result.rows[0]);
   } catch (err) { res.status(500).json({ erreur: err.message }); }
@@ -159,15 +162,15 @@ router.post('/', async (req, res) => {
 
 // PUT modifier
 router.put('/:id', async (req, res) => {
-  const { matricule, nom, prenom, classe, numero_extrait, sexe, statut, qualite, moyenne_t1, moyenne_t2, moyenne_t3, moyenne_generale, decision_fin_annee, nom_parent, telephone1, telephone2 } = req.body;
+  const { matricule, nom, prenom, classe, numero_extrait, sexe, statut, qualite, date_naissance, lieu_naissance, moyenne_t1, moyenne_t2, moyenne_t3, moyenne_generale, decision_fin_annee, nom_parent, telephone1, telephone2 } = req.body;
   try {
     const result = await pool.query(
       `UPDATE eleves SET matricule=$1, nom=$2, prenom=$3, classe=$4, numero_extrait=$5,
-       sexe=$6, statut=$7, qualite=$8,
-       moyenne_t1=$9, moyenne_t2=$10, moyenne_t3=$11, moyenne_generale=$12,
-       decision_fin_annee=$13, nom_parent=$14, telephone1=$15, telephone2=$16
-       WHERE id=$17 RETURNING *`,
-      [matricule, nom, prenom, classe, numero_extrait, sexe||'', statut||'', qualite||'', moyenne_t1||null, moyenne_t2||null, moyenne_t3||null, moyenne_generale||null, decision_fin_annee, nom_parent, telephone1, telephone2, req.params.id]
+       sexe=$6, statut=$7, qualite=$8, date_naissance=$9, lieu_naissance=$10,
+       moyenne_t1=$11, moyenne_t2=$12, moyenne_t3=$13, moyenne_generale=$14,
+       decision_fin_annee=$15, nom_parent=$16, telephone1=$17, telephone2=$18
+       WHERE id=$19 RETURNING *`,
+      [matricule, nom, prenom, classe, numero_extrait, sexe||'', statut||'', qualite||'', date_naissance||null, lieu_naissance||'', moyenne_t1||null, moyenne_t2||null, moyenne_t3||null, moyenne_generale||null, decision_fin_annee, nom_parent, telephone1, telephone2, req.params.id]
     );
     res.json(result.rows[0]);
   } catch (err) { res.status(500).json({ erreur: err.message }); }

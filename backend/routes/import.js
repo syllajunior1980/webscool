@@ -43,20 +43,43 @@ router.post('/', upload.single('fichier'), async (req, res) => {
         const telephone1 = String(row['Telephone1'] || row['telephone1'] || row['Téléphone1'] || row['Tel1'] || row['Contact'] || row['contact'] || '').trim();
         const telephone2 = String(row['Telephone2'] || row['telephone2'] || row['Téléphone2'] || row['Tel2'] || '').trim();
 
+        // Date et lieu de naissance
+        const dateNaissanceBrut = row['DateNaiss'] || row['date_naissance'] || row['Date_Naissance'] || row['DateNaissance'] || row['Date Naissance'] || row['datenaissance'] || '';
+        let date_naissance = null;
+        if (dateNaissanceBrut) {
+          // Gérer le format Excel (numéro de série) et les formats texte
+          if (typeof dateNaissanceBrut === 'number') {
+            // Conversion numéro de série Excel en date
+            const d = new Date((dateNaissanceBrut - 25569) * 86400 * 1000);
+            date_naissance = d.toISOString().split('T')[0];
+          } else {
+            const str = String(dateNaissanceBrut).trim();
+            // Format JJ/MM/AAAA → AAAA-MM-JJ
+            if (str.includes('/')) {
+              const parts = str.split('/');
+              if (parts.length === 3) date_naissance = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+            } else if (str.includes('-')) {
+              date_naissance = str;
+            }
+          }
+        }
+        const lieu_naissance = String(row['LieuNaiss'] || row['lieu_naissance'] || row['Lieu_Naissance'] || row['LieuNaissance'] || row['Lieu Naissance'] || row['lieunaissance'] || '').trim();
+
         if (!nom || !prenom) continue;
 
         await pool.query(
-          `INSERT INTO eleves (matricule, nom, prenom, classe, numero_extrait, sexe, statut, qualite, moyenne_t1, moyenne_t2, moyenne_t3, moyenne_generale, decision_fin_annee, nom_parent, telephone1, telephone2)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+          `INSERT INTO eleves (matricule, nom, prenom, classe, numero_extrait, sexe, statut, qualite, date_naissance, lieu_naissance, moyenne_t1, moyenne_t2, moyenne_t3, moyenne_generale, decision_fin_annee, nom_parent, telephone1, telephone2)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
            ON CONFLICT (matricule) DO UPDATE SET
              nom=EXCLUDED.nom, prenom=EXCLUDED.prenom, classe=EXCLUDED.classe,
              numero_extrait=EXCLUDED.numero_extrait,
              sexe=EXCLUDED.sexe, statut=EXCLUDED.statut, qualite=EXCLUDED.qualite,
+             date_naissance=EXCLUDED.date_naissance, lieu_naissance=EXCLUDED.lieu_naissance,
              moyenne_t1=EXCLUDED.moyenne_t1, moyenne_t2=EXCLUDED.moyenne_t2,
              moyenne_t3=EXCLUDED.moyenne_t3, moyenne_generale=EXCLUDED.moyenne_generale,
              decision_fin_annee=EXCLUDED.decision_fin_annee,
              nom_parent=EXCLUDED.nom_parent, telephone1=EXCLUDED.telephone1, telephone2=EXCLUDED.telephone2`,
-          [matricule, nom, prenom, classe, numero_extrait, sexe, statut, qualite, moyenne_t1, moyenne_t2, moyenne_t3, moyenne_generale, decision_fin_annee, nom_parent, telephone1, telephone2]
+          [matricule, nom, prenom, classe, numero_extrait, sexe, statut, qualite, date_naissance, lieu_naissance, moyenne_t1, moyenne_t2, moyenne_t3, moyenne_generale, decision_fin_annee, nom_parent, telephone1, telephone2]
         );
         importes++;
       } catch (e) { erreurs.push(e.message); }

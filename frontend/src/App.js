@@ -37,6 +37,7 @@ export default function App() {
   const [formulaire, setFormulaire] = useState({
     matricule:'',nom:'',prenom:'',classe:'',numero_extrait:'',
     sexe:'',statut:'Non affecté',qualite:'',
+    date_naissance:'',lieu_naissance:'',
     moyenne_t1:'',moyenne_t2:'',moyenne_t3:'',moyenne_generale:'',
     decision_fin_annee:'',nom_parent:'',telephone1:'',telephone2:''
   });
@@ -462,6 +463,8 @@ export default function App() {
         matricule:eleve.matricule||'',nom:eleve.nom||'',prenom:eleve.prenom||'',
         classe:eleve.classe||'',numero_extrait:eleve.numero_extrait||'',
         sexe:eleve.sexe||'',statut:eleve.statut||'Non affecté',qualite:eleve.qualite||'',
+        date_naissance:eleve.date_naissance?eleve.date_naissance.split('T')[0]:'',
+        lieu_naissance:eleve.lieu_naissance||'',
         moyenne_t1:eleve.moyenne_t1||'',moyenne_t2:eleve.moyenne_t2||'',
         moyenne_t3:eleve.moyenne_t3||'',moyenne_generale:eleve.moyenne_generale||'',
         decision_fin_annee:eleve.decision_fin_annee||'',nom_parent:eleve.nom_parent||'',
@@ -471,6 +474,7 @@ export default function App() {
     } else {
       setFormulaire({matricule:'',nom:'',prenom:'',classe:'',numero_extrait:'',
         sexe:'',statut:'Non affecté',qualite:'',
+        date_naissance:'',lieu_naissance:'',
         moyenne_t1:'',moyenne_t2:'',moyenne_t3:'',moyenne_generale:'',
         decision_fin_annee:'',nom_parent:'',telephone1:'',telephone2:''});
       setModeFormulaire('ajouter');
@@ -1066,6 +1070,11 @@ export default function App() {
                 <p><strong>Tél 2 :</strong> {eleveSelectionne.telephone2?<a href={`tel:${eleveSelectionne.telephone2}`} style={s.telLink}>{eleveSelectionne.telephone2}</a>:'-'}</p>
               </div>
               <div style={s.ficheSection}>
+                <h3 style={s.sectionTitre}>📅 Naissance</h3>
+                <p><strong>Date :</strong> {eleveSelectionne.date_naissance ? new Date(eleveSelectionne.date_naissance).toLocaleDateString('fr-FR') : '-'}</p>
+                <p><strong>Lieu :</strong> {eleveSelectionne.lieu_naissance||'-'}</p>
+              </div>
+              <div style={s.ficheSection}>
                 <h3 style={s.sectionTitre}>📊 Résultats scolaires</h3>
                 <p><strong>T1 :</strong> {eleveSelectionne.moyenne_t1||'-'}</p>
                 <p><strong>T2 :</strong> {eleveSelectionne.moyenne_t2||'-'}</p>
@@ -1118,6 +1127,8 @@ export default function App() {
                 </select>
               </div>
               <div><label style={s.label}>N° Extrait</label><input value={formulaire.numero_extrait} onChange={e=>setFormulaire({...formulaire,numero_extrait:e.target.value})} style={s.input}/></div>
+              <div><label style={s.label}>📅 Date de naissance</label><input type="date" value={formulaire.date_naissance} onChange={e=>setFormulaire({...formulaire,date_naissance:e.target.value})} style={s.input}/></div>
+              <div><label style={s.label}>📍 Lieu de naissance</label><input value={formulaire.lieu_naissance} onChange={e=>setFormulaire({...formulaire,lieu_naissance:e.target.value})} style={s.input} placeholder="ex: Bouaké"/></div>
             </div>
 
             <h3 style={{...s.sectionTitre,marginTop:'1.5rem'}}>👨‍👩‍👧 Contact parent</h3>
@@ -1145,7 +1156,7 @@ export default function App() {
                 <p style={{fontWeight:'700',color:'#1e40af',margin:'0 0 4px',fontSize:'1rem'}}>👥 Import liste des élèves (Excel)</p>
                 <p style={{fontSize:'0.8rem',color:'#475569',margin:0}}>
                   Colonnes supportées :
-                  {['matricule','nom','prenom','classe','sexe','statut','qualite','nom_parent','telephone1','telephone2'].map(c=>(
+                  {['matricule','nom','prenom','classe','sexe','statut','qualite','DateNaiss','LieuNaiss','nom_parent','telephone1','telephone2'].map(c=>(
                     <span key={c} style={{fontFamily:'monospace',background:'#dbeafe',padding:'1px 5px',borderRadius:'4px',marginLeft:'4px',fontSize:'0.78rem'}}>{c}</span>
                   ))}
                 </p>
