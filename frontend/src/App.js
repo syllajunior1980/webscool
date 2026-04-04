@@ -975,7 +975,7 @@ export default function App() {
           <div style={s.tableWrap}>
             <table style={s.table}>
               <thead style={s.tableHead}>
-                <tr>{['#','Photo','Matricule','Nom','Prénom','Sexe','Statut','Qualité','Classe','Parent','Téléphone','T1','T2','T3','MGA','Décision','Actions'].map(h=>(
+                <tr>{['#','Photo','Matricule','Nom','Prénom','Date Naiss','Lieu Naiss','Sexe','Statut','Qualité','Classe','Parent','Téléphone','T1','T2','T3','MGA','Décision','Actions'].map(h=>(
                   <th key={h} style={s.th}>{h}</th>
                 ))}</tr>
               </thead>
@@ -992,6 +992,8 @@ export default function App() {
                     <td style={s.td}>{e.matricule}</td>
                     <td style={s.td}><strong>{e.nom}</strong></td>
                     <td style={s.td}>{e.prenom}</td>
+                    <td style={s.td}>{e.date_naissance ? new Date(e.date_naissance).toLocaleDateString('fr-FR') : '-'}</td>
+                    <td style={s.td}>{e.lieu_naissance||'-'}</td>
                     <td style={s.td}>
                       <span style={e.sexe==='M'?s.badgeGarcon:e.sexe==='F'?s.badgeFille:{}}>
                         {e.sexe==='M'?'👦 M':e.sexe==='F'?'👧 F':'-'}
