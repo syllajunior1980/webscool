@@ -1097,6 +1097,8 @@ export default function App() {
               <div><label style={s.label}>Matricule</label><input value={formulaire.matricule} onChange={e=>setFormulaire({...formulaire,matricule:e.target.value})} style={s.input}/></div>
               <div><label style={s.label}>Nom *</label><input value={formulaire.nom} onChange={e=>setFormulaire({...formulaire,nom:e.target.value})} style={s.input}/></div>
               <div><label style={s.label}>Prénom *</label><input value={formulaire.prenom} onChange={e=>setFormulaire({...formulaire,prenom:e.target.value})} style={s.input}/></div>
+              <div><label style={s.label}>📅 Date de naissance</label><input type="date" value={formulaire.date_naissance} onChange={e=>setFormulaire({...formulaire,date_naissance:e.target.value})} style={s.input}/></div>
+              <div><label style={s.label}>📍 Lieu de naissance</label><input value={formulaire.lieu_naissance} onChange={e=>setFormulaire({...formulaire,lieu_naissance:e.target.value})} style={s.input} placeholder="ex: Bouaké"/></div>
               <div><label style={s.label}>Classe *</label>
                 <input value={formulaire.classe} onChange={e=>setFormulaire({...formulaire,classe:e.target.value})} style={s.input} list="liste-classes"/>
                 <datalist id="liste-classes">{classes.map(c=><option key={c} value={c}/>)}</datalist>
@@ -1127,8 +1129,6 @@ export default function App() {
                 </select>
               </div>
               <div><label style={s.label}>N° Extrait</label><input value={formulaire.numero_extrait} onChange={e=>setFormulaire({...formulaire,numero_extrait:e.target.value})} style={s.input}/></div>
-              <div><label style={s.label}>📅 Date de naissance</label><input type="date" value={formulaire.date_naissance} onChange={e=>setFormulaire({...formulaire,date_naissance:e.target.value})} style={s.input}/></div>
-              <div><label style={s.label}>📍 Lieu de naissance</label><input value={formulaire.lieu_naissance} onChange={e=>setFormulaire({...formulaire,lieu_naissance:e.target.value})} style={s.input} placeholder="ex: Bouaké"/></div>
             </div>
 
             <h3 style={{...s.sectionTitre,marginTop:'1.5rem'}}>👨‍👩‍👧 Contact parent</h3>
