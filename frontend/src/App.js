@@ -352,14 +352,35 @@ export default function App() {
   };
 
   const telechargerModeleEleves = () => {
-    const lignes = [
-      ['matricule','nom','prenom','classe','sexe','statut','qualite','nom_parent','telephone1','telephone2'],
-      ['21421986V','ABDON','GRACE EMMANUELA','6eme6','F','Non affecté','Nouveau','ABDON PAUL','0759109875',''],
-      ['23666672E','ABDON','MELEDJE BEST','5eme4','M','Affecté','Ancien','ABDON PAUL','0759109875',''],
-      ['23654577C','KONE','AMINATA FATOUMATA','5eme2','F','Non affecté','Nouveau','KONE IBRAHIM','0707123456',''],
+    // Entêtes et exemples
+    const entetes = ['Matricule','Nom','Prenom','DateNaiss','LieuNaiss','Sexe','Statut','Qualite','Classe','nom_parent','telephone1','telephone2'];
+    const exemples = [
+      ['21421986V','ABDON','GRACE EMMANUELA','21/06/2009','SAOUNDI','Feminin','Affecte','Redoublant','6eme6','ABDON PAUL','0759109875',''],
+      ['23666672E','ABDON','MELEDJE BEST','23/12/2013','SAOUNDI','Feminin','Affecte','NRedoublant','5eme4','ABDON PAUL','0759109875',''],
+      ['23654577C','KONE','AMINATA FATOUMATA','21/03/2012','SAOUNDI','Feminin','Affecte','NRedoublant','5eme2','KONE IBRAHIM','0707123456',''],
     ];
-    const contenu = lignes.map(r => r.join('\t')).join('\n');
-    const blob = new Blob(['\uFEFF' + contenu], { type: 'text/tab-separated-values;charset=utf-8;' });
+
+    // Construire HTML tableau avec entête jaune
+    let html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">';
+    html += '<head><meta charset="utf-8"/></head><body>';
+    html += '<table border="1">';
+    // Entête jaune
+    html += '<tr>';
+    entetes.forEach(h => {
+      html += `<th style="background-color:#FFFF00;font-weight:bold;border:1px solid #000;padding:4px;">${h}</th>`;
+    });
+    html += '</tr>';
+    // Lignes exemples
+    exemples.forEach(row => {
+      html += '<tr>';
+      row.forEach(cell => {
+        html += `<td style="border:1px solid #ccc;padding:4px;">${cell}</td>`;
+      });
+      html += '</tr>';
+    });
+    html += '</table></body></html>';
+
+    const blob = new Blob(['\uFEFF' + html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = 'modele_import_eleves.xls'; a.click();
