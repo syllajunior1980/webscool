@@ -6,6 +6,109 @@ const pool = require('../database');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
+// ============================================================
+// Import JSON par lots (appelé par le frontend lot par lot)
+// ============================================================
+router.post('/json', async (req, res) => {
+  const rows = req.body.rows;
+  if (!rows || !Array.isArray(rows)) return res.status(400).json({ erreur: 'Pas de données' });
+
+  // Fonction formatTel partagée
+  const formatTel = (val) => {
+    if (val === undefined || val === null || val === '') return '';
+    let tel = typeof val === 'number'
+      ? Math.round(val).toString()
+      : String(val).trim().replace(/\s/g, '').replace(/\./g, '').replace(/,/g, '');
+    if (!tel || tel === 'undefined') return '';
+    tel = tel.replace(/^\+225/, '').replace(/^00225/, '');
+    if (/^\d{9}$/.test(tel)) tel = '0' + tel;
+    if (/^\d{8}$/.test(tel)) tel = '0' + tel;
+    return tel;
+  };
+
+  const rows_to_insert = [];
+  const erreurs = [];
+
+  for (const row of rows) {
+    try {
+      const matricule = String(row['Matricule'] || row['matricule'] || row['MATRICULE'] || '').trim();
+      const nom = String(row['Nom'] || row['nom'] || row['NOM'] || '').trim();
+      const prenom = String(row['Prenom'] || row['prenom'] || row['PRENOM'] || row['Prénom'] || row['prénom'] || '').trim();
+      const classe = String(row['Classe'] || row['classe'] || row['CLASSE'] || '').trim();
+      const numero_extrait = String(row['N° Extrait'] || row['numero_extrait'] || row['Extrait'] || '').trim();
+
+      const sexeBrut = String(row['Sexe'] || row['sexe'] || row['SEXE'] || '').trim();
+      const sexe = sexeBrut === 'Masculin' || sexeBrut === 'masculin' || sexeBrut === 'M' || sexeBrut === 'm' ? 'M'
+                 : sexeBrut === 'Feminin'  || sexeBrut === 'feminin'  || sexeBrut === 'Féminin' || sexeBrut === 'féminin' || sexeBrut === 'F' || sexeBrut === 'f' ? 'F'
+                 : sexeBrut;
+
+      const statut = String(row['Statut'] || row['statut'] || '').trim();
+      const qualite = String(row['Qualite'] || row['qualite'] || row['Qualité'] || row['qualité'] || '').trim();
+      const moyenne_t1 = parseFloat(row['Moy_T1'] || row['moyenne_t1'] || row['Moyenne T1'] || '') || null;
+      const moyenne_t2 = parseFloat(row['Moy_T2'] || row['moyenne_t2'] || row['Moyenne T2'] || '') || null;
+      const moyenne_t3 = parseFloat(row['Moy_T3'] || row['moyenne_t3'] || row['Moyenne T3'] || '') || null;
+      const moyenne_generale = parseFloat(row['Moy_Gen'] || row['moyenne_generale'] || '') || null;
+      const decision_fin_annee = String(row['Decision'] || row['decision_fin_annee'] || row['Décision'] || '').trim();
+      const nom_parent = String(row['Nom_Parent'] || row['nom_parent'] || row['Parent'] || '').trim();
+      const telephone1 = formatTel(row['Telephone1'] || row['telephone1'] || row['Tel1'] || row['Contact'] || '');
+      const telephone2 = formatTel(row['Telephone2'] || row['telephone2'] || row['Tel2'] || '');
+
+      // Date naissance
+      const dateNaissanceBrut = row['DateNaiss'] || row['Datenaiss'] || row['datenaiss'] || row['date_naissance'] || row['Date Naissance'] || '';
+      let date_naissance = null;
+      if (dateNaissanceBrut) {
+        const str = String(dateNaissanceBrut).trim();
+        if (str.includes('/')) {
+          const parts = str.split('/');
+          if (parts.length === 3 && parts[2].length === 4) {
+            date_naissance = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+          }
+        } else if (str.match(/^\d{4}-\d{2}-\d{2}/)) {
+          date_naissance = str.substring(0, 10);
+        } else if (/^\d+$/.test(str)) {
+          const d = new Date((parseInt(str) - 25569) * 86400 * 1000);
+          if (!isNaN(d.getTime())) {
+            date_naissance = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+          }
+        }
+      }
+      const lieu_naissance = String(row['LieuNaiss'] || row['Lieunaiss'] || row['lieunaiss'] || row['lieu_naissance'] || row['Lieu Naissance'] || '').trim();
+
+      if (!nom || !prenom) continue;
+
+      rows_to_insert.push([matricule, nom, prenom, classe, numero_extrait, sexe, statut, qualite, date_naissance, lieu_naissance, moyenne_t1, moyenne_t2, moyenne_t3, moyenne_generale, decision_fin_annee, nom_parent, telephone1, telephone2]);
+    } catch (e) { erreurs.push(e.message); }
+  }
+
+  if (rows_to_insert.length === 0) return res.json({ importes: 0, erreurs });
+
+  // Insertion en une seule requête batch
+  const values = [];
+  const params = [];
+  let p = 1;
+  for (const r of rows_to_insert) {
+    values.push(`($${p},$${p+1},$${p+2},$${p+3},$${p+4},$${p+5},$${p+6},$${p+7},$${p+8},$${p+9},$${p+10},$${p+11},$${p+12},$${p+13},$${p+14},$${p+15},$${p+16},$${p+17})`);
+    params.push(...r);
+    p += 18;
+  }
+  try {
+    await pool.query(
+      `INSERT INTO eleves (matricule, nom, prenom, classe, numero_extrait, sexe, statut, qualite, date_naissance, lieu_naissance, moyenne_t1, moyenne_t2, moyenne_t3, moyenne_generale, decision_fin_annee, nom_parent, telephone1, telephone2)
+       VALUES ${values.join(',')}
+       ON CONFLICT (matricule) DO UPDATE SET
+         nom=EXCLUDED.nom, prenom=EXCLUDED.prenom, classe=EXCLUDED.classe,
+         numero_extrait=EXCLUDED.numero_extrait,
+         sexe=EXCLUDED.sexe, statut=EXCLUDED.statut, qualite=EXCLUDED.qualite,
+         date_naissance=EXCLUDED.date_naissance, lieu_naissance=EXCLUDED.lieu_naissance,
+         nom_parent=EXCLUDED.nom_parent, telephone1=EXCLUDED.telephone1, telephone2=EXCLUDED.telephone2`,
+      params
+    );
+    res.json({ importes: rows_to_insert.length, erreurs });
+  } catch (e) {
+    res.status(500).json({ erreur: e.message, importes: 0, erreurs });
+  }
+});
+
 // Import complet élèves
 router.post('/', upload.single('fichier'), async (req, res) => {
   if (!req.file) return res.status(400).json({ erreur: 'Aucun fichier' });

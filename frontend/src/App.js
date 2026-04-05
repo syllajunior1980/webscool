@@ -320,20 +320,65 @@ export default function App() {
   const importerEleves = async () => {
     if (!fichierImportEleves) { setImportElevesStatus('⚠️ Choisissez un fichier Excel'); return; }
     setImportElevesEnCours(true);
-    setImportElevesStatus('⏳ Import en cours...');
-    const formData = new FormData();
-    formData.append('fichier', fichierImportEleves);
-    try {
-      const res = await axios.post(`${API}/import`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }, timeout: 300000
-      });
-      setImportElevesStatus(`✅ ${res.data.importes} élèves importés !${res.data.erreurs?.length > 0 ? ` (${res.data.erreurs.length} erreurs)` : ''}`);
-      chargerEleves();
-      chargerClasses();
-      setAfficherAperçu(false);
-    } catch (err) {
-      setImportElevesStatus('❌ Erreur: ' + (err.response?.data?.erreur || err.message));
+    setImportElevesStatus('⏳ Lecture du fichier...');
+
+    // --- Lire le fichier CSV côté navigateur ---
+    const text = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target.result);
+      reader.onerror = () => reject(new Error('Lecture fichier impossible'));
+      reader.readAsText(fichierImportEleves, 'UTF-8');
+    });
+
+    // --- Parser CSV ---
+    const cleanText = text.replace(/^\uFEFF/, '');
+    const lines = cleanText.split(/\r?\n/).filter(l => l.trim());
+    if (lines.length < 2) {
+      setImportElevesStatus('❌ Fichier vide ou invalide');
+      setImportElevesEnCours(false);
+      return;
     }
+    const firstLine = lines[0];
+    const sep = firstLine.includes(';') ? ';' : ',';
+    const headers = firstLine.split(sep).map(h => h.trim().replace(/^"|"$/g, ''));
+    const rows = [];
+    for (let i = 1; i < lines.length; i++) {
+      const vals = lines[i].split(sep).map(v => v.trim().replace(/^"|"$/g, ''));
+      if (vals.length < 2) continue;
+      const obj = {};
+      headers.forEach((h, idx) => { obj[h] = vals[idx] || ''; });
+      rows.push(obj);
+    }
+
+    const total = rows.length;
+    const TAILLE_LOT = 100;
+    const nbLots = Math.ceil(total / TAILLE_LOT);
+    let totalImportes = 0;
+    let totalErreurs = [];
+
+    // --- Envoyer lot par lot ---
+    for (let i = 0; i < nbLots; i++) {
+      const lot = rows.slice(i * TAILLE_LOT, (i + 1) * TAILLE_LOT);
+      setImportElevesStatus(`⏳ Lot ${i + 1}/${nbLots} — ${Math.min((i+1)*TAILLE_LOT, total)}/${total} élèves...`);
+      try {
+        // Envoyer le lot comme JSON
+        const res = await axios.post(`${API}/import/json`, { rows: lot }, {
+          headers: { 'Content-Type': 'application/json' }, timeout: 60000
+        });
+        totalImportes += res.data.importes || 0;
+        if (res.data.erreurs?.length > 0) totalErreurs.push(...res.data.erreurs);
+      } catch (err) {
+        totalErreurs.push(`Lot ${i+1}: ${err.response?.data?.erreur || err.message}`);
+      }
+    }
+
+    setImportElevesStatus(
+      `✅ ${totalImportes} élèves importés sur ${total} !` +
+      (totalErreurs.length > 0 ? ` ⚠️ ${totalErreurs.length} erreur(s)` : '')
+    );
+    chargerEleves();
+    chargerClasses();
+    setAfficherAperçu(false);
     setImportElevesEnCours(false);
   };
 
