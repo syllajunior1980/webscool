@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import * as XLSX from 'xlsx';
 
 const API = 'https://webscool.onrender.com/api';
 const MOT_DE_PASSE = 'dares2026';
@@ -293,28 +292,29 @@ export default function App() {
   // ===== IMPORT ELEVES EXCEL =====
   const lireAperçuExcel = (fichier) => {
     if (!fichier) return;
+    // On lit juste les premières lignes via FileReader pour aperçu visuel
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: 'array', cellDates: true, raw: false });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, dateNF: 'dd/mm/yyyy' });
-        if (rows.length > 0) {
-          const cols = rows[0].map(c => String(c || '').trim());
+        // Détection basique des colonnes CSV/TSV
+        const text = e.target.result;
+        const lignes = text.split('\n').filter(l => l.trim());
+        if (lignes.length > 0) {
+          const sep = lignes[0].includes('\t') ? '\t' : ',';
+          const cols = lignes[0].split(sep).map(c => c.trim().replace(/"/g, ''));
           setColonnesDetectees(cols);
-          const aperçu = rows.slice(1, 6).map(r =>
-            cols.map((_, i) => String(r[i] !== undefined ? r[i] : ''))
+          const aperçu = lignes.slice(1, 6).map(l =>
+            l.split(sep).map(c => c.trim().replace(/"/g, ''))
           );
           setAperçuImport(aperçu);
           setAfficherAperçu(true);
         }
-      } catch(err) {
+      } catch(e) {
         setColonnesDetectees([]);
         setAperçuImport([]);
       }
     };
-    reader.readAsArrayBuffer(fichier);
+    reader.readAsText(fichier, 'UTF-8');
   };
 
   const importerEleves = async () => {
@@ -339,32 +339,37 @@ export default function App() {
 
   const telechargerModele = (trimestre) => {
     const num = trimestre.replace('T','');
-    const colMoy = `moy_trim${num}`;
-    const data = [
-      ['matricule', colMoy],
-      ['21421986V', 12.5],
-      ['23666672E', 14.0],
-      ['23654577C', 9.75],
+    const lignes = [
+      ['matricule', `moy_trim${num}`],
+      ['21421986V', 12.5],['23666672E', 14.0],['23654577C', 9.75],
     ];
-    const ws = XLSX.utils.aoa_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Moyennes');
-    XLSX.writeFile(wb, `modele_import_${trimestre}.xlsx`);
+    const contenu = lignes.map(r => r.join('\t')).join('\n');
+    const blob = new Blob(['\uFEFF' + contenu], { type: 'text/tab-separated-values;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `modele_import_${trimestre}.xls`; a.click();
+    URL.revokeObjectURL(url);
   };
 
   const telechargerModeleEleves = () => {
     const entetes = ['Matricule','Nom','Prenom','DateNaiss','LieuNaiss','Sexe','Statut','Qualite','Classe','nom_parent','telephone1','telephone2'];
     const exemples = [
       ['21421986V','ABDON','GRACE EMMANUELA','21/06/2009','SAOUNDI','Feminin','Affecte','Redoublant','6eme6','ABDON PAUL','0759109875',''],
-      ['23666672E','ABDON','MELEDJE BEST','23/12/2013','SAOUNDI','Feminin','Affecte','Ancien','5eme4','ABDON PAUL','0759109875',''],
-      ['23654577C','KONE','AMINATA FATOUMATA','21/03/2012','SAOUNDI','Feminin','Affecte','Nouveau','5eme2','KONE IBRAHIM','0707123456',''],
+      ['23666672E','ABDON','MELEDJE BEST','23/12/2013','SAOUNDI','Feminin','Affecte','NRedoublant','5eme4','ABDON PAUL','0759109875',''],
+      ['23654577C','KONE','AMINATA FATOUMATA','21/03/2012','SAOUNDI','Feminin','Affecte','NRedoublant','5eme2','KONE IBRAHIM','0707123456',''],
     ];
-    const data = [entetes, ...exemples];
-    const ws = XLSX.utils.aoa_to_sheet(data);
-    ws['!cols'] = entetes.map(() => ({ wch: 18 }));
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Eleves');
-    XLSX.writeFile(wb, 'modele_import_eleves.xlsx');
+
+    // Générer CSV avec séparateur point-virgule (standard Excel français → colonnes séparées automatiquement)
+    const lignes = [entetes, ...exemples];
+    const csvContent = lignes.map(row =>
+      row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(';')
+    ).join('\n');
+
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'modele_import_eleves.csv'; a.click();
+    URL.revokeObjectURL(url);
   };
 
   // ===== RÉPARTITION CLASSES =====
@@ -1166,7 +1171,7 @@ export default function App() {
               </div>
               <button onClick={telechargerModeleEleves}
                 style={{background:'#2563eb',color:'white',border:'none',borderRadius:'8px',padding:'0.55rem 1.2rem',cursor:'pointer',fontWeight:'600',fontSize:'0.88rem',whiteSpace:'nowrap'}}>
-                ⬇️ Télécharger modèle (.xlsx)
+                ⬇️ Télécharger modèle (.xls)
               </button>
             </div>
 
@@ -1175,7 +1180,7 @@ export default function App() {
               <div style={{display:'flex',alignItems:'center',gap:'1rem',flexWrap:'wrap'}}>
                 <label style={{cursor:'pointer',background:'#2563eb',color:'white',padding:'0.55rem 1.2rem',borderRadius:'8px',fontWeight:'600',fontSize:'0.9rem',display:'inline-block'}}>
                   📂 Choisir le fichier Excel
-                  <input type="file" accept=".xlsx,.xls" style={{display:'none'}}
+                  <input type="file" accept=".xlsx,.xls,.csv" style={{display:'none'}}
                     onChange={e=>{
                       const f=e.target.files[0];
                       setFichierImportEleves(f);
