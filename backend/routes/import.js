@@ -36,11 +36,13 @@ router.post('/', upload.single('fichier'), async (req, res) => {
     }
     let importes = 0, erreurs = [];
 
-    // Fonction pour ajouter le 0 devant les numéros de téléphone
+    // Fonction pour formater les numéros de téléphone
     const formatTel = (val) => {
-      let tel = String(val || '').trim().replace(/\s/g, '');
-      if (!tel) return '';
-      // Si le numéro a 9 chiffres, ajouter 0 devant
+      let tel = String(val || '').trim().replace(/\s/g, '').replace(/\./g, '');
+      if (!tel || tel === 'undefined') return '';
+      // Enlever le + ou 00225 (indicatif CI)
+      tel = tel.replace(/^\+225/, '').replace(/^00225/, '');
+      // Si 9 chiffres → ajouter 0 devant
       if (/^\d{9}$/.test(tel)) tel = '0' + tel;
       return tel;
     };
@@ -54,13 +56,17 @@ router.post('/', upload.single('fichier'), async (req, res) => {
         const numero_extrait = String(row['N° Extrait'] || row['numero_extrait'] || row['Extrait'] || '').trim();
 
         // Conversion sexe : Masculin→M, Feminin/Féminin→F
-        const sexeBrut = String(row['Sexe'] || row['sexe'] || row['SEXE'] || '').trim();
+        const sexeBrut = String(row['Sexe'] || row['sexe'] || row['SEXE'] || row['Genre'] || row['genre'] || '').trim();
         const sexe = sexeBrut === 'Masculin' ? 'M'
                    : sexeBrut === 'Feminin'  ? 'F'
                    : sexeBrut === 'Féminin'  ? 'F'
                    : sexeBrut === 'masculin' ? 'M'
                    : sexeBrut === 'feminin'  ? 'F'
                    : sexeBrut === 'féminin'  ? 'F'
+                   : sexeBrut === 'M' ? 'M'
+                   : sexeBrut === 'F' ? 'F'
+                   : sexeBrut === 'm' ? 'M'
+                   : sexeBrut === 'f' ? 'F'
                    : sexeBrut;
 
         const statut = String(row['Statut'] || row['statut'] || row['STATUT'] || '').trim();
@@ -75,30 +81,26 @@ router.post('/', upload.single('fichier'), async (req, res) => {
         const telephone2 = formatTel(row['Telephone2'] || row['telephone2'] || row['Téléphone2'] || row['Tel2'] || '');
 
         // Date et lieu de naissance
-        const dateNaissanceBrut = row['DateNaiss'] || row['date_naissance'] || row['Date_Naissance'] || row['DateNaissance'] || row['Date Naissance'] || row['datenaissance'] || '';
+        const dateNaissanceBrut = row['DateNaiss'] || row['Datenaiss'] || row['datenaiss'] || row['date_naissance'] || row['Date_Naissance'] || row['DateNaissance'] || row['Date Naissance'] || row['datenaissance'] || row['DATE_NAISS'] || row['Date de naissance'] || '';
         let date_naissance = null;
         if (dateNaissanceBrut) {
           const str = String(dateNaissanceBrut).trim();
-          // Format JJ/MM/AAAA → AAAA-MM-JJ
           if (str.includes('/')) {
             const parts = str.split('/');
             if (parts.length === 3) {
-              // Peut être JJ/MM/AAAA ou MM/JJ/AAAA selon Excel
               const p0 = parts[0].padStart(2,'0');
               const p1 = parts[1].padStart(2,'0');
               const p2 = parts[2];
-              // Si p2 est l'année (4 chiffres)
               if (p2.length === 4) date_naissance = `${p2}-${p1}-${p0}`;
-              else date_naissance = str;
             }
-          } else if (str.includes('-')) {
-            date_naissance = str;
+          } else if (str.match(/^\d{4}-\d{2}-\d{2}/)) {
+            date_naissance = str.substring(0, 10);
           } else if (typeof dateNaissanceBrut === 'number') {
             const d = new Date((dateNaissanceBrut - 25569) * 86400 * 1000);
             date_naissance = d.toISOString().split('T')[0];
           }
         }
-        const lieu_naissance = String(row['LieuNaiss'] || row['lieu_naissance'] || row['Lieu_Naissance'] || row['LieuNaissance'] || row['Lieu Naissance'] || row['lieunaissance'] || '').trim();
+        const lieu_naissance = String(row['LieuNaiss'] || row['Lieunaiss'] || row['lieunaiss'] || row['lieu_naissance'] || row['Lieu_Naissance'] || row['LieuNaissance'] || row['Lieu Naissance'] || row['LIEU_NAISS'] || row['Lieu de naissance'] || '').trim();
 
         if (!nom || !prenom) continue;
 
