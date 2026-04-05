@@ -10,10 +10,20 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 
 router.post('/', upload.single('fichier'), async (req, res) => {
   if (!req.file) return res.status(400).json({ erreur: 'Aucun fichier' });
   try {
-    const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+    const workbook = XLSX.read(req.file.buffer, { type: 'buffer', cellDates: true, raw: false });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const data = XLSX.utils.sheet_to_json(sheet);
+    const data = XLSX.utils.sheet_to_json(sheet, { raw: false, dateNF: 'dd/mm/yyyy' });
     let importes = 0, erreurs = [];
+
+    // Fonction pour ajouter le 0 devant les numéros de téléphone
+    const formatTel = (val) => {
+      let tel = String(val || '').trim().replace(/\s/g, '');
+      if (!tel) return '';
+      // Si le numéro a 9 chiffres, ajouter 0 devant
+      if (/^\d{9}$/.test(tel)) tel = '0' + tel;
+      return tel;
+    };
+
     for (const row of data) {
       try {
         const matricule = String(row['Matricule'] || row['matricule'] || row['MATRICULE'] || '').trim();
@@ -40,27 +50,31 @@ router.post('/', upload.single('fichier'), async (req, res) => {
         const moyenne_generale = parseFloat(row['Moy_Gen'] || row['moyenne_generale'] || row['Moyenne_Generale'] || row['Moyenne Generale'] || '') || null;
         const decision_fin_annee = String(row['Decision'] || row['decision_fin_annee'] || row['Décision'] || row['decision'] || '').trim();
         const nom_parent = String(row['Nom_Parent'] || row['nom_parent'] || row['Parent'] || row['parent'] || '').trim();
-        const telephone1 = String(row['Telephone1'] || row['telephone1'] || row['Téléphone1'] || row['Tel1'] || row['Contact'] || row['contact'] || '').trim();
-        const telephone2 = String(row['Telephone2'] || row['telephone2'] || row['Téléphone2'] || row['Tel2'] || '').trim();
+        const telephone1 = formatTel(row['Telephone1'] || row['telephone1'] || row['Téléphone1'] || row['Tel1'] || row['Contact'] || row['contact'] || '');
+        const telephone2 = formatTel(row['Telephone2'] || row['telephone2'] || row['Téléphone2'] || row['Tel2'] || '');
 
         // Date et lieu de naissance
         const dateNaissanceBrut = row['DateNaiss'] || row['date_naissance'] || row['Date_Naissance'] || row['DateNaissance'] || row['Date Naissance'] || row['datenaissance'] || '';
         let date_naissance = null;
         if (dateNaissanceBrut) {
-          // Gérer le format Excel (numéro de série) et les formats texte
-          if (typeof dateNaissanceBrut === 'number') {
-            // Conversion numéro de série Excel en date
+          const str = String(dateNaissanceBrut).trim();
+          // Format JJ/MM/AAAA → AAAA-MM-JJ
+          if (str.includes('/')) {
+            const parts = str.split('/');
+            if (parts.length === 3) {
+              // Peut être JJ/MM/AAAA ou MM/JJ/AAAA selon Excel
+              const p0 = parts[0].padStart(2,'0');
+              const p1 = parts[1].padStart(2,'0');
+              const p2 = parts[2];
+              // Si p2 est l'année (4 chiffres)
+              if (p2.length === 4) date_naissance = `${p2}-${p1}-${p0}`;
+              else date_naissance = str;
+            }
+          } else if (str.includes('-')) {
+            date_naissance = str;
+          } else if (typeof dateNaissanceBrut === 'number') {
             const d = new Date((dateNaissanceBrut - 25569) * 86400 * 1000);
             date_naissance = d.toISOString().split('T')[0];
-          } else {
-            const str = String(dateNaissanceBrut).trim();
-            // Format JJ/MM/AAAA → AAAA-MM-JJ
-            if (str.includes('/')) {
-              const parts = str.split('/');
-              if (parts.length === 3) date_naissance = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
-            } else if (str.includes('-')) {
-              date_naissance = str;
-            }
           }
         }
         const lieu_naissance = String(row['LieuNaiss'] || row['lieu_naissance'] || row['Lieu_Naissance'] || row['LieuNaissance'] || row['Lieu Naissance'] || row['lieunaissance'] || '').trim();
