@@ -35,6 +35,7 @@ router.post('/', upload.single('fichier'), async (req, res) => {
       data = XLSX.utils.sheet_to_json(sheet, { raw: false, dateNF: 'dd/mm/yyyy' });
     }
     let importes = 0, erreurs = [];
+    const rows_to_insert = [];
 
     // Fonction pour formater les numéros de téléphone
     const formatTel = (val) => {
@@ -130,22 +131,36 @@ router.post('/', upload.single('fichier'), async (req, res) => {
 
         if (!nom || !prenom) continue;
 
+        rows_to_insert.push([matricule, nom, prenom, classe, numero_extrait, sexe, statut, qualite, date_naissance, lieu_naissance, moyenne_t1, moyenne_t2, moyenne_t3, moyenne_generale, decision_fin_annee, nom_parent, telephone1, telephone2]);
+      } catch (e) { erreurs.push(e.message); }
+    }
+
+    // Insertion en batch par lots de 200 pour éviter le timeout
+    const BATCH = 200;
+    for (let i = 0; i < rows_to_insert.length; i += BATCH) {
+      const lot = rows_to_insert.slice(i, i + BATCH);
+      const values = [];
+      const params = [];
+      let p = 1;
+      for (const r of lot) {
+        values.push(`($${p},$${p+1},$${p+2},$${p+3},$${p+4},$${p+5},$${p+6},$${p+7},$${p+8},$${p+9},$${p+10},$${p+11},$${p+12},$${p+13},$${p+14},$${p+15},$${p+16},$${p+17})`);
+        params.push(...r);
+        p += 18;
+      }
+      try {
         await pool.query(
           `INSERT INTO eleves (matricule, nom, prenom, classe, numero_extrait, sexe, statut, qualite, date_naissance, lieu_naissance, moyenne_t1, moyenne_t2, moyenne_t3, moyenne_generale, decision_fin_annee, nom_parent, telephone1, telephone2)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+           VALUES ${values.join(',')}
            ON CONFLICT (matricule) DO UPDATE SET
              nom=EXCLUDED.nom, prenom=EXCLUDED.prenom, classe=EXCLUDED.classe,
              numero_extrait=EXCLUDED.numero_extrait,
              sexe=EXCLUDED.sexe, statut=EXCLUDED.statut, qualite=EXCLUDED.qualite,
              date_naissance=EXCLUDED.date_naissance, lieu_naissance=EXCLUDED.lieu_naissance,
-             moyenne_t1=EXCLUDED.moyenne_t1, moyenne_t2=EXCLUDED.moyenne_t2,
-             moyenne_t3=EXCLUDED.moyenne_t3, moyenne_generale=EXCLUDED.moyenne_generale,
-             decision_fin_annee=EXCLUDED.decision_fin_annee,
              nom_parent=EXCLUDED.nom_parent, telephone1=EXCLUDED.telephone1, telephone2=EXCLUDED.telephone2`,
-          [matricule, nom, prenom, classe, numero_extrait, sexe, statut, qualite, date_naissance, lieu_naissance, moyenne_t1, moyenne_t2, moyenne_t3, moyenne_generale, decision_fin_annee, nom_parent, telephone1, telephone2]
+          params
         );
-        importes++;
-      } catch (e) { erreurs.push(e.message); }
+        importes += lot.length;
+      } catch (e) { erreurs.push(`Lot ${i}-${i+BATCH}: ${e.message}`); }
     }
     res.json({ importes, erreurs });
   } catch (err) { res.status(500).json({ erreur: err.message }); }
