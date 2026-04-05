@@ -1941,3 +1941,5 @@ const s = {
   succes:{color:'green',fontWeight:'600',marginTop:'0.75rem'},
   erreur:{color:'red',fontWeight:'600',marginTop:'0.75rem'},
 };
+/ /   v 2  
+ 
