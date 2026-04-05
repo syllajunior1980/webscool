@@ -10,9 +10,30 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 
 router.post('/', upload.single('fichier'), async (req, res) => {
   if (!req.file) return res.status(400).json({ erreur: 'Aucun fichier' });
   try {
-    const workbook = XLSX.read(req.file.buffer, { type: 'buffer', cellDates: true, raw: false, CSV: { FS: ',' } });
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const data = XLSX.utils.sheet_to_json(sheet, { raw: false, dateNF: 'dd/mm/yyyy' });
+    // Détecter si c'est un fichier CSV
+    const filename = req.file.originalname || '';
+    const isCSV = filename.toLowerCase().endsWith('.csv');
+
+    let data = [];
+    if (isCSV) {
+      const text = req.file.buffer.toString('utf-8').replace(/^\uFEFF/, '');
+      const lines = text.split(/\r?\n/).filter(l => l.trim());
+      if (lines.length < 2) return res.json({ importes: 0, erreurs: ['Fichier vide'] });
+      const firstLine = lines[0];
+      const sep = firstLine.includes(';') ? ';' : ',';
+      const headers = firstLine.split(sep).map(h => h.trim().replace(/^"|"$/g, ''));
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(sep).map(v => v.trim().replace(/^"|"$/g, ''));
+        if (values.length < 2) continue;
+        const row = {};
+        headers.forEach((h, idx) => { row[h] = values[idx] || ''; });
+        data.push(row);
+      }
+    } else {
+      const workbook = XLSX.read(req.file.buffer, { type: 'buffer', cellDates: true, raw: false });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      data = XLSX.utils.sheet_to_json(sheet, { raw: false, dateNF: 'dd/mm/yyyy' });
+    }
     let importes = 0, erreurs = [];
 
     // Fonction pour ajouter le 0 devant les numéros de téléphone
