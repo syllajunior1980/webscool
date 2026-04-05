@@ -38,12 +38,18 @@ router.post('/', upload.single('fichier'), async (req, res) => {
 
     // Fonction pour formater les numéros de téléphone
     const formatTel = (val) => {
-      let tel = String(val || '').trim().replace(/\s/g, '').replace(/\./g, '');
+      if (val === undefined || val === null || val === '') return '';
+      // Si c'est un nombre (Excel stocke parfois les tel comme float ex: 759109875)
+      let tel = typeof val === 'number'
+        ? Math.round(val).toString()
+        : String(val).trim().replace(/\s/g, '').replace(/\./g, '').replace(/,/g, '');
       if (!tel || tel === 'undefined') return '';
       // Enlever le + ou 00225 (indicatif CI)
       tel = tel.replace(/^\+225/, '').replace(/^00225/, '');
-      // Si 9 chiffres → ajouter 0 devant
+      // Si 9 chiffres → ajouter 0 devant (numéros CI sans le 0 initial)
       if (/^\d{9}$/.test(tel)) tel = '0' + tel;
+      // Si 8 chiffres (ancien format) → ajouter 0 devant
+      if (/^\d{8}$/.test(tel)) tel = '0' + tel;
       return tel;
     };
 
@@ -83,21 +89,41 @@ router.post('/', upload.single('fichier'), async (req, res) => {
         // Date et lieu de naissance
         const dateNaissanceBrut = row['DateNaiss'] || row['Datenaiss'] || row['datenaiss'] || row['date_naissance'] || row['Date_Naissance'] || row['DateNaissance'] || row['Date Naissance'] || row['datenaissance'] || row['DATE_NAISS'] || row['Date de naissance'] || '';
         let date_naissance = null;
-        if (dateNaissanceBrut) {
-          const str = String(dateNaissanceBrut).trim();
-          if (str.includes('/')) {
-            const parts = str.split('/');
-            if (parts.length === 3) {
-              const p0 = parts[0].padStart(2,'0');
-              const p1 = parts[1].padStart(2,'0');
-              const p2 = parts[2];
-              if (p2.length === 4) date_naissance = `${p2}-${p1}-${p0}`;
+        if (dateNaissanceBrut !== '' && dateNaissanceBrut !== undefined && dateNaissanceBrut !== null) {
+          // Cas 1 : Date JavaScript (quand cellDates:true)
+          if (dateNaissanceBrut instanceof Date) {
+            const d = dateNaissanceBrut;
+            if (!isNaN(d.getTime())) {
+              date_naissance = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
             }
-          } else if (str.match(/^\d{4}-\d{2}-\d{2}/)) {
-            date_naissance = str.substring(0, 10);
-          } else if (typeof dateNaissanceBrut === 'number') {
-            const d = new Date((dateNaissanceBrut - 25569) * 86400 * 1000);
-            date_naissance = d.toISOString().split('T')[0];
+          } else {
+            const str = String(dateNaissanceBrut).trim();
+            if (str.includes('/')) {
+              // Format dd/mm/yyyy ou mm/dd/yyyy
+              const parts = str.split('/');
+              if (parts.length === 3) {
+                const p0 = parts[0].padStart(2,'0');
+                const p1 = parts[1].padStart(2,'0');
+                const p2 = parts[2];
+                if (p2.length === 4) {
+                  // Toujours interpréter comme dd/mm/yyyy
+                  date_naissance = `${p2}-${p1}-${p0}`;
+                }
+              }
+            } else if (str.match(/^\d{4}-\d{2}-\d{2}/)) {
+              date_naissance = str.substring(0, 10);
+            } else if (str.match(/^\d{1,2}-\d{1,2}-\d{4}$/)) {
+              // dd-mm-yyyy
+              const parts = str.split('-');
+              date_naissance = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+            } else if (/^\d+$/.test(str)) {
+              // Nombre Excel serial (ex: 40179 = 01/01/2010)
+              const num = parseInt(str);
+              const d = new Date((num - 25569) * 86400 * 1000);
+              if (!isNaN(d.getTime())) {
+                date_naissance = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+              }
+            }
           }
         }
         const lieu_naissance = String(row['LieuNaiss'] || row['Lieunaiss'] || row['lieunaiss'] || row['lieu_naissance'] || row['Lieu_Naissance'] || row['LieuNaissance'] || row['Lieu Naissance'] || row['LIEU_NAISS'] || row['Lieu de naissance'] || '').trim();
