@@ -10,7 +10,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 
 router.post('/', upload.single('fichier'), async (req, res) => {
   if (!req.file) return res.status(400).json({ erreur: 'Aucun fichier' });
   try {
-    const workbook = XLSX.read(req.file.buffer, { type: 'buffer', cellDates: true, raw: false });
+    const workbook = XLSX.read(req.file.buffer, { type: 'buffer', cellDates: true, raw: false, CSV: { FS: ',' } });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const data = XLSX.utils.sheet_to_json(sheet, { raw: false, dateNF: 'dd/mm/yyyy' });
     let importes = 0, erreurs = [];
