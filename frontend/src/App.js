@@ -325,7 +325,7 @@ export default function App() {
     formData.append('fichier', fichierImportEleves);
     try {
       const res = await axios.post(`${API}/import`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }, timeout: 120000
+        headers: { 'Content-Type': 'multipart/form-data' }, timeout: 300000
       });
       setImportElevesStatus(`✅ ${res.data.importes} élèves importés !${res.data.erreurs?.length > 0 ? ` (${res.data.erreurs.length} erreurs)` : ''}`);
       chargerEleves();
@@ -441,7 +441,7 @@ export default function App() {
     formData.append('fichier', fichierExcel); formData.append('trimestre', trimestreActif);
     try {
       const res = await axios.post(`${API}/import/trimestre`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }, timeout: 120000
+        headers: { 'Content-Type': 'multipart/form-data' }, timeout: 300000
       });
       setImportStatus(`✅ ${res.data.mis_a_jour} élèves mis à jour pour ${trimestreActif} !`);
       chargerEleves();
