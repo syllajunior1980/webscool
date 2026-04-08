@@ -19,4 +19,4 @@ pool.connect()
   .then(() => console.log('✅ Connecté à la base de données WebScool'))
   .catch(err => console.error('❌ Erreur connexion DB:', err.message));
 
-module.exports = pool;
+module.exports = { pool };
