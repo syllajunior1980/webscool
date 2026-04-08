@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const XLSX = require('xlsx');
-const pool = require('../database');
+const { pool } = require('../database');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
@@ -74,7 +74,7 @@ router.post('/json', async (req, res) => {
       }
       const lieu_naissance = String(row['LieuNaiss'] || row['Lieunaiss'] || row['lieunaiss'] || row['lieu_naissance'] || row['Lieu Naissance'] || '').trim();
 
-      if (!nom || !prenom) continue;
+      if (!nom && !matricule) continue; // Ignorer seulement les lignes totalement vides
 
       rows_to_insert.push([matricule, nom, prenom, classe, numero_extrait, sexe, statut, qualite, date_naissance, lieu_naissance, moyenne_t1, moyenne_t2, moyenne_t3, moyenne_generale, decision_fin_annee, nom_parent, telephone1, telephone2]);
     } catch (e) { erreurs.push(e.message); }
@@ -232,7 +232,7 @@ router.post('/', upload.single('fichier'), async (req, res) => {
         }
         const lieu_naissance = String(row['LieuNaiss'] || row['Lieunaiss'] || row['lieunaiss'] || row['lieu_naissance'] || row['Lieu_Naissance'] || row['LieuNaissance'] || row['Lieu Naissance'] || row['LIEU_NAISS'] || row['Lieu de naissance'] || '').trim();
 
-        if (!nom || !prenom) continue;
+        if (!nom && !matricule) continue; // Ignorer seulement les lignes totalement vides
 
         rows_to_insert.push([matricule, nom, prenom, classe, numero_extrait, sexe, statut, qualite, date_naissance, lieu_naissance, moyenne_t1, moyenne_t2, moyenne_t3, moyenne_generale, decision_fin_annee, nom_parent, telephone1, telephone2]);
       } catch (e) { erreurs.push(e.message); }
