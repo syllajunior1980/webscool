@@ -1024,54 +1024,99 @@ export default function App() {
           </div>
 
           <div style={s.tableWrap}>
-            <table style={s.table}>
+            <table style={{...s.table, fontSize:'0.8rem', tableLayout:'fixed', width:'100%'}}>
+              <colgroup>
+                <col style={{width:'32px'}}/>
+                <col style={{width:'36px'}}/>
+                <col style={{width:'90px'}}/>
+                <col style={{width:'160px'}}/>
+                <col style={{width:'110px'}}/>
+                <col style={{width:'60px'}}/>
+                <col style={{width:'80px'}}/>
+                <col style={{width:'130px'}}/>
+                <col style={{width:'42px'}}/>
+                <col style={{width:'42px'}}/>
+                <col style={{width:'42px'}}/>
+                <col style={{width:'50px'}}/>
+                <col style={{width:'80px'}}/>
+                <col style={{width:'80px'}}/>
+              </colgroup>
               <thead style={s.tableHead}>
-                <tr>{['#','Photo','Matricule','Nom','Prénom','Date Naiss','Lieu Naiss','Sexe','Statut','Qualité','Classe','Parent','Téléphone','T1','T2','T3','MGA','Décision','Actions'].map(h=>(
-                  <th key={h} style={s.th}>{h}</th>
-                ))}</tr>
+                <tr>
+                  <th style={{...s.th, padding:'0.5rem 3px'}}>#</th>
+                  <th style={{...s.th, padding:'0.5rem 3px'}}>📷</th>
+                  <th style={{...s.th, padding:'0.5rem 4px'}}>Matricule</th>
+                  <th style={{...s.th, padding:'0.5rem 4px'}}>Nom &amp; Prénom</th>
+                  <th style={{...s.th, padding:'0.5rem 4px'}}>Naissance</th>
+                  <th style={{...s.th, padding:'0.5rem 4px'}}>Sexe</th>
+                  <th style={{...s.th, padding:'0.5rem 4px'}}>Statut / Qualité</th>
+                  <th style={{...s.th, padding:'0.5rem 4px'}}>Parent / Tél.</th>
+                  <th style={{...s.th, textAlign:'center', background:'#1a4a8a', padding:'0.5rem 3px'}}>T1</th>
+                  <th style={{...s.th, textAlign:'center', background:'#1a4a8a', padding:'0.5rem 3px'}}>T2</th>
+                  <th style={{...s.th, textAlign:'center', background:'#1a4a8a', padding:'0.5rem 3px'}}>T3</th>
+                  <th style={{...s.th, textAlign:'center', background:'#0f3460', padding:'0.5rem 3px'}}>MGA</th>
+                  <th style={{...s.th, background:'#0f3460', padding:'0.5rem 4px'}}>Décision</th>
+                  <th style={{...s.th, padding:'0.5rem 4px'}}>Actions</th>
+                </tr>
               </thead>
               <tbody>
                 {elevesFiltres.map((e,i)=>(
                   <tr key={e.id} style={i%2===0?s.trPair:s.trImpair}>
-                    <td style={s.td}>{i+1}</td>
-                    <td style={s.td}>
+                    <td style={{...s.td, textAlign:'center', color:'#94a3b8', fontSize:'0.72rem', padding:'4px 3px'}}>{i+1}</td>
+                    <td style={{...s.td, padding:'3px 2px'}}>
                       {e.photo_url
-                        ? <img src={e.photo_url} alt="" style={{width:'36px',height:'45px',objectFit:'cover',borderRadius:'4px',border:'1px solid #ddd'}}/>
-                        : <div style={{width:'36px',height:'45px',background:'#e2e8f0',borderRadius:'4px',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1.2rem'}}>👤</div>
+                        ? <img src={e.photo_url} alt="" style={{width:'28px',height:'35px',objectFit:'cover',borderRadius:'3px',border:'1px solid #ddd'}}/>
+                        : <div style={{width:'28px',height:'35px',background:'#e2e8f0',borderRadius:'3px',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.9rem'}}>👤</div>
                       }
                     </td>
-                    <td style={s.td}>{e.matricule}</td>
-                    <td style={s.td}><strong>{e.nom}</strong></td>
-                    <td style={s.td}>{e.prenom}</td>
-                    <td style={s.td}>{e.date_naissance ? new Date(e.date_naissance).toLocaleDateString('fr-FR') : '-'}</td>
-                    <td style={s.td}>{e.lieu_naissance||'-'}</td>
-                    <td style={s.td}>
+                    <td style={{...s.td, fontFamily:'monospace', fontSize:'0.73rem', padding:'4px'}}>{e.matricule}</td>
+                    <td style={{...s.td, padding:'4px'}}>
+                      <div style={{fontWeight:'700', fontSize:'0.8rem', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{e.nom}</div>
+                      <div style={{fontSize:'0.75rem', color:'#475569', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{e.prenom}</div>
+                      <span style={{...s.badgeClasse, fontSize:'0.68rem', padding:'1px 5px'}}>{e.classe}</span>
+                    </td>
+                    <td style={{...s.td, fontSize:'0.75rem', padding:'4px'}}>
+                      {e.date_naissance ? new Date(e.date_naissance).toLocaleDateString('fr-FR') : '-'}
+                      {e.lieu_naissance ? <div style={{color:'#94a3b8', fontSize:'0.7rem', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{e.lieu_naissance}</div> : null}
+                    </td>
+                    <td style={{...s.td, textAlign:'center', padding:'4px'}}>
                       <span style={e.sexe==='M'?s.badgeGarcon:e.sexe==='F'?s.badgeFille:{}}>
-                        {e.sexe==='M'?'👦 M':e.sexe==='F'?'👧 F':'-'}
+                        {e.sexe==='M'?'M':e.sexe==='F'?'F':'-'}
                       </span>
                     </td>
-                    <td style={s.td}>
-                      <span style={e.statut==='Affecté'?s.badgeAdmis:e.statut==='Transféré'?s.badgeRedoublant:s.badgeStatutNeutral}>
-                        {e.statut||'Non affecté'}
+                    <td style={{...s.td, padding:'4px'}}>
+                      <span style={{...(e.statut==='Affecté'?s.badgeAdmis:e.statut==='Transféré'?s.badgeRedoublant:s.badgeStatutNeutral), fontSize:'0.68rem', padding:'1px 5px', display:'block', marginBottom:'2px', textAlign:'center'}}>
+                        {e.statut||'-'}
                       </span>
+                      <div style={{fontSize:'0.7rem', color:'#64748b', textAlign:'center', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{e.qualite||''}</div>
                     </td>
-                    <td style={s.td}><span style={{fontSize:'0.78rem',color:'#475569'}}>{e.qualite||'-'}</span></td>
-                    <td style={s.td}><span style={s.badgeClasse}>{e.classe}</span></td>
-                    <td style={s.td}>{e.nom_parent}</td>
-                    <td style={s.td}>{e.telephone1&&<a href={`tel:${e.telephone1}`} style={s.telLink}>📞 {e.telephone1}</a>}</td>
-                    <td style={s.td}>{e.moyenne_t1||'-'}</td>
-                    <td style={s.td}>{e.moyenne_t2||'-'}</td>
-                    <td style={s.td}>{e.moyenne_t3||'-'}</td>
-                    <td style={s.td}><strong>{e.moyenne_generale||'-'}</strong></td>
-                    <td style={s.td}>
-                      <span style={e.decision_fin_annee==='Admis'?s.badgeAdmis:e.decision_fin_annee==='Redoublant'?s.badgeRedoublant:e.decision_fin_annee==='Exclu'?s.badgeExclu:{}}>
+                    <td style={{...s.td, padding:'4px'}}>
+                      <div style={{fontSize:'0.75rem', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{e.nom_parent||'-'}</div>
+                      {e.telephone1 && <a href={`tel:${e.telephone1}`} style={{...s.telLink, fontSize:'0.72rem'}}>📞 {e.telephone1}</a>}
+                    </td>
+                    <td style={{...s.td, textAlign:'center', fontWeight:'600', padding:'4px 3px', color: e.moyenne_t1 ? (parseFloat(e.moyenne_t1)>=10?'#166534':'#991b1b') : '#94a3b8'}}>
+                      {e.moyenne_t1||'-'}
+                    </td>
+                    <td style={{...s.td, textAlign:'center', fontWeight:'600', padding:'4px 3px', color: e.moyenne_t2 ? (parseFloat(e.moyenne_t2)>=10?'#166534':'#991b1b') : '#94a3b8'}}>
+                      {e.moyenne_t2||'-'}
+                    </td>
+                    <td style={{...s.td, textAlign:'center', fontWeight:'600', padding:'4px 3px', color: e.moyenne_t3 ? (parseFloat(e.moyenne_t3)>=10?'#166534':'#991b1b') : '#94a3b8'}}>
+                      {e.moyenne_t3||'-'}
+                    </td>
+                    <td style={{...s.td, textAlign:'center', padding:'4px 3px'}}>
+                      <strong style={{fontSize:'0.85rem', color: e.moyenne_generale ? (parseFloat(e.moyenne_generale)>=10?'#166534':'#991b1b') : '#94a3b8'}}>
+                        {e.moyenne_generale||'-'}
+                      </strong>
+                    </td>
+                    <td style={{...s.td, padding:'4px'}}>
+                      <span style={{...(e.decision_fin_annee==='Admis'?s.badgeAdmis:e.decision_fin_annee==='Redoublant'?s.badgeRedoublant:e.decision_fin_annee==='Exclu'?s.badgeExclu:{}), fontSize:'0.68rem', padding:'1px 5px', whiteSpace:'nowrap'}}>
                         {e.decision_fin_annee||'-'}
                       </span>
                     </td>
-                    <td style={s.td}>
-                      <button onClick={()=>ouvrirFiche(e)} style={s.btnVoir}>👁️</button>
-                      <button onClick={()=>{setEleveSelectionne(e);ouvrirFormulaire(e);}} style={s.btnModifier}>✏️</button>
-                      <button onClick={()=>supprimerEleve(e.id)} style={s.btnSupprimer}>🗑️</button>
+                    <td style={{...s.td, whiteSpace:'nowrap', padding:'4px 3px'}}>
+                      <button onClick={()=>ouvrirFiche(e)} style={{...s.btnVoir, padding:'3px 6px', marginRight:'2px'}}>👁️</button>
+                      <button onClick={()=>{setEleveSelectionne(e);ouvrirFormulaire(e);}} style={{...s.btnModifier, padding:'3px 6px', marginRight:'2px'}}>✏️</button>
+                      <button onClick={()=>supprimerEleve(e.id)} style={{...s.btnSupprimer, padding:'3px 6px'}}>🗑️</button>
                     </td>
                   </tr>
                 ))}
@@ -1872,7 +1917,7 @@ const s = {
   sousNav:{display:'flex',gap:'0.5rem',marginBottom:'1.5rem',borderBottom:'2px solid #e2e8f0',paddingBottom:'0.5rem',flexWrap:'wrap'},
   sousNavBtn:{padding:'0.5rem 1.2rem',border:'2px solid #e2e8f0',borderRadius:'8px 8px 0 0',background:'white',cursor:'pointer',fontWeight:'500',fontSize:'0.9rem'},
   sousNavActif:{padding:'0.5rem 1.2rem',border:'2px solid #0f766e',borderBottom:'2px solid white',borderRadius:'8px 8px 0 0',background:'#0f766e',color:'white',cursor:'pointer',fontWeight:'600',fontSize:'0.9rem'},
-  contenu:{padding:'1.5rem',maxWidth:'1400px',margin:'0 auto'},
+  contenu:{padding:'1rem 1.2rem',maxWidth:'100%',margin:'0 auto'},
   filtres:{display:'flex',gap:'0.75rem',marginBottom:'0.75rem',flexWrap:'wrap',alignItems:'center'},
   inputRecherche:{flex:1,minWidth:'200px',padding:'0.6rem 1rem',border:'2px solid #e2e8f0',borderRadius:'8px',fontSize:'0.95rem'},
   selectClasse:{padding:'0.6rem 1rem',border:'2px solid #e2e8f0',borderRadius:'8px',fontSize:'0.95rem'},
