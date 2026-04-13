@@ -183,14 +183,4 @@ router.delete('/:id', async (req, res) => {
     res.json({ message: 'Supprime' });
   } catch (err) { res.status(500).json({ erreur: err.message }); }
 });
-
-
-
-    const result = await pool.query(
-      'SELECT id, nom, prenom, matricule, classe, photo_url FROM eleves WHERE photo_url IS NOT NULL ORDER BY nom LIMIT 500'
-    );
-    const eleves = result.rows;
-    if (eleves.length === 0) return res.json({ trouve: false, message: 'Aucune photo dans la base' });
-  } catch (err) { res.status(500).json({ erreur: err.message }); }
-});
 module.exports = router;
