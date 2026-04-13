@@ -191,7 +191,6 @@ router.delete('/:id', async (req, res) => {
     );
     const eleves = result.rows;
     if (eleves.length === 0) return res.json({ trouve: false, message: 'Aucune photo dans la base' });
-    res.json({ trouve: false, message: 'Reconnaissance en cours de developpement', total_eleves: eleves.length });
   } catch (err) { res.status(500).json({ erreur: err.message }); }
 });
 module.exports = router;
