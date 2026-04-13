@@ -12,6 +12,8 @@
   "type": "commonjs",
   "dependencies": {
     "@supabase/supabase-js": "^2.99.0",
+    "@vladmandic/face-api": "^1.7.15",
+    "canvas": "^3.2.3",
     "cloudinary": "^2.9.0",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
