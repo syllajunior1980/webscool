@@ -185,11 +185,7 @@ router.delete('/:id', async (req, res) => {
 });
 
 
-// POST reconnaissance faciale - compare photo avec base Cloudinary
-router.post('/reconnaissance', async (req, res) => {
-  try {
-    const { photoBase64 } = req.body;
-    if (!photoBase64) return res.status(400).json({ erreur: 'Photo manquante' });
+
     const result = await pool.query(
       'SELECT id, nom, prenom, matricule, classe, photo_url FROM eleves WHERE photo_url IS NOT NULL ORDER BY nom LIMIT 500'
     );
