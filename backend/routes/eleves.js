@@ -184,4 +184,18 @@ router.delete('/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ erreur: err.message }); }
 });
 
+
+// POST reconnaissance faciale - compare photo avec base Cloudinary
+router.post('/reconnaissance', async (req, res) => {
+  try {
+    const { photoBase64 } = req.body;
+    if (!photoBase64) return res.status(400).json({ erreur: 'Photo manquante' });
+    const result = await pool.query(
+      'SELECT id, nom, prenom, matricule, classe, photo_url FROM eleves WHERE photo_url IS NOT NULL ORDER BY nom LIMIT 500'
+    );
+    const eleves = result.rows;
+    if (eleves.length === 0) return res.json({ trouve: false, message: 'Aucune photo dans la base' });
+    res.json({ trouve: false, message: 'Reconnaissance en cours de developpement', total_eleves: eleves.length });
+  } catch (err) { res.status(500).json({ erreur: err.message }); }
+});
 module.exports = router;
