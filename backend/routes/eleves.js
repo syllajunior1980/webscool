@@ -23,7 +23,7 @@ router.get('/recherche', async (req, res) => {
   const q = req.query.q || '';
   try {
     const result = await pool.query(
-      `SELECT * FROM eleves WHERE nom ILIKE $1 OR prenom ILIKE $1 OR matricule ILIKE $1 OR (nom || $3 || COALESCE(prenom,$3)) ILIKE $1 ORDER BY nom, prenom LIMIT 500`,
+      `SELECT * FROM eleves WHERE nom ILIKE $1 OR prenom ILIKE $1 OR matricule ILIKE $1 OR (nom || ' ' || COALESCE(prenom,'')) ILIKE $1 ORDER BY nom, prenom LIMIT 500`,
       [`%${q}%`]
     );
     res.json(result.rows);
