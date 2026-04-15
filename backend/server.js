@@ -40,6 +40,7 @@ app.use('/api/inscriptions', require('./routes/inscriptions'));
 app.use('/api/import', importRoutes);
 app.use('/api/photos', require('./routes/photos'));
 app.use('/api/educateurs', require('./routes/educateurs'));
+app.use('/api/eleves', require('./routes/reconnaissance'));
 app.get('/', (req, res) => { res.json({ message: 'WebScool', status: 'OK' }); });
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => { console.log(`Serveur démarré sur http://localhost:${PORT}`); });
