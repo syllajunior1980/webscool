@@ -183,5 +183,55 @@ router.delete('/:id', async (req, res) => {
     res.json({ message: 'Supprime' });
   } catch (err) { res.status(500).json({ erreur: err.message }); }
 });
+// ─── RECONNAISSANCE FACIALE FACE++ ───────────────────────────────────────────
+const FormData = require('form-data');
+const fetch = require('node-fetch');
 
+router.post('/reconnaissance-photo', async (req, res) => {
+  try {
+    const { photo_base64 } = req.body;
+    if (!photo_base64) return res.status(400).json({ erreur: 'Photo manquante' });
+
+    // Récupérer tous les élèves avec photo
+    const eleves = await pool.query(
+      'SELECT id, nom, prenom, matricule, classe, photo_url FROM eleves WHERE photo_url IS NOT NULL AND photo_url != \'\' LIMIT 200'
+    );
+
+    if (eleves.rows.length === 0) {
+      return res.status(404).json({ erreur: 'Aucun élève avec photo dans la base' });
+    }
+
+    let meilleurEleve = null;
+    let meilleurScore = 0;
+
+    for (const eleve of eleves.rows) {
+      try {
+        const form = new FormData();
+        form.append('api_key', process.env.FACEPP_API_KEY);
+        form.append('api_secret', process.env.FACEPP_API_SECRET);
+        form.append('image_base64_1', photo_base64);
+        form.append('image_url2', eleve.photo_url);
+
+        const response = await fetch('https://api-us.faceplusplus.com/facepp/v3/compare', {
+          method: 'POST',
+          body: form
+        });
+        const data = await response.json();
+
+        if (data.confidence && data.confidence > meilleurScore) {
+          meilleurScore = data.confidence;
+          meilleurEleve = eleve;
+        }
+      } catch (e) { continue; }
+    }
+
+    if (meilleurEleve && meilleurScore >= 75) {
+      res.json({ eleve: meilleurEleve, score: meilleurScore });
+    } else {
+      res.status(404).json({ erreur: 'Élève non reconnu', score: meilleurScore });
+    }
+  } catch (err) {
+    res.status(500).json({ erreur: err.message });
+  }
+});
 module.exports = router;
