@@ -1975,59 +1975,59 @@ export default function App() {
         </div>
       )}
 
-// ===== FONCTIONS ARCHIVES =====
 
-const chargerAnneesArchives = async () => {
-  try {
-    const res = await axios.get(`${API}/archives/annees`);
-    setAnneesArchives(res.data);
-  } catch (err) { console.error(err); }
-};
 
-const chargerElevesArchive = async (annee) => {
-  try {
-    const res = await axios.get(`${API}/archives/${annee}`);
-    setElevesArchive(res.data);
-  } catch (err) { console.error(err); }
-};
+  const chargerAnneesArchives = async () => {
+    try {
+      const res = await axios.get(`${API}/archives/annees`);
+      setAnneesArchives(res.data);
+    } catch (err) { console.error(err); }
+  };
 
-const rechercherDansArchive = async (annee, q) => {
-  if (!q || q.length < 2) { chargerElevesArchive(annee); return; }
-  try {
-    const res = await axios.get(`${API}/archives/${annee}/recherche?q=${q}`);
-    setElevesArchive(res.data);
-  } catch (err) { console.error(err); }
-};
+  const chargerElevesArchive = async (annee) => {
+    try {
+      const res = await axios.get(`${API}/archives/${annee}`);
+      setElevesArchive(res.data);
+    } catch (err) { console.error(err); }
+  };
 
-const rechercherGlobal = async (q) => {
-  setRechercheGlobale(q);
-  if (!q || q.length < 2) { setResultatsGlobaux([]); return; }
-  try {
-    const res = await axios.get(`${API}/archives/recherche/global?q=${q}`);
-    setResultatsGlobaux(res.data);
-  } catch (err) { console.error(err); }
-};
+  const rechercherDansArchive = async (annee, q) => {
+    if (!q || q.length < 2) { chargerElevesArchive(annee); return; }
+    try {
+      const res = await axios.get(`${API}/archives/${annee}/recherche?q=${q}`);
+      setElevesArchive(res.data);
+    } catch (err) { console.error(err); }
+  };
 
-const archiverAnnee = async () => {
-  if (!anneeAArchiver) { setMessageArchive('⚠️ Saisissez l\'année scolaire'); return; }
-  if (!window.confirm(`Archiver toute l'année ${anneeAArchiver} ? (${eleves.length} élèves)`)) return;
-  setArchivageEnCours(true); setMessageArchive('');
-  try {
-    const res = await axios.post(`${API}/archives/archiver`, { annee_scolaire: anneeAArchiver });
-    setMessageArchive(`✅ ${res.data.message}`);
-    chargerAnneesArchives();
-    setTimeout(() => setMessageArchive(''), 5000);
-  } catch (err) {
-    setMessageArchive('❌ Erreur: ' + (err.response?.data?.erreur || err.message));
-  }
-  setArchivageEnCours(false);
-};
+  const rechercherGlobal = async (q) => {
+    setRechercheGlobale(q);
+    if (!q || q.length < 2) { setResultatsGlobaux([]); return; }
+    try {
+      const res = await axios.get(`${API}/archives/recherche/global?q=${q}`);
+      setResultatsGlobaux(res.data);
+    } catch (err) { console.error(err); }
+  };
+
+  const archiverAnnee = async () => {
+    if (!anneeAArchiver) { setMessageArchive('⚠️ Saisissez l\'année scolaire'); return; }
+    if (!window.confirm(`Archiver toute l'année ${anneeAArchiver} ? (${eleves.length} élèves)`)) return;
+    setArchivageEnCours(true); setMessageArchive('');
+    try {
+      const res = await axios.post(`${API}/archives/archiver`, { annee_scolaire: anneeAArchiver });
+      setMessageArchive(`✅ ${res.data.message}`);
+      chargerAnneesArchives();
+      setTimeout(() => setMessageArchive(''), 5000);
+    } catch (err) {
+      setMessageArchive('❌ Erreur: ' + (err.response?.data?.erreur || err.message));
+    }
+    setArchivageEnCours(false);
+  };
 
 // Charger archives quand on va sur l'onglet
-const allerArchives = () => {
-  setOnglet('archives');
-  chargerAnneesArchives();
-};
+  const allerArchives = () => {
+    setOnglet('archives');
+    chargerAnneesArchives();
+  };
 
 
       {/* ===== ARCHIVES ===== */}
@@ -2288,6 +2288,7 @@ const allerArchives = () => {
 }
 
 
+
 const s = {
   app:{fontFamily:'Segoe UI, Arial, sans-serif',minHeight:'100vh',backgroundColor:'#f0f4f8'},
   loginPage:{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'linear-gradient(135deg, #1e3a5f, #2563eb)'},
@@ -2375,5 +2376,4 @@ const s = {
   succes:{color:'green',fontWeight:'600',marginTop:'0.75rem'},
   erreur:{color:'red',fontWeight:'600',marginTop:'0.75rem'},
 };
-
 
