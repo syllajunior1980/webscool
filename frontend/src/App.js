@@ -431,18 +431,55 @@ export default function App() {
   };
 
   const affecterClasseCible = async () => {
-    if (!classeCible) { setMessageRepartition('Veuillez sélectionner une classe de destination'); return; }
-    if (elevesSelectionnesRepartition.length === 0) { setMessageRepartition('Veuillez sélectionner au moins un élève'); return; }
-    try {
-      for (const eleveId of elevesSelectionnesRepartition) {
+  if (!classeCible) { setMessageRepartition('Veuillez sélectionner une classe de destination'); return; }
+  if (elevesSelectionnesRepartition.length === 0) { setMessageRepartition('Veuillez sélectionner au moins un élève'); return; }
+  
+  try {
+    const res = await axios.get(`${API}/eleves/classe/${classeCible}`);
+    const elevesDestination = res.data;
+    
+    const doublons = [];
+    const aAffecter = [];
+    
+    for (const eleveId of elevesSelectionnesRepartition) {
+      const eleve = eleves.find(e => e.id === eleveId);
+      if (!eleve) continue;
+      
+      const existeDeja = elevesDestination.some(e => 
+        e.nom.trim().toUpperCase() === eleve.nom.trim().toUpperCase() && 
+        e.prenom.trim().toUpperCase() === eleve.prenom.trim().toUpperCase()
+      );
+      
+      if (existeDeja) {
+        doublons.push(`${eleve.nom} ${eleve.prenom}`);
+      } else {
+        aAffecter.push(eleveId);
+      }
+    }
+    
+    if (doublons.length > 0) {
+      const continuer = window.confirm(
+        `⚠️ Ces élèves existent déjà dans ${classeCible} :\n\n${doublons.join('\n')}\n\nIls ne seront PAS déplacés. Continuer pour les autres ?`
+      );
+      if (!continuer) return;
+    }
+    
+    if (aAffecter.length > 0) {
+      for (const eleveId of aAffecter) {
         await axios.put(`${API}/eleves/${eleveId}`, { classe: classeCible });
       }
-      setMessageRepartition(`✅ ${elevesSelectionnesRepartition.length} élève(s) affecté(s) en ${classeCible} !`);
-      setElevesSelectionnesRepartition([]);
-      chargerEleves();
-      setTimeout(() => setMessageRepartition(''), 4000);
-    } catch (err) { setMessageRepartition('❌ Erreur: ' + err.message); }
-  };
+      setMessageRepartition(`✅ ${aAffecter.length} élève(s) affecté(s) en ${classeCible} !${doublons.length > 0 ? ` ⚠️ ${doublons.length} doublon(s) ignoré(s).` : ''}`);
+    } else {
+      setMessageRepartition(`⚠️ Aucun élève affecté — tous existent déjà dans ${classeCible}.`);
+    }
+    
+    setElevesSelectionnesRepartition([]);
+    chargerEleves();
+    setTimeout(() => setMessageRepartition(''), 6000);
+  } catch (err) { 
+    setMessageRepartition('❌ Erreur: ' + err.message); 
+  }
+};
 
   const reinitialiserAnnee = async () => {
     if (!window.confirm('⚠️ ATTENTION ! Cette action va effacer TOUT : tous les élèves, moyennes, inscriptions économat et éducateurs. Cette action est IRRÉVERSIBLE. Confirmer ?')) return;
