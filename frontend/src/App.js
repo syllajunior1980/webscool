@@ -1976,7 +1976,6 @@ export default function App() {
       )}
 
 
-
   const chargerAnneesArchives = async () => {
     try {
       const res = await axios.get(`${API}/archives/annees`);
@@ -2023,11 +2022,12 @@ export default function App() {
     setArchivageEnCours(false);
   };
 
-// Charger archives quand on va sur l'onglet
+  // Charger archives quand on va sur l'onglet
   const allerArchives = () => {
     setOnglet('archives');
     chargerAnneesArchives();
   };
+
 
 
       {/* ===== ARCHIVES ===== */}
@@ -2286,7 +2286,6 @@ export default function App() {
     </div>
   );
 }
-
 
 
 const s = {
