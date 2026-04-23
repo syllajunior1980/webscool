@@ -1913,13 +1913,21 @@ export default function App() {
             {messageRepartition && <div style={messageRepartition.includes('✅')?s.alertSucces:s.alertErreur}>{messageRepartition}</div>}
             {classeSource && (
               <>
-                <div style={{display:'flex',gap:'0.5rem',marginBottom:'0.75rem',alignItems:'center'}}>
+                <div style={{display:'flex',gap:'0.5rem',marginBottom:'0.75rem',alignItems:'center',flexWrap:'wrap'}}>
                   <button onClick={()=>{
                     const admis = eleves.filter(e=>e.classe===classeSource && e.decision_fin_annee==='Admis').map(e=>e.id);
                     setElevesSelectionnesRepartition(admis);
-                  }} style={{...s.btnSecondaire,fontSize:'0.8rem'}}>✅ Sélectionner tous les Admis</button>
+                  }} style={{...s.btnSecondaire,fontSize:'0.8rem',background:'#e8f5e9',color:'#1b5e20',borderColor:'#2e7d32'}}>✅ Sélectionner tous les Admis ({eleves.filter(e=>e.classe===classeSource && e.decision_fin_annee==='Admis').length})</button>
+                  <button onClick={()=>{
+                    const redoublants = eleves.filter(e=>e.classe===classeSource && e.decision_fin_annee==='Redoublant').map(e=>e.id);
+                    setElevesSelectionnesRepartition(redoublants);
+                  }} style={{...s.btnSecondaire,fontSize:'0.8rem',background:'#fff3e0',color:'#e65100',borderColor:'#ef6c00'}}>🔄 Sélectionner tous les Redoublants ({eleves.filter(e=>e.classe===classeSource && e.decision_fin_annee==='Redoublant').length})</button>
+                  <button onClick={()=>{
+                    const exclus = eleves.filter(e=>e.classe===classeSource && e.decision_fin_annee==='Exclu').map(e=>e.id);
+                    setElevesSelectionnesRepartition(exclus);
+                  }} style={{...s.btnSecondaire,fontSize:'0.8rem',background:'#ffebee',color:'#b71c1c',borderColor:'#c62828'}}>⛔ Sélectionner tous les Exclus ({eleves.filter(e=>e.classe===classeSource && e.decision_fin_annee==='Exclu').length})</button>
                   <button onClick={()=>setElevesSelectionnesRepartition([])}
-                    style={{...s.btnSecondaire,fontSize:'0.8rem',color:'#64748b',borderColor:'#64748b'}}>Désélectionner tout</button>
+                    style={{...s.btnSecondaire,fontSize:'0.8rem',color:'#64748b',borderColor:'#64748b'}}>✖ Désélectionner tout</button>
                 </div>
                 <div style={s.tableWrap}>
                   <table style={s.table}>
