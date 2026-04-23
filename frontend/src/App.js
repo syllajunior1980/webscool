@@ -322,7 +322,6 @@ export default function App() {
     setImportElevesEnCours(true);
     setImportElevesStatus('⏳ Lecture du fichier...');
 
-    // --- Lire le fichier CSV côté navigateur ---
     const text = await new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = e => resolve(e.target.result);
@@ -330,7 +329,6 @@ export default function App() {
       reader.readAsText(fichierImportEleves, 'UTF-8');
     });
 
-    // --- Parser CSV ---
     const cleanText = text.replace(/^\uFEFF/, '');
     const lines = cleanText.split(/\r?\n/).filter(l => l.trim());
     if (lines.length < 2) {
@@ -355,26 +353,48 @@ export default function App() {
     const nbLots = Math.ceil(total / TAILLE_LOT);
     let totalImportes = 0;
     let totalErreurs = [];
+    let totalDoublonsMatricule = [];
+    let totalDoublonsNom = [];
 
-    // --- Envoyer lot par lot ---
     for (let i = 0; i < nbLots; i++) {
       const lot = rows.slice(i * TAILLE_LOT, (i + 1) * TAILLE_LOT);
       setImportElevesStatus(`⏳ Lot ${i + 1}/${nbLots} — ${Math.min((i+1)*TAILLE_LOT, total)}/${total} élèves...`);
       try {
-        // Envoyer le lot comme JSON
         const res = await axios.post(`${API}/import/json`, { rows: lot }, {
           headers: { 'Content-Type': 'application/json' }, timeout: 60000
         });
         totalImportes += res.data.importes || 0;
         if (res.data.erreurs?.length > 0) totalErreurs.push(...res.data.erreurs);
+        if (res.data.doublons_matricule?.length > 0) totalDoublonsMatricule.push(...res.data.doublons_matricule);
+        if (res.data.doublons_nom?.length > 0) totalDoublonsNom.push(...res.data.doublons_nom);
       } catch (err) {
         totalErreurs.push(`Lot ${i+1}: ${err.response?.data?.erreur || err.message}`);
       }
     }
 
+    // Alertes doublons AVANT le message de statut
+    if (totalDoublonsNom.length > 0) {
+      const liste = totalDoublonsNom.map(d =>
+        `• ${d.nom_complet}  (matricule Excel: ${d.matricule_excel} / matricule base: ${d.matricule_base})`
+      ).join('\n');
+      alert(
+        `⚠️ ${totalDoublonsNom.length} DOUBLON(S) DE NOM DÉTECTÉ(S)\nCes élèves N'ONT PAS été importés :\n\n${liste}\n\nVérifiez et corrigez le fichier Excel.`
+      );
+    }
+    if (totalDoublonsMatricule.length > 0) {
+      const liste = totalDoublonsMatricule.map(d =>
+        `• ${d.nom_complet}  — matricule ${d.matricule}  (classe: ${d.classe})`
+      ).join('\n');
+      alert(
+        `ℹ️ ${totalDoublonsMatricule.length} DOUBLON(S) DE MATRICULE\nCes élèves ont été MIS À JOUR (pas re-créés) :\n\n${liste}`
+      );
+    }
+
     setImportElevesStatus(
       `✅ ${totalImportes} élèves importés sur ${total} !` +
-      (totalErreurs.length > 0 ? ` ⚠️ ${totalErreurs.length} erreur(s)` : '')
+      (totalDoublonsNom.length > 0 ? ` ⛔ ${totalDoublonsNom.length} doublon(s) nom ignoré(s).` : '') +
+      (totalDoublonsMatricule.length > 0 ? ` ℹ️ ${totalDoublonsMatricule.length} doublon(s) matricule mis à jour.` : '') +
+      (totalErreurs.length > 0 ? ` ⚠️ ${totalErreurs.length} erreur(s).` : '')
     );
     chargerEleves();
     chargerClasses();
