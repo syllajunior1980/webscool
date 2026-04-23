@@ -999,7 +999,6 @@ export default function App() {
   const nbFilles = elevesFiltres.filter(e=>e.sexe==='F').length;
 
   // ===== ÉCRAN CHARGEMENT =====
-  if (!appChargee) {
 
   const chargerAnneesArchives = async () => {
     try {
@@ -1052,6 +1051,9 @@ export default function App() {
     setOnglet('archives');
     chargerAnneesArchives();
   };
+
+
+  if (!appChargee) {
 
 
 
