@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 
 const API = 'https://webscool.onrender.com/api';
@@ -1974,9 +1974,6 @@ export default function App() {
           </div>
         </div>
       )}
-    </div>
-  );
-}
 
 // ===== FONCTIONS ARCHIVES =====
 
@@ -2031,6 +2028,7 @@ const allerArchives = () => {
   setOnglet('archives');
   chargerAnneesArchives();
 };
+
 
       {/* ===== ARCHIVES ===== */}
       {onglet==='archives' && (
@@ -2288,6 +2286,7 @@ const allerArchives = () => {
     </div>
   );
 }
+
 
 const s = {
   app:{fontFamily:'Segoe UI, Arial, sans-serif',minHeight:'100vh',backgroundColor:'#f0f4f8'},
