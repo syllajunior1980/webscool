@@ -444,6 +444,20 @@ export default function App() {
   const [elevesSelectionnesRepartition, setElevesSelectionnesRepartition] = useState([]);
   const [messageRepartition, setMessageRepartition] = useState('');
 
+  // ===== ARCHIVES =====
+  const [anneesArchives, setAnneesArchives] = useState([]);
+  const [anneeSelectionnee, setAnneeSelectionnee] = useState(null);
+  const [elevesArchive, setElevesArchive] = useState([]);
+  const [rechercheArchive, setRechercheArchive] = useState('');
+  const [classeArchive, setClasseArchive] = useState('');
+  const [anneeAArchiver, setAnneeAArchiver] = useState(ANNEE_SCOLAIRE);
+  const [archivageEnCours, setArchivageEnCours] = useState(false);
+  const [messageArchive, setMessageArchive] = useState('');
+  const [eleveArchiveSelectionne, setEleveArchiveSelectionne] = useState(null);
+  const [sousOngletArchive, setSousOngletArchive] = useState('liste');
+  const [rechercheGlobale, setRechercheGlobale] = useState('');
+  const [resultatsGlobaux, setResultatsGlobaux] = useState([]);
+
   const toggleSelectionEleve = (eleveId) => {
     setElevesSelectionnesRepartition(prev =>
       prev.includes(eleveId) ? prev.filter(id => id !== eleveId) : [...prev, eleveId]
@@ -1042,8 +1056,8 @@ export default function App() {
       <div style={s.nav}>
         {[['liste','👥 Élèves'],['formulaire','➕ Ajouter'],['importer','📤 Importer'],
           ['bepc','🎓 BEPC'],['inscription','💰 Inscription'],['photos','📷 Photos'],
-          ['educateurs','📋 Éducateurs'],['controle','🔍 Contrôle'],['repartition','🏫 Répartition']].map(([id,label])=>(
-          <button key={id} onClick={()=>{setOnglet(id);if(id==='formulaire')ouvrirFormulaire();}}
+          ['educateurs','📋 Éducateurs'],['controle','🔍 Contrôle'],['repartition','🏫 Répartition'],['archives','🗂️ Archives']].map(([id,label])=>(
+          <button key={id} onClick={()=>{if(id==='archives'){allerArchives();}else{setOnglet(id);if(id==='formulaire')ouvrirFormulaire();}}}
             style={onglet===id?s.navBtnActif:s.navBtn}>{label}</button>
         ))}
       </div>
@@ -1958,6 +1972,317 @@ export default function App() {
             )}
             {!classeSource && <div style={s.bilanVide}><p>Sélectionnez une classe source pour voir les élèves</p></div>}
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ===== FONCTIONS ARCHIVES =====
+
+const chargerAnneesArchives = async () => {
+  try {
+    const res = await axios.get(`${API}/archives/annees`);
+    setAnneesArchives(res.data);
+  } catch (err) { console.error(err); }
+};
+
+const chargerElevesArchive = async (annee) => {
+  try {
+    const res = await axios.get(`${API}/archives/${annee}`);
+    setElevesArchive(res.data);
+  } catch (err) { console.error(err); }
+};
+
+const rechercherDansArchive = async (annee, q) => {
+  if (!q || q.length < 2) { chargerElevesArchive(annee); return; }
+  try {
+    const res = await axios.get(`${API}/archives/${annee}/recherche?q=${q}`);
+    setElevesArchive(res.data);
+  } catch (err) { console.error(err); }
+};
+
+const rechercherGlobal = async (q) => {
+  setRechercheGlobale(q);
+  if (!q || q.length < 2) { setResultatsGlobaux([]); return; }
+  try {
+    const res = await axios.get(`${API}/archives/recherche/global?q=${q}`);
+    setResultatsGlobaux(res.data);
+  } catch (err) { console.error(err); }
+};
+
+const archiverAnnee = async () => {
+  if (!anneeAArchiver) { setMessageArchive('⚠️ Saisissez l\'année scolaire'); return; }
+  if (!window.confirm(`Archiver toute l'année ${anneeAArchiver} ? (${eleves.length} élèves)`)) return;
+  setArchivageEnCours(true); setMessageArchive('');
+  try {
+    const res = await axios.post(`${API}/archives/archiver`, { annee_scolaire: anneeAArchiver });
+    setMessageArchive(`✅ ${res.data.message}`);
+    chargerAnneesArchives();
+    setTimeout(() => setMessageArchive(''), 5000);
+  } catch (err) {
+    setMessageArchive('❌ Erreur: ' + (err.response?.data?.erreur || err.message));
+  }
+  setArchivageEnCours(false);
+};
+
+// Charger archives quand on va sur l'onglet
+const allerArchives = () => {
+  setOnglet('archives');
+  chargerAnneesArchives();
+};
+
+      {/* ===== ARCHIVES ===== */}
+      {onglet==='archives' && (
+        <div style={s.contenu}>
+          <h2 style={s.titrePage}>🗂️ Archives — Années scolaires</h2>
+          <div style={s.sousNav}>
+            <button onClick={()=>setSousOngletArchive('liste')} style={sousOngletArchive==='liste'?{...s.sousNavActif,background:'#7c2d12',borderColor:'#7c2d12'}:s.sousNavBtn}>📋 Années archivées</button>
+            <button onClick={()=>setSousOngletArchive('archiver')} style={sousOngletArchive==='archiver'?{...s.sousNavActif,background:'#7c2d12',borderColor:'#7c2d12'}:s.sousNavBtn}>💾 Archiver l'année</button>
+            <button onClick={()=>setSousOngletArchive('global')} style={sousOngletArchive==='global'?{...s.sousNavActif,background:'#7c2d12',borderColor:'#7c2d12'}:s.sousNavBtn}>🔍 Recherche globale</button>
+          </div>
+
+          {/* ── LISTE DES ANNÉES ── */}
+          {sousOngletArchive==='liste' && (
+            <div>
+              {!anneeSelectionnee ? (
+                <div>
+                  {anneesArchives.length === 0 ? (
+                    <div style={s.bilanVide}>
+                      <p style={{fontSize:'3rem',margin:'0 0 1rem'}}>🗂️</p>
+                      <p style={{fontWeight:'600',color:'#64748b'}}>Aucune archive disponible</p>
+                      <p style={{color:'#9ca3af',fontSize:'0.85rem'}}>Utilisez l'onglet "Archiver l'année" pour créer la première archive.</p>
+                    </div>
+                  ) : (
+                    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:'1.25rem'}}>
+                      {anneesArchives.map(a => (
+                        <div key={a.annee_scolaire} onClick={()=>{setAnneeSelectionnee(a.annee_scolaire);chargerElevesArchive(a.annee_scolaire);setRechercheArchive('');setClasseArchive('');setEleveArchiveSelectionne(null);}}
+                          style={{background:'white',borderRadius:'14px',padding:'1.5rem',boxShadow:'0 2px 12px rgba(0,0,0,0.08)',cursor:'pointer',border:'2px solid #e2e8f0',transition:'all 0.2s',':hover':{borderColor:'#7c2d12'}}}>
+                          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'1rem'}}>
+                            <div style={{fontSize:'1.5rem',fontWeight:'bold',color:'#7c2d12'}}>📅 {a.annee_scolaire}</div>
+                            <span style={{background:'#fef3c7',color:'#92400e',padding:'3px 10px',borderRadius:'20px',fontSize:'0.8rem',fontWeight:'600'}}>{a.nb_eleves} élèves</span>
+                          </div>
+                          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'0.5rem',marginBottom:'0.75rem'}}>
+                            <div style={{background:'#dcfce7',borderRadius:'8px',padding:'0.5rem',textAlign:'center'}}>
+                              <div style={{fontWeight:'bold',color:'#166534',fontSize:'1.1rem'}}>{a.admis}</div>
+                              <div style={{fontSize:'0.72rem',color:'#166534'}}>Admis</div>
+                            </div>
+                            <div style={{background:'#fef3c7',borderRadius:'8px',padding:'0.5rem',textAlign:'center'}}>
+                              <div style={{fontWeight:'bold',color:'#92400e',fontSize:'1.1rem'}}>{a.redoublants}</div>
+                              <div style={{fontSize:'0.72rem',color:'#92400e'}}>Redoublants</div>
+                            </div>
+                            <div style={{background:'#fee2e2',borderRadius:'8px',padding:'0.5rem',textAlign:'center'}}>
+                              <div style={{fontWeight:'bold',color:'#991b1b',fontSize:'1.1rem'}}>{a.exclus}</div>
+                              <div style={{fontSize:'0.72rem',color:'#991b1b'}}>Exclus</div>
+                            </div>
+                          </div>
+                          <div style={{fontSize:'0.78rem',color:'#9ca3af'}}>
+                            Archivé le {new Date(a.date_archivage).toLocaleDateString('fr-FR')}
+                          </div>
+                          <div style={{marginTop:'0.75rem',background:'#7c2d12',color:'white',borderRadius:'8px',padding:'0.5rem',textAlign:'center',fontWeight:'600',fontSize:'0.88rem'}}>
+                            👁️ Consulter cette année
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* ── VUE DÉTAILLÉE D'UNE ANNÉE ── */
+                <div>
+                  <div style={{display:'flex',gap:'0.75rem',marginBottom:'1rem',alignItems:'center',flexWrap:'wrap'}}>
+                    <button onClick={()=>{setAnneeSelectionnee(null);setEleveArchiveSelectionne(null);}} style={s.btnRetour}>← Retour aux années</button>
+                    <h3 style={{margin:0,color:'#7c2d12',fontSize:'1.2rem'}}>📅 Année {anneeSelectionnee} — {elevesArchive.length} élèves</h3>
+                  </div>
+
+                  {eleveArchiveSelectionne ? (
+                    /* Fiche élève archivé */
+                    <div>
+                      <button onClick={()=>setEleveArchiveSelectionne(null)} style={s.btnRetour}>← Retour à la liste</button>
+                      <div style={{...s.ficheCard,marginTop:'1rem'}}>
+                        <div style={s.ficheHeader}>
+                          <div style={s.ficheAvatar}>
+                            {eleveArchiveSelectionne.photo_url
+                              ? <img src={eleveArchiveSelectionne.photo_url} alt="" style={{width:'100px',height:'130px',objectFit:'cover',borderRadius:'8px'}}/>
+                              : <span style={{fontSize:'3rem'}}>👤</span>}
+                          </div>
+                          <div>
+                            <h2 style={s.ficheNom}>{eleveArchiveSelectionne.nom} {eleveArchiveSelectionne.prenom}</h2>
+                            <p style={s.ficheClasse}>Classe : {eleveArchiveSelectionne.classe}</p>
+                            <p style={s.ficheMatricule}>Matricule : {eleveArchiveSelectionne.matricule}</p>
+                            <p style={{margin:'4px 0',fontSize:'0.85rem',color:'#64748b'}}>Année : <strong style={{color:'#7c2d12'}}>{anneeSelectionnee}</strong></p>
+                            <div style={{display:'flex',gap:'0.5rem',flexWrap:'wrap',marginTop:'0.5rem'}}>
+                              {eleveArchiveSelectionne.sexe && <span style={eleveArchiveSelectionne.sexe==='M'?s.badgeGarcon:s.badgeFille}>{eleveArchiveSelectionne.sexe==='M'?'👦 Garçon':'👧 Fille'}</span>}
+                              <span style={eleveArchiveSelectionne.decision_fin_annee==='Admis'?s.badgeAdmis:eleveArchiveSelectionne.decision_fin_annee==='Redoublant'?s.badgeRedoublant:s.badgeExclu}>{eleveArchiveSelectionne.decision_fin_annee||'-'}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div style={s.ficheGrid}>
+                          <div style={s.ficheSection}>
+                            <h3 style={s.sectionTitre}>📊 Résultats</h3>
+                            <p><strong>T1 :</strong> {eleveArchiveSelectionne.moyenne_t1||'-'}</p>
+                            <p><strong>T2 :</strong> {eleveArchiveSelectionne.moyenne_t2||'-'}</p>
+                            <p><strong>T3 :</strong> {eleveArchiveSelectionne.moyenne_t3||'-'}</p>
+                            <p><strong>MGA :</strong> <span style={{fontWeight:'bold',fontSize:'1.2rem'}}>{eleveArchiveSelectionne.moyenne_generale||'-'}</span></p>
+                          </div>
+                          <div style={s.ficheSection}>
+                            <h3 style={s.sectionTitre}>👨‍👩‍👧 Parent</h3>
+                            <p><strong>Nom :</strong> {eleveArchiveSelectionne.nom_parent||'-'}</p>
+                            <p><strong>Tél :</strong> {eleveArchiveSelectionne.telephone1||'-'}</p>
+                          </div>
+                          <div style={s.ficheSection}>
+                            <h3 style={s.sectionTitre}>💰 Inscriptions</h3>
+                            <p>Économat : {eleveArchiveSelectionne.inscrit_economatf?<span style={s.badgeAdmis}>✅ Payé</span>:<span style={s.badgeExclu}>❌ Non payé</span>}</p>
+                            <p>Éducateurs : {eleveArchiveSelectionne.inscrit_educateur?<span style={s.badgeAdmis}>✅ Inscrit</span>:<span style={s.badgeExclu}>❌ Non inscrit</span>}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Liste des élèves archivés */
+                    <div>
+                      <div style={s.filtres}>
+                        <input placeholder="🔍 Nom, prénom ou matricule..." value={rechercheArchive}
+                          onChange={e=>{setRechercheArchive(e.target.value);rechercherDansArchive(anneeSelectionnee,e.target.value);}}
+                          style={s.inputRecherche}/>
+                        <select value={classeArchive} onChange={e=>{setClasseArchive(e.target.value);}}
+                          style={s.selectClasse}>
+                          <option value="">Toutes les classes</option>
+                          {[...new Set(elevesArchive.map(e=>e.classe))].sort().map(c=>(
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div style={s.tableWrap}>
+                        <table style={s.table}>
+                          <thead style={{...s.tableHead,background:'#7c2d12'}}>
+                            <tr>
+                              <th style={s.th}>#</th>
+                              <th style={s.th}>📷</th>
+                              <th style={s.th}>Matricule</th>
+                              <th style={s.th}>Nom & Prénom</th>
+                              <th style={s.th}>Sexe</th>
+                              <th style={s.th}>Classe</th>
+                              <th style={s.th}>MGA</th>
+                              <th style={s.th}>Décision</th>
+                              <th style={s.th}>Économat</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {elevesArchive.filter(e=>!classeArchive||e.classe===classeArchive).map((e,i)=>(
+                              <tr key={e.id} style={{...(i%2===0?s.trPair:s.trImpair),cursor:'pointer'}}
+                                onClick={()=>setEleveArchiveSelectionne(e)}>
+                                <td style={s.td}>{i+1}</td>
+                                <td style={s.td}>
+                                  {e.photo_url
+                                    ? <img src={e.photo_url} alt="" style={{width:'28px',height:'35px',objectFit:'cover',borderRadius:'3px'}}/>
+                                    : <div style={{width:'28px',height:'35px',background:'#e2e8f0',borderRadius:'3px',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.9rem'}}>👤</div>}
+                                </td>
+                                <td style={{...s.td,fontFamily:'monospace',fontSize:'0.78rem'}}>{e.matricule}</td>
+                                <td style={s.td}><strong>{e.nom}</strong> {e.prenom}</td>
+                                <td style={s.td}><span style={e.sexe==='M'?s.badgeGarcon:e.sexe==='F'?s.badgeFille:{}}>{e.sexe||'-'}</span></td>
+                                <td style={s.td}><span style={s.badgeClasse}>{e.classe}</span></td>
+                                <td style={{...s.td,textAlign:'center',fontWeight:'bold',color:e.moyenne_generale?(parseFloat(e.moyenne_generale)>=10?'#166534':'#991b1b'):'#9ca3af'}}>{e.moyenne_generale||'-'}</td>
+                                <td style={s.td}><span style={e.decision_fin_annee==='Admis'?s.badgeAdmis:e.decision_fin_annee==='Redoublant'?s.badgeRedoublant:e.decision_fin_annee==='Exclu'?s.badgeExclu:{}}>{e.decision_fin_annee||'-'}</span></td>
+                                <td style={s.td}>{e.inscrit_economatf?<span style={s.badgeAdmis}>✅</span>:<span style={s.badgeExclu}>❌</span>}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── ARCHIVER L'ANNÉE ── */}
+          {sousOngletArchive==='archiver' && (
+            <div style={s.importCard}>
+              <h3 style={s.sectionTitre}>💾 Archiver l'année scolaire courante</h3>
+              <div style={{background:'#fef3c7',border:'2px solid #fcd34d',borderRadius:'12px',padding:'1.25rem',marginBottom:'1.5rem'}}>
+                <p style={{fontWeight:'700',color:'#92400e',margin:'0 0 0.5rem'}}>ℹ️ Comment ça marche</p>
+                <p style={{fontSize:'0.85rem',color:'#64748b',margin:0}}>
+                  Tous les élèves actuels ({eleves.length} élèves) avec leurs moyennes, décisions et inscriptions seront copiés dans les archives.
+                  Vous pourrez ensuite consulter ces données à tout moment, même après la réinitialisation pour la nouvelle année.
+                </p>
+              </div>
+              <div style={{display:'flex',gap:'1rem',alignItems:'flex-end',flexWrap:'wrap',marginBottom:'1.5rem'}}>
+                <div>
+                  <label style={{...s.label,marginBottom:'6px'}}>Année scolaire à archiver</label>
+                  <input value={anneeAArchiver} onChange={e=>setAnneeAArchiver(e.target.value)}
+                    placeholder="ex: 2024-2025"
+                    style={{...s.input,width:'200px',fontWeight:'bold',fontSize:'1.1rem',color:'#7c2d12'}}/>
+                </div>
+                <button onClick={archiverAnnee} disabled={archivageEnCours||eleves.length===0}
+                  style={{background:archivageEnCours||eleves.length===0?'#94a3b8':'#7c2d12',color:'white',border:'none',borderRadius:'10px',padding:'0.75rem 2rem',cursor:archivageEnCours?'wait':'pointer',fontWeight:'700',fontSize:'1rem'}}>
+                  {archivageEnCours?'⏳ Archivage en cours...':'💾 Archiver maintenant'}
+                </button>
+              </div>
+              {messageArchive && <div style={messageArchive.includes('✅')?s.alertSucces:s.alertErreur}>{messageArchive}</div>}
+              <div style={{background:'#f0fdf4',borderRadius:'10px',padding:'1rem',marginTop:'1rem'}}>
+                <p style={{fontWeight:'600',color:'#166534',margin:'0 0 0.5rem'}}>📊 Données qui seront archivées :</p>
+                <p style={{margin:'4px 0',color:'#374151'}}>👥 Élèves : <strong>{eleves.length}</strong></p>
+                <p style={{margin:'4px 0',color:'#374151'}}>💰 Inscriptions économat : <strong>{Object.keys(paiements).length}</strong></p>
+              </div>
+              <div style={{background:'#fff7ed',border:'1px solid #fed7aa',borderRadius:'10px',padding:'1rem',marginTop:'1rem'}}>
+                <p style={{fontWeight:'600',color:'#c2410c',margin:'0 0 0.25rem'}}>⚠️ Important</p>
+                <p style={{fontSize:'0.85rem',color:'#64748b',margin:0}}>L'archivage ne supprime PAS les données actuelles. Pour vider la base pour la nouvelle année, utilisez le bouton "Réinitialiser" dans l'onglet Importer.</p>
+              </div>
+            </div>
+          )}
+
+          {/* ── RECHERCHE GLOBALE ── */}
+          {sousOngletArchive==='global' && (
+            <div style={s.importCard}>
+              <h3 style={s.sectionTitre}>🔍 Recherche globale dans toutes les archives</h3>
+              <input placeholder="🔍 Tapez un nom, prénom ou matricule..."
+                value={rechercheGlobale}
+                onChange={e=>rechercherGlobal(e.target.value)}
+                style={{...s.inputRecherche,width:'100%',fontSize:'1.1rem',padding:'0.85rem 1rem',marginBottom:'1.5rem',boxSizing:'border-box'}}/>
+              {rechercheGlobale.length >= 2 && (
+                resultatsGlobaux.length === 0
+                  ? <div style={s.bilanVide}><p>Aucun résultat dans les archives pour "{rechercheGlobale}"</p></div>
+                  : <div style={s.tableWrap}>
+                      <p style={{color:'#64748b',marginBottom:'0.5rem'}}>{resultatsGlobaux.length} résultat(s) trouvé(s)</p>
+                      <table style={s.table}>
+                        <thead style={{...s.tableHead,background:'#7c2d12'}}>
+                          <tr>
+                            <th style={s.th}>Année</th>
+                            <th style={s.th}>📷</th>
+                            <th style={s.th}>Matricule</th>
+                            <th style={s.th}>Nom & Prénom</th>
+                            <th style={s.th}>Classe</th>
+                            <th style={s.th}>MGA</th>
+                            <th style={s.th}>Décision</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {resultatsGlobaux.map((e,i)=>(
+                            <tr key={e.id} style={i%2===0?s.trPair:s.trImpair}>
+                              <td style={s.td}><span style={{background:'#fef3c7',color:'#92400e',padding:'2px 8px',borderRadius:'10px',fontSize:'0.8rem',fontWeight:'600'}}>{e.annee_scolaire}</span></td>
+                              <td style={s.td}>
+                                {e.photo_url
+                                  ? <img src={e.photo_url} alt="" style={{width:'28px',height:'35px',objectFit:'cover',borderRadius:'3px'}}/>
+                                  : <span style={{fontSize:'1.2rem'}}>👤</span>}
+                              </td>
+                              <td style={{...s.td,fontFamily:'monospace',fontSize:'0.78rem'}}>{e.matricule}</td>
+                              <td style={s.td}><strong>{e.nom}</strong> {e.prenom}</td>
+                              <td style={s.td}><span style={s.badgeClasse}>{e.classe}</span></td>
+                              <td style={{...s.td,textAlign:'center',fontWeight:'bold'}}>{e.moyenne_generale||'-'}</td>
+                              <td style={s.td}><span style={e.decision_fin_annee==='Admis'?s.badgeAdmis:e.decision_fin_annee==='Redoublant'?s.badgeRedoublant:e.decision_fin_annee==='Exclu'?s.badgeExclu:{}}>{e.decision_fin_annee||'-'}</span></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+              )}
+              {rechercheGlobale.length < 2 && rechercheGlobale.length > 0 && (
+                <p style={{color:'#9ca3af',textAlign:'center'}}>Tapez au moins 2 caractères pour rechercher</p>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
