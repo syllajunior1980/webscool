@@ -776,7 +776,7 @@ export default function App() {
 
   const imprimerListeBEPC = () => {
     const classes3eme = classes.filter(c => c.toLowerCase().startsWith('3'));
-    const admisBepc = eleves.filter(e => classes3eme.some(c => c === e.classe) && e.decision_fin_annee === 'Admis')
+    const admisBepc = eleves.filter(e => classes3eme.some(c => c === e.classe) && e.resultat_bepc === 'Admis')
       .sort((a,b) => (parseFloat(b.moyenne_generale)||0)-(parseFloat(a.moyenne_generale)||0));
     const lignes = admisBepc.map((e,i) => `
       <tr><td style="padding:5px 4px;text-align:center;border:1px solid #ccc;">${i+1}</td>
@@ -805,6 +805,14 @@ export default function App() {
       <span>Signature : ________________</span></div>
       <script>window.onload=function(){window.print();}</script></body></html>`;
     const f = window.open('','_blank'); f.document.write(html); f.document.close();
+  };
+
+  // ===== BEPC : modifier résultat manuellement =====
+  const modifierResultatBepc = async (id, valeur) => {
+    try {
+      await axios.put(`${API}/eleves/bepc/${id}`, { resultat_bepc: valeur });
+      setEleves(prev => prev.map(e => e.id === id ? { ...e, resultat_bepc: valeur } : e));
+    } catch (err) { alert('Erreur: ' + err.message); }
   };
 
   const imprimerListePayes = () => {
@@ -981,7 +989,7 @@ export default function App() {
     ? (() => { const v=elevesClasse.filter(e=>e.moyenne_generale&&parseFloat(e.moyenne_generale)>0);
         return v.length>0?(v.reduce((s,e)=>s+parseFloat(e.moyenne_generale),0)/v.length).toFixed(2):'-'; })() : '-';
   const classes3eme = classes.filter(c => c.toLowerCase().startsWith('3'));
-  const totalAdmisBepc = eleves.filter(e => classes3eme.some(c=>c===e.classe) && e.decision_fin_annee==='Admis').length;
+  const totalAdmisBepc = eleves.filter(e => classes3eme.some(c=>c===e.classe) && e.resultat_bepc==='Admis').length;
   const totalPayes = Object.keys(paiements).length;
   const totalNonPayes = eleves.length - totalPayes;
   const montantTotal = totalPayes * MONTANT_INSCRIPTION;
@@ -1501,18 +1509,73 @@ export default function App() {
       {onglet==='bepc' && (
         <div style={s.contenu}>
           <h2 style={s.titrePage}>🎓 Liste des Admis au BEPC</h2>
+
+          {/* --- Bilan rapide --- */}
+          <div style={s.bepcInfo}>
+            <p>Classes 3ème : <strong>{classes3eme.join(', ')||'Aucune'}</strong></p>
+            <p style={{fontSize:'1.3rem',fontWeight:'bold',color:'#166534'}}>✅ Total admis au BEPC : {totalAdmisBepc}</p>
+          </div>
+
+          {/* --- Tableau de saisie des résultats BEPC --- */}
           <div style={s.importCard}>
-            <div style={s.bepcInfo}>
-              <p>Classes 3ème : <strong>{classes3eme.join(', ')||'Aucune'}</strong></p>
-              <p style={{fontSize:'1.3rem',fontWeight:'bold',color:'#166534'}}>✅ Total : {totalAdmisBepc} admis</p>
+            <h3 style={{margin:'0 0 1rem',color:'#1e3a5f'}}>📝 Saisir les résultats BEPC par élève</h3>
+            <p style={{color:'#64748b',marginBottom:'1rem',fontSize:'0.9rem'}}>
+              Cochez le résultat BEPC de chaque élève de 3ème indépendamment de sa DFA de classe.
+            </p>
+            <div style={s.tableWrap}>
+              <table style={s.table}>
+                <thead style={{...s.tableHead,background:'#1e3a5f'}}>
+                  <tr>
+                    {['#','Matricule','Nom & Prénom','Classe','MGA','DFA classe','Résultat BEPC'].map(h=><th key={h} style={s.th}>{h}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {eleves.filter(e=>classes3eme.some(c=>c===e.classe))
+                    .sort((a,b)=>(a.classe||'').localeCompare(b.classe||'')||(a.nom||'').localeCompare(b.nom||''))
+                    .map((e,i)=>(
+                    <tr key={e.id} style={i%2===0?s.trPair:s.trImpair}>
+                      <td style={s.td}>{i+1}</td>
+                      <td style={s.td}>{e.matricule}</td>
+                      <td style={s.td}><strong>{e.nom}</strong> {e.prenom}</td>
+                      <td style={s.td}><span style={s.badgeClasse}>{e.classe}</span></td>
+                      <td style={s.td}><strong style={{color:'#2563eb'}}>{e.moyenne_generale||'-'}</strong></td>
+                      <td style={s.td}>
+                        <span style={e.decision_fin_annee==='Admis'?s.badgeAdmis:e.decision_fin_annee==='Redoublant'?s.badgeRedoublant:s.badgeExclu}>
+                          {e.decision_fin_annee||'-'}
+                        </span>
+                      </td>
+                      <td style={{...s.td,textAlign:'center'}}>
+                        <select
+                          value={e.resultat_bepc||''}
+                          onChange={ev=>modifierResultatBepc(e.id, ev.target.value)}
+                          style={{padding:'4px 8px',borderRadius:'6px',border:'1px solid #cbd5e1',fontSize:'0.85rem',
+                            background: e.resultat_bepc==='Admis'?'#dcfce7':e.resultat_bepc==='Échoué'?'#fee2e2':e.resultat_bepc==='Absent'?'#fef9c3':'white',
+                            fontWeight:'bold',color:e.resultat_bepc==='Admis'?'#166534':e.resultat_bepc==='Échoué'?'#991b1b':e.resultat_bepc==='Absent'?'#92400e':'#64748b'
+                          }}
+                        >
+                          <option value="">— Non saisi —</option>
+                          <option value="Admis">✅ Admis</option>
+                          <option value="Échoué">❌ Échoué</option>
+                          <option value="Absent">⚠️ Absent</option>
+                        </select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
+          </div>
+
+          {/* --- Liste officielle des admis --- */}
+          <div style={{...s.importCard,marginTop:'1.5rem'}}>
+            <h3 style={{margin:'0 0 1rem',color:'#166534'}}>✅ Liste officielle des admis au BEPC ({totalAdmisBepc})</h3>
             <div style={s.tableWrap}>
               <table style={s.table}>
                 <thead style={{...s.tableHead,background:'#166534'}}>
                   <tr>{['#','Matricule','Nom','Prénom','Sexe','Classe','MGA','Parent','Téléphone'].map(h=><th key={h} style={s.th}>{h}</th>)}</tr>
                 </thead>
                 <tbody>
-                  {eleves.filter(e=>classes3eme.some(c=>c===e.classe)&&e.decision_fin_annee==='Admis')
+                  {eleves.filter(e=>classes3eme.some(c=>c===e.classe)&&e.resultat_bepc==='Admis')
                     .sort((a,b)=>(parseFloat(b.moyenne_generale)||0)-(parseFloat(a.moyenne_generale)||0))
                     .map((e,i)=>(
                     <tr key={e.id} style={i%2===0?s.trPair:s.trImpair}>

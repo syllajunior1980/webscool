@@ -235,3 +235,18 @@ router.post('/reconnaissance-photo', async (req, res) => {
   }
 });
 module.exports = router;
+
+// PUT modifier résultat BEPC uniquement
+router.put('/bepc/:id', async (req, res) => {
+  const { resultat_bepc } = req.body;
+  try {
+    await pool.query(
+      `ALTER TABLE eleves ADD COLUMN IF NOT EXISTS resultat_bepc VARCHAR(20)`,
+    ).catch(()=>{});
+    const result = await pool.query(
+      'UPDATE eleves SET resultat_bepc = $1 WHERE id = $2 RETURNING *',
+      [resultat_bepc, req.params.id]
+    );
+    res.json(result.rows[0]);
+  } catch (err) { res.status(500).json({ erreur: err.message }); }
+});
