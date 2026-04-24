@@ -1005,9 +1005,14 @@ export default function App() {
   const filles3eme = eleves3eme.filter(e=>e.sexe==='F').length;
   const admisGarcons = eleves3eme.filter(e=>e.resultat_bepc==='Admis'&&e.sexe==='M').length;
   const admisFilles = eleves3eme.filter(e=>e.resultat_bepc==='Admis'&&e.sexe==='F').length;
-  const pctAdmisGarcons = garcons3eme>0 ? Math.round(admisGarcons/garcons3eme*100) : 0;
-  const pctAdmisFilles = filles3eme>0 ? Math.round(admisFilles/filles3eme*100) : 0;
-  const pctAdmisTotal = total3eme>0 ? Math.round(totalAdmisBepc/total3eme*100) : 0;
+  const pctAdmisGarcons = garcons3eme>0 ? (admisGarcons/garcons3eme*100).toFixed(1) : '0.0';
+  const pctAdmisFilles = filles3eme>0 ? (admisFilles/filles3eme*100).toFixed(1) : '0.0';
+  const pctAdmisTotal = total3eme>0 ? (totalAdmisBepc/total3eme*100).toFixed(1) : '0.0';
+  const orientesGarcons = eleves3eme.filter(e=>e.orientation_seconde==='Orienté'&&e.sexe==='M').length;
+  const orientesFilles = eleves3eme.filter(e=>e.orientation_seconde==='Orienté'&&e.sexe==='F').length;
+  const pctOrientesGarcons = garcons3eme>0 ? (orientesGarcons/garcons3eme*100).toFixed(1) : '0.0';
+  const pctOrientesFilles = filles3eme>0 ? (orientesFilles/filles3eme*100).toFixed(1) : '0.0';
+  const pctOrientesTotal = total3eme>0 ? (totalOrientes/total3eme*100).toFixed(1) : '0.0';
   const totalPayes = Object.keys(paiements).length;
   const totalNonPayes = eleves.length - totalPayes;
   const montantTotal = totalPayes * MONTANT_INSCRIPTION;
@@ -1563,9 +1568,9 @@ export default function App() {
                   <td style={{padding:'7px 12px',textAlign:'center',fontWeight:'bold',color:'#1d4ed8'}}>{eleves3eme.filter(e=>e.orientation_seconde==='Orienté'&&e.sexe==='M').length}</td>
                   <td style={{padding:'7px 12px',textAlign:'center',fontWeight:'bold',color:'#be185d'}}>{eleves3eme.filter(e=>e.orientation_seconde==='Orienté'&&e.sexe==='F').length}</td>
                   <td style={{padding:'7px 12px',textAlign:'center',fontWeight:'bold',color:'#1d4ed8',fontSize:'1.05rem'}}>{totalOrientes}</td>
-                  <td style={{padding:'7px 12px',textAlign:'center',color:'#6b7280'}}>-</td>
-                  <td style={{padding:'7px 12px',textAlign:'center',color:'#6b7280'}}>-</td>
-                  <td style={{padding:'7px 12px',textAlign:'center',color:'#6b7280'}}>-</td>
+                  <td style={{padding:'7px 12px',textAlign:'center',color:'#1d4ed8',fontWeight:'bold'}}>{pctOrientesGarcons}%</td>
+                  <td style={{padding:'7px 12px',textAlign:'center',color:'#be185d',fontWeight:'bold'}}>{pctOrientesFilles}%</td>
+                  <td style={{padding:'7px 12px',textAlign:'center',color:'#1d4ed8',fontWeight:'bold'}}>{pctOrientesTotal}%</td>
                 </tr>
               </tbody>
             </table>
