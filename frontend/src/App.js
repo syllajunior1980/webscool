@@ -999,6 +999,15 @@ export default function App() {
   const classes3eme = classes.filter(c => c.toLowerCase().startsWith('3'));
   const totalAdmisBepc = eleves.filter(e => classes3eme.some(c=>c===e.classe) && e.resultat_bepc==='Admis').length;
   const totalOrientes = eleves.filter(e => classes3eme.some(c=>c===e.classe) && e.orientation_seconde==='Orienté').length;
+  const eleves3eme = eleves.filter(e => classes3eme.some(c=>c===e.classe));
+  const total3eme = eleves3eme.length;
+  const garcons3eme = eleves3eme.filter(e=>e.sexe==='M').length;
+  const filles3eme = eleves3eme.filter(e=>e.sexe==='F').length;
+  const admisGarcons = eleves3eme.filter(e=>e.resultat_bepc==='Admis'&&e.sexe==='M').length;
+  const admisFilles = eleves3eme.filter(e=>e.resultat_bepc==='Admis'&&e.sexe==='F').length;
+  const pctAdmisGarcons = garcons3eme>0 ? Math.round(admisGarcons/garcons3eme*100) : 0;
+  const pctAdmisFilles = filles3eme>0 ? Math.round(admisFilles/filles3eme*100) : 0;
+  const pctAdmisTotal = total3eme>0 ? Math.round(totalAdmisBepc/total3eme*100) : 0;
   const totalPayes = Object.keys(paiements).length;
   const totalNonPayes = eleves.length - totalPayes;
   const montantTotal = totalPayes * MONTANT_INSCRIPTION;
@@ -1536,7 +1545,7 @@ export default function App() {
               <table style={s.table}>
                 <thead style={{...s.tableHead,background:'#1e3a5f'}}>
                   <tr>
-                    {['#','Matricule','Nom & Prénom','Classe','MGA','DFA classe','Résultat BEPC','Orienté 2nde'].map(h=><th key={h} style={s.th}>{h}</th>)}
+                    {['#','Matricule','Nom & Prénom','Sexe','Classe','MGA','DFA classe','Résultat BEPC','Orienté 2nde'].map(h=><th key={h} style={s.th}>{h}</th>)}
                   </tr>
                 </thead>
                 <tbody>
@@ -1547,6 +1556,11 @@ export default function App() {
                       <td style={s.td}>{i+1}</td>
                       <td style={s.td}>{e.matricule}</td>
                       <td style={s.td}><strong>{e.nom}</strong> {e.prenom}</td>
+                      <td style={{...s.td,textAlign:'center'}}>
+                        <span style={e.sexe==='M'?s.badgeGarcon:e.sexe==='F'?s.badgeFille:{padding:'3px 8px',borderRadius:'12px',background:'#e5e7eb',color:'#6b7280',fontSize:'0.8rem'}}>
+                          {e.sexe||'-'}
+                        </span>
+                      </td>
                       <td style={s.td}><span style={s.badgeClasse}>{e.classe}</span></td>
                       <td style={s.td}><strong style={{color:'#2563eb'}}>{e.moyenne_generale||'-'}</strong></td>
                       <td style={s.td}>
