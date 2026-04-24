@@ -250,3 +250,18 @@ router.put('/bepc/:id', async (req, res) => {
     res.json(result.rows[0]);
   } catch (err) { res.status(500).json({ erreur: err.message }); }
 });
+
+// PUT modifier orientation 2nde uniquement
+router.put('/orientation/:id', async (req, res) => {
+  const { orientation_seconde } = req.body;
+  try {
+    await pool.query(
+      `ALTER TABLE eleves ADD COLUMN IF NOT EXISTS orientation_seconde VARCHAR(20)`
+    ).catch(()=>{});
+    const result = await pool.query(
+      'UPDATE eleves SET orientation_seconde = $1 WHERE id = $2 RETURNING *',
+      [orientation_seconde, req.params.id]
+    );
+    res.json(result.rows[0]);
+  } catch (err) { res.status(500).json({ erreur: err.message }); }
+});

@@ -815,6 +815,14 @@ export default function App() {
     } catch (err) { alert('Erreur: ' + err.message); }
   };
 
+  // ===== ORIENTATION 2NDE : modifier manuellement =====
+  const modifierOrientation = async (id, valeur) => {
+    try {
+      await axios.put(`${API}/eleves/orientation/${id}`, { orientation_seconde: valeur });
+      setEleves(prev => prev.map(e => e.id === id ? { ...e, orientation_seconde: valeur } : e));
+    } catch (err) { alert('Erreur: ' + err.message); }
+  };
+
   const imprimerListePayes = () => {
     const filtre = classeFiltreInscription;
     const liste = elevesInscription.filter(e => paiements[e.id]).sort((a,b) => (a.nom||'').localeCompare(b.nom||''));
@@ -990,6 +998,7 @@ export default function App() {
         return v.length>0?(v.reduce((s,e)=>s+parseFloat(e.moyenne_generale),0)/v.length).toFixed(2):'-'; })() : '-';
   const classes3eme = classes.filter(c => c.toLowerCase().startsWith('3'));
   const totalAdmisBepc = eleves.filter(e => classes3eme.some(c=>c===e.classe) && e.resultat_bepc==='Admis').length;
+  const totalOrientes = eleves.filter(e => classes3eme.some(c=>c===e.classe) && e.orientation_seconde==='Orienté').length;
   const totalPayes = Object.keys(paiements).length;
   const totalNonPayes = eleves.length - totalPayes;
   const montantTotal = totalPayes * MONTANT_INSCRIPTION;
@@ -1514,6 +1523,7 @@ export default function App() {
           <div style={s.bepcInfo}>
             <p>Classes 3ème : <strong>{classes3eme.join(', ')||'Aucune'}</strong></p>
             <p style={{fontSize:'1.3rem',fontWeight:'bold',color:'#166534'}}>✅ Total admis au BEPC : {totalAdmisBepc}</p>
+            <p style={{fontSize:'1.1rem',fontWeight:'bold',color:'#1e40af'}}>🎓 Total orientés en 2nde : {totalOrientes}</p>
           </div>
 
           {/* --- Tableau de saisie des résultats BEPC --- */}
@@ -1526,7 +1536,7 @@ export default function App() {
               <table style={s.table}>
                 <thead style={{...s.tableHead,background:'#1e3a5f'}}>
                   <tr>
-                    {['#','Matricule','Nom & Prénom','Classe','MGA','DFA classe','Résultat BEPC'].map(h=><th key={h} style={s.th}>{h}</th>)}
+                    {['#','Matricule','Nom & Prénom','Classe','MGA','DFA classe','Résultat BEPC','Orienté 2nde'].map(h=><th key={h} style={s.th}>{h}</th>)}
                   </tr>
                 </thead>
                 <tbody>
@@ -1557,6 +1567,20 @@ export default function App() {
                           <option value="Admis">✅ Admis</option>
                           <option value="Échoué">❌ Échoué</option>
                           <option value="Absent">⚠️ Absent</option>
+                        </select>
+                      </td>
+                      <td style={{...s.td,textAlign:'center'}}>
+                        <select
+                          value={e.orientation_seconde||''}
+                          onChange={ev=>modifierOrientation(e.id, ev.target.value)}
+                          style={{padding:'4px 8px',borderRadius:'6px',border:'1px solid #cbd5e1',fontSize:'0.85rem',
+                            background: e.orientation_seconde==='Orienté'?'#dbeafe':e.orientation_seconde==='Non orienté'?'#fee2e2':'white',
+                            fontWeight:'bold',color:e.orientation_seconde==='Orienté'?'#1e40af':e.orientation_seconde==='Non orienté'?'#991b1b':'#64748b'
+                          }}
+                        >
+                          <option value="">— Non saisi —</option>
+                          <option value="Orienté">🎓 Orienté</option>
+                          <option value="Non orienté">❌ Non orienté</option>
                         </select>
                       </td>
                     </tr>
