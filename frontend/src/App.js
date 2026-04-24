@@ -1528,11 +1528,47 @@ export default function App() {
         <div style={s.contenu}>
           <h2 style={s.titrePage}>🎓 Liste des Admis au BEPC</h2>
 
-          {/* --- Bilan rapide --- */}
+          {/* --- Tableau récap stats --- */}
           <div style={s.bepcInfo}>
-            <p>Classes 3ème : <strong>{classes3eme.join(', ')||'Aucune'}</strong></p>
-            <p style={{fontSize:'1.3rem',fontWeight:'bold',color:'#166534'}}>✅ Total admis au BEPC : {totalAdmisBepc}</p>
-            <p style={{fontSize:'1.1rem',fontWeight:'bold',color:'#1e40af'}}>🎓 Total orientés en 2nde : {totalOrientes}</p>
+            <p style={{marginBottom:'0.75rem'}}>Classes 3ème : <strong>{classes3eme.join(', ')||'Aucune'}</strong></p>
+            <table style={{width:'100%',borderCollapse:'collapse',fontSize:'0.9rem',marginBottom:'0.5rem'}}>
+              <thead>
+                <tr style={{background:'#166534',color:'white'}}>
+                  {['','Garçons','Filles','Total','% Garçons','% Filles','% Total'].map(h=>(
+                    <th key={h} style={{padding:'8px 12px',textAlign:'center',fontWeight:'bold'}}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                <tr style={{background:'#f0fdf4'}}>
+                  <td style={{padding:'7px 12px',fontWeight:'bold',color:'#374151'}}>👥 Inscrits 3ème</td>
+                  <td style={{padding:'7px 12px',textAlign:'center',fontWeight:'bold',color:'#1d4ed8'}}>{garcons3eme}</td>
+                  <td style={{padding:'7px 12px',textAlign:'center',fontWeight:'bold',color:'#be185d'}}>{filles3eme}</td>
+                  <td style={{padding:'7px 12px',textAlign:'center',fontWeight:'bold'}}>{total3eme}</td>
+                  <td style={{padding:'7px 12px',textAlign:'center',color:'#6b7280'}}>-</td>
+                  <td style={{padding:'7px 12px',textAlign:'center',color:'#6b7280'}}>-</td>
+                  <td style={{padding:'7px 12px',textAlign:'center',color:'#6b7280'}}>-</td>
+                </tr>
+                <tr style={{background:'#dcfce7'}}>
+                  <td style={{padding:'7px 12px',fontWeight:'bold',color:'#166534'}}>✅ Admis BEPC</td>
+                  <td style={{padding:'7px 12px',textAlign:'center',fontWeight:'bold',color:'#1d4ed8'}}>{admisGarcons}</td>
+                  <td style={{padding:'7px 12px',textAlign:'center',fontWeight:'bold',color:'#be185d'}}>{admisFilles}</td>
+                  <td style={{padding:'7px 12px',textAlign:'center',fontWeight:'bold',color:'#166534',fontSize:'1.05rem'}}>{totalAdmisBepc}</td>
+                  <td style={{padding:'7px 12px',textAlign:'center',color:'#1d4ed8',fontWeight:'bold'}}>{pctAdmisGarcons}%</td>
+                  <td style={{padding:'7px 12px',textAlign:'center',color:'#be185d',fontWeight:'bold'}}>{pctAdmisFilles}%</td>
+                  <td style={{padding:'7px 12px',textAlign:'center',color:'#166534',fontWeight:'bold'}}>{pctAdmisTotal}%</td>
+                </tr>
+                <tr style={{background:'#dbeafe'}}>
+                  <td style={{padding:'7px 12px',fontWeight:'bold',color:'#1d4ed8'}}>🎓 Orientés 2nde</td>
+                  <td style={{padding:'7px 12px',textAlign:'center',fontWeight:'bold',color:'#1d4ed8'}}>{eleves3eme.filter(e=>e.orientation_seconde==='Orienté'&&e.sexe==='M').length}</td>
+                  <td style={{padding:'7px 12px',textAlign:'center',fontWeight:'bold',color:'#be185d'}}>{eleves3eme.filter(e=>e.orientation_seconde==='Orienté'&&e.sexe==='F').length}</td>
+                  <td style={{padding:'7px 12px',textAlign:'center',fontWeight:'bold',color:'#1d4ed8',fontSize:'1.05rem'}}>{totalOrientes}</td>
+                  <td style={{padding:'7px 12px',textAlign:'center',color:'#6b7280'}}>-</td>
+                  <td style={{padding:'7px 12px',textAlign:'center',color:'#6b7280'}}>-</td>
+                  <td style={{padding:'7px 12px',textAlign:'center',color:'#6b7280'}}>-</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
 
           {/* --- Tableau de saisie des résultats BEPC --- */}
