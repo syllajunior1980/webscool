@@ -807,6 +807,40 @@ export default function App() {
     const f = window.open('','_blank'); f.document.write(html); f.document.close();
   };
 
+
+  const imprimerListeOrientes = () => {
+    const classes3eme = classes.filter(c => c.toLowerCase().startsWith('3'));
+    const orientes = eleves.filter(e => classes3eme.some(c => c === e.classe) && e.orientation_seconde === 'Orienté')
+      .sort((a,b) => (parseFloat(b.moyenne_generale)||0)-(parseFloat(a.moyenne_generale)||0));
+    const lignes = orientes.map((e,i) => `
+      <tr><td style="padding:5px 4px;text-align:center;border:1px solid #ccc;">${i+1}</td>
+      <td style="padding:5px 4px;border:1px solid #ccc;">${e.matricule||''}</td>
+      <td style="padding:5px 4px;font-weight:bold;border:1px solid #ccc;">${e.nom||''}</td>
+      <td style="padding:5px 4px;border:1px solid #ccc;">${e.prenom||''}</td>
+      <td style="padding:5px 4px;text-align:center;border:1px solid #ccc;">${e.sexe||'-'}</td>
+      <td style="padding:5px 4px;text-align:center;border:1px solid #ccc;">${e.classe||''}</td>
+      <td style="padding:5px 4px;text-align:center;font-weight:bold;color:green;border:1px solid #ccc;">${e.moyenne_generale||'-'}</td>
+      <td style="padding:5px 4px;border:1px solid #ccc;">${e.nom_parent||''}</td>
+      <td style="padding:5px 4px;border:1px solid #ccc;">${e.telephone1||''}</td></tr>`).join('');
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Orientés 2nde</title>
+      <style>body{font-family:Arial,sans-serif;margin:20px;font-size:12px;}
+      .entete{text-align:center;margin-bottom:20px;border-bottom:2px solid #000;padding-bottom:10px;}
+      table{width:100%;border-collapse:collapse;}thead{background-color:#1e40af;color:white;}
+      thead th{padding:7px 4px;border:1px solid #ccc;font-size:11px;}
+      .stats{margin-top:15px;padding:10px;background:#dbeafe;border-radius:6px;}
+      .footer{margin-top:30px;display:flex;justify-content:space-between;font-size:11px;}</style></head><body>
+      <div class="entete"><h2>${ETABLISSEMENT}</h2><h1>LISTE DES ÉLÈVES ORIENTÉS EN 2NDE</h1>
+      <p>Année scolaire : ${ANNEE_SCOLAIRE}</p></div>
+      <table><thead><tr><th>N°</th><th>Matricule</th><th>Nom</th><th>Prénom</th><th>Sexe</th><th>Classe</th><th>MGA</th><th>Parent</th><th>Téléphone</th></tr></thead>
+      <tbody>${lignes}</tbody></table>
+      <div class="stats">🎓 <strong>Total orientés en 2nde : ${orientes.length} élèves</strong>
+      (Garçons : ${orientes.filter(e=>e.sexe==='M').length} — Filles : ${orientes.filter(e=>e.sexe==='F').length})</div>
+      <div class="footer"><span>Imprimé le : ${new Date().toLocaleDateString('fr-FR')}</span>
+      <span>Signature : ________________</span></div>
+      <script>window.onload=function(){window.print();}</script></body></html>`;
+    const f = window.open('','_blank'); f.document.write(html); f.document.close();
+  };
+
   // ===== BEPC : modifier résultat manuellement =====
   const modifierResultatBepc = async (id, valeur) => {
     try {
@@ -1673,8 +1707,38 @@ export default function App() {
             <br/>
             <button onClick={imprimerListeBEPC} style={{...s.btnCalculer,background:'#166534'}}>🖨️ Imprimer liste BEPC</button>
           </div>
+
+          {/* --- Liste officielle des orientés 2nde --- */}
+          <div style={{...s.importCard,marginTop:'1.5rem'}}>
+            <h3 style={{margin:'0 0 1rem',color:'#1e40af'}}>🎓 Liste officielle des orientés en 2nde ({totalOrientes})</h3>
+            <div style={s.tableWrap}>
+              <table style={s.table}>
+                <thead style={{...s.tableHead,background:'#1e40af'}}>
+                  <tr>{['#','Matricule','Nom','Prénom','Sexe','Classe','MGA','Parent','Téléphone'].map(h=><th key={h} style={s.th}>{h}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {eleves.filter(e=>classes3eme.some(c=>c===e.classe)&&e.orientation_seconde==='Orienté')
+                    .sort((a,b)=>(parseFloat(b.moyenne_generale)||0)-(parseFloat(a.moyenne_generale)||0))
+                    .map((e,i)=>(
+                    <tr key={e.id} style={i%2===0?s.trPair:s.trImpair}>
+                      <td style={s.td}>{i+1}</td><td style={s.td}>{e.matricule}</td>
+                      <td style={s.td}><strong>{e.nom}</strong></td><td style={s.td}>{e.prenom}</td>
+                      <td style={s.td}><span style={e.sexe==='M'?s.badgeGarcon:e.sexe==='F'?s.badgeFille:{}}>{e.sexe||'-'}</span></td>
+                      <td style={s.td}><span style={s.badgeClasse}>{e.classe}</span></td>
+                      <td style={s.td}><strong style={{color:'#1e40af'}}>{e.moyenne_generale||'-'}</strong></td>
+                      <td style={s.td}>{e.nom_parent||'-'}</td>
+                      <td style={s.td}>{e.telephone1?<a href={`tel:${e.telephone1}`} style={s.telLink}>📞 {e.telephone1}</a>:'-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <br/>
+            <button onClick={imprimerListeOrientes} style={{...s.btnCalculer,background:'#1e40af'}}>🖨️ Imprimer liste orientés 2nde</button>
+          </div>
         </div>
       )}
+
 
       {/* ===== INSCRIPTION ===== */}
       {onglet==='inscription' && (
