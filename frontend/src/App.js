@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 
-const API = 'https://webscool.onrender.com/api';
+const API = 'http://localhost:5000/api';
 const MOT_DE_PASSE = 'dares2026';
 const ETABLISSEMENT = 'COLLÈGE MODERNE BOUAKÉ DAR ES SALAM';
 const ANNEE_SCOLAIRE = '2025-2026';
@@ -443,6 +443,20 @@ export default function App() {
   const [classeCible, setClasseCible] = useState('');
   const [elevesSelectionnesRepartition, setElevesSelectionnesRepartition] = useState([]);
   const [messageRepartition, setMessageRepartition] = useState('');
+  const [classesNouvelleAnnee, setClassesNouvelleAnnee] = useState([]);
+  const [classeNASelectionnee, setClasseNASelectionnee] = useState(null);
+  const [elevesNAClasse, setElevesNAClasse] = useState([]);
+  const [chargementNA, setChargementNA] = useState(false);
+
+  // ===== TRANSFÉRÉS =====
+  const [transferes, setTransferes] = useState([]);
+  const [effectifsClasses, setEffectifsClasses] = useState({});
+  const [messageTransfere, setMessageTransfere] = useState('');
+  const [importTransfereStatus, setImportTransfereStatus] = useState('');
+  const [importTransfereEnCours, setImportTransfereEnCours] = useState(false);
+  const [rechercheTransfere, setRechercheTransfere] = useState('');
+  const [niveauFiltreTransfere, setNiveauFiltreTransfere] = useState('');
+  const [editTransfere, setEditTransfere] = useState({});
 
   // ===== ARCHIVES =====
   const [anneesArchives, setAnneesArchives] = useState([]);
@@ -514,6 +528,85 @@ export default function App() {
     setMessageRepartition('❌ Erreur: ' + err.message); 
   }
 };
+
+  const chargerClassesNouvelleAnnee = async () => {
+    setChargementNA(true);
+    try {
+      const res = await axios.get(`${API}/eleves/nouvelle-annee/classes`);
+      setClassesNouvelleAnnee(res.data);
+    } catch (err) {
+      console.error('Erreur chargement classes nouvelle année:', err);
+    }
+    setChargementNA(false);
+  };
+
+  const voirClasseNA = async (nomClasse) => {
+    setClasseNASelectionnee(nomClasse);
+    try {
+      const res = await axios.get(`${API}/eleves/nouvelle-annee/classe/${nomClasse}`);
+      setElevesNAClasse(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const exporterClasseNAPDF = (nomClasse, elevesListe) => {
+    const lignes = elevesListe.map((e, i) => `
+      <tr>
+        <td style="padding:5px 8px;text-align:center;border:1px solid #ddd;">${i + 1}</td>
+        <td style="padding:5px 8px;font-family:monospace;font-size:11px;border:1px solid #ddd;">${e.matricule || '-'}</td>
+        <td style="padding:5px 8px;font-weight:bold;border:1px solid #ddd;">${e.nom || ''}</td>
+        <td style="padding:5px 8px;border:1px solid #ddd;">${e.prenom || ''}</td>
+        <td style="padding:5px 8px;text-align:center;border:1px solid #ddd;">${e.sexe || '-'}</td>
+        <td style="padding:5px 8px;text-align:center;border:1px solid #ddd;">${e.decision_fin_annee || '-'}</td>
+      </tr>`).join('');
+    const nbG = elevesListe.filter(e => e.sexe === 'M').length;
+    const nbF = elevesListe.filter(e => e.sexe === 'F').length;
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+      <title>Classe ${nomClasse}</title>
+      <style>body{font-family:Arial,sans-serif;margin:20px;font-size:12px;}
+      .entete{text-align:center;margin-bottom:20px;border-bottom:3px solid #1e3a5f;padding-bottom:12px;}
+      table{width:100%;border-collapse:collapse;}
+      thead{background:#1e3a5f;color:white;}
+      thead th{padding:8px;border:1px solid #ddd;font-size:11px;}
+      .stats{display:flex;gap:20px;margin-top:15px;padding:10px;background:#f0f4f8;border-radius:6px;flex-wrap:wrap;}
+      .footer{margin-top:30px;display:flex;justify-content:space-between;font-size:11px;border-top:1px solid #ddd;padding-top:10px;}
+      </style></head><body>
+      <div class="entete"><h2>${ETABLISSEMENT}</h2>
+      <h1>LISTE DE LA CLASSE ${nomClasse.toUpperCase()} — NOUVELLE ANNÉE</h1>
+      <p style="color:#64748b;">Année scolaire : ${ANNEE_SCOLAIRE}</p></div>
+      <table><thead><tr><th>N°</th><th>Matricule</th><th>Nom</th><th>Prénom</th><th>Sexe</th><th>Décision précédente</th></tr></thead>
+      <tbody>${lignes}</tbody></table>
+      <div class="stats">
+        <span>👥 Total : <strong>${elevesListe.length}</strong></span>
+        <span>👦 Garçons : <strong>${nbG}</strong></span>
+        <span>👧 Filles : <strong>${nbF}</strong></span>
+        <span style="color:green;">✅ Admis : <strong>${elevesListe.filter(e => e.decision_fin_annee === 'Admis').length}</strong></span>
+        <span style="color:orange;">🔄 Redoublants : <strong>${elevesListe.filter(e => e.decision_fin_annee === 'Redoublant').length}</strong></span>
+      </div>
+      <div class="footer"><span>Imprimé le : ${new Date().toLocaleDateString('fr-FR')}</span>
+      <span>Signature du Directeur : ________________</span></div>
+      <script>window.onload=function(){window.print();}</script>
+      </body></html>`;
+    const f = window.open('', '_blank'); f.document.write(html); f.document.close();
+  };
+
+  const exporterClasseNAExcel = (nomClasse, elevesListe) => {
+    const entetes = ['N°', 'Matricule', 'Nom', 'Prénom', 'Sexe', 'Nouvelle Classe', 'Décision précédente', 'MGA'];
+    const lignes = elevesListe.map((e, i) => [
+      i + 1, e.matricule || '', e.nom || '', e.prenom || '',
+      e.sexe || '', e.nouvelle_classe || '', e.decision_fin_annee || '', e.moyenne_generale || ''
+    ]);
+    const toutes = [entetes, ...lignes];
+    const csvContent = toutes.map(row =>
+      row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(';')
+    ).join('\n');
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `Classe_${nomClasse}_NouvelleAnnee.csv`; a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const reinitialiserAnnee = async () => {
     if (!window.confirm('⚠️ ATTENTION ! Cette action va effacer TOUT : tous les élèves, moyennes, inscriptions économat et éducateurs. Cette action est IRRÉVERSIBLE. Confirmer ?')) return;
@@ -1117,6 +1210,92 @@ export default function App() {
     chargerAnneesArchives();
   };
 
+  // ===== FONCTIONS TRANSFÉRÉS =====
+  const chargerTransferes = async () => {
+    try {
+      const res = await axios.get(`${API}/transferes`);
+      setTransferes(res.data);
+    } catch (err) { console.error(err); }
+  };
+
+  const chargerEffectifsClasses = async () => {
+    try {
+      const res = await axios.get(`${API}/transferes/effectifs`);
+      const map = {};
+      res.data.forEach(r => { map[r.classe] = parseInt(r.nb); });
+      setEffectifsClasses(map);
+    } catch (err) { console.error(err); }
+  };
+
+  const importerTransferes = async (fichier) => {
+    if (!fichier) return;
+    setImportTransfereEnCours(true);
+    setImportTransfereStatus('⏳ Lecture du fichier...');
+    try {
+      const XLSX = await import('xlsx');
+      const buffer = await fichier.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: 'array' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+      if (!rows || rows.length === 0) {
+        setImportTransfereStatus('❌ Fichier vide ou format non reconnu');
+        setImportTransfereEnCours(false);
+        return;
+      }
+      const res = await axios.post(`${API}/transferes/importer`, { rows });
+      setImportTransfereStatus(
+        `✅ ${res.data.importes} transférés importés !` +
+        (res.data.doublons > 0 ? ` ⚠️ ${res.data.doublons} doublon(s) ignoré(s).` : '')
+      );
+      chargerTransferes();
+    } catch (err) {
+      setImportTransfereStatus('❌ Erreur: ' + (err.response?.data?.erreur || err.message));
+    }
+    setImportTransfereEnCours(false);
+  };
+
+  const mettreAJourTransfere = async (id, champs) => {
+    try {
+      const res = await axios.put(`${API}/transferes/${id}`, champs);
+      setTransferes(prev => prev.map(t => t.id === id ? res.data : t));
+    } catch (err) { console.error(err); }
+  };
+
+  const validerTransfere = async (tr, classe) => {
+    if (!classe) { setMessageTransfere('⚠️ Choisissez une classe de destination'); return; }
+    try {
+      await axios.post(`${API}/transferes/${tr.id}/valider`, { classe });
+      setMessageTransfere(`✅ ${tr.nom} ${tr.prenoms} ajouté en ${classe} !`);
+      chargerTransferes();
+      chargerEffectifsClasses();
+      chargerEleves();
+      setTimeout(() => setMessageTransfere(''), 5000);
+    } catch (err) {
+      const msg = err.response?.data?.erreur || err.message;
+      setMessageTransfere(`❌ ${msg}`);
+      setTimeout(() => setMessageTransfere(''), 6000);
+    }
+  };
+
+  const supprimerTransfere = async (id) => {
+    if (!window.confirm('Supprimer ce transféré de la liste d\'attente ?')) return;
+    try {
+      await axios.delete(`${API}/transferes/${id}`);
+      setTransferes(prev => prev.filter(t => t.id !== id));
+    } catch (err) { alert('Erreur suppression'); }
+  };
+
+  // Suggestion de classe selon niveau + DFA
+  const suggererClasse = (niveau, dfa) => {
+    if (!niveau || !dfa) return '';
+    const n = niveau.toUpperCase();
+    const d = dfa;
+    if (n === '6EME') return d === 'Admis' ? '5eme' : '6eme';
+    if (n === '5EME') return d === 'Admis' ? '4eme' : '5eme';
+    if (n === '4EME') return d === 'Admis' ? '3eme' : '4eme';
+    if (n === '3EME') return d === 'Redoublant' ? '3eme' : '';
+    return '';
+  };
 
   if (!appChargee) {
 
@@ -1178,9 +1357,10 @@ export default function App() {
       <div style={s.nav}>
         {[['liste','👥 Élèves'],['formulaire','➕ Ajouter'],['importer','📤 Importer'],
           ['bepc','🎓 BEPC'],['inscription','💰 Inscription'],['photos','📷 Photos'],
-          ['educateurs','📋 Éducateurs'],['controle','🔍 Contrôle'],['repartition','🏫 Répartition'],['archives','🗂️ Archives']].map(([id,label])=>(
-          <button key={id} onClick={()=>{if(id==='archives'){allerArchives();}else{setOnglet(id);if(id==='formulaire')ouvrirFormulaire();}}}
-            style={onglet===id?s.navBtnActif:s.navBtn}>{label}</button>
+          ['educateurs','📋 Éducateurs'],['controle','🔍 Contrôle'],['repartition','🏫 Répartition'],
+          ['transferes','🔄 Transférés'],['archives','🗂️ Archives']].map(([id,label])=>(
+          <button key={id} onClick={()=>{if(id==='archives'){allerArchives();}else if(id==='transferes'){setOnglet(id);chargerTransferes();chargerEffectifsClasses();}else{setOnglet(id);if(id==='formulaire')ouvrirFormulaire();}}}
+            style={onglet===id?{...s.navBtnActif,background:'#b45309',borderColor:'#b45309'}:s.navBtn}>{label}</button>
         ))}
       </div>
 
@@ -2159,82 +2339,380 @@ export default function App() {
       {onglet==='repartition' && (
         <div style={s.contenu}>
           <h2 style={s.titrePage}>🏫 Répartition des classes — Nouvelle année</h2>
-          <div style={{background:'#fef3c7',border:'1.5px solid #fcd34d',borderRadius:'10px',padding:'1rem',marginBottom:'1.25rem'}}>
-            <p style={{fontWeight:'700',color:'#92400e',fontSize:'0.9rem',marginBottom:'4px'}}>ℹ️ Comment ça marche</p>
-            <p style={{fontSize:'0.82rem',color:'#64748b'}}>1. Choisissez la classe source → 2. Cochez les élèves Admis → 3. Choisissez la classe de destination → 4. Cliquez "Affecter"</p>
+
+          {/* Sous-onglets */}
+          <div style={s.sousNav}>
+            <button onClick={()=>setSousOngletRepartition('repartition')}
+              style={sousOngletRepartition==='repartition'?{...s.sousNavActif,background:'#1e3a5f',borderColor:'#1e3a5f'}:s.sousNavBtn}>
+              🔀 Répartition
+            </button>
+            <button onClick={()=>{setSousOngletRepartition('nouvelle-annee');chargerClassesNouvelleAnnee();}}
+              style={sousOngletRepartition==='nouvelle-annee'?{...s.sousNavActif,background:'#0f766e',borderColor:'#0f766e'}:s.sousNavBtn}>
+              🏫 Classes Nouvelle Année
+            </button>
           </div>
-          <div style={s.importCard}>
-            <div style={{display:'flex',gap:'1rem',marginBottom:'1rem',flexWrap:'wrap',alignItems:'center'}}>
-              <div>
-                <label style={{...s.label,marginBottom:'4px'}}>Classe source (actuelle)</label>
-                <select value={classeSource} onChange={e=>{setClasseSource(e.target.value);setElevesSelectionnesRepartition([]);}} style={s.selectClasse}>
-                  <option value="">-- Choisir --</option>
-                  {classes.map(c=><option key={c} value={c}>{c}</option>)}
-                </select>
+
+          {/* === Sous-onglet RÉPARTITION === */}
+          {sousOngletRepartition==='repartition' && (
+            <>
+              <div style={{background:'#fef3c7',border:'1.5px solid #fcd34d',borderRadius:'10px',padding:'1rem',marginBottom:'1.25rem'}}>
+                <p style={{fontWeight:'700',color:'#92400e',fontSize:'0.9rem',marginBottom:'4px'}}>ℹ️ Comment ça marche</p>
+                <p style={{fontSize:'0.82rem',color:'#64748b'}}>1. Choisissez la classe source → 2. Cochez les élèves Admis → 3. Choisissez la classe de destination → 4. Cliquez "Affecter"</p>
               </div>
-              <div style={{fontSize:'1.5rem',marginTop:'1.2rem'}}>→</div>
-              <div>
-                <label style={{...s.label,marginBottom:'4px'}}>Classe destination (nouvelle)</label>
-                <select value={classeCible} onChange={e=>setClasseCible(e.target.value)} style={s.selectClasse}>
-                  <option value="">-- Choisir --</option>
-                  {classes.map(c=><option key={c} value={c}>{c}</option>)}
-                </select>
+              <div style={s.importCard}>
+                <div style={{display:'flex',gap:'1rem',marginBottom:'1rem',flexWrap:'wrap',alignItems:'center'}}>
+                  <div>
+                    <label style={{...s.label,marginBottom:'4px'}}>Classe source (actuelle)</label>
+                    <select value={classeSource} onChange={e=>{setClasseSource(e.target.value);setElevesSelectionnesRepartition([]);}} style={s.selectClasse}>
+                      <option value="">-- Choisir --</option>
+                      {classes.map(c=><option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div style={{fontSize:'1.5rem',marginTop:'1.2rem'}}>→</div>
+                  <div>
+                    <label style={{...s.label,marginBottom:'4px'}}>Classe destination (nouvelle)</label>
+                    <select value={classeCible} onChange={e=>setClasseCible(e.target.value)} style={s.selectClasse}>
+                      <option value="">-- Choisir --</option>
+                      {classes.map(c=><option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div style={{marginTop:'1.2rem'}}>
+                    <button onClick={affecterClasseCible}
+                      style={{background:'#1e3a5f',color:'white',border:'none',borderRadius:'8px',padding:'0.6rem 1.2rem',cursor:'pointer',fontWeight:'700',fontSize:'0.9rem'}}>
+                      ✅ Affecter ({elevesSelectionnesRepartition.length} sélectionné{elevesSelectionnesRepartition.length>1?'s':''})
+                    </button>
+                  </div>
+                </div>
+                {messageRepartition && <div style={messageRepartition.includes('✅')?s.alertSucces:s.alertErreur}>{messageRepartition}</div>}
+                {classeSource && (
+                  <>
+                    <div style={{display:'flex',gap:'0.5rem',marginBottom:'0.75rem',alignItems:'center',flexWrap:'wrap'}}>
+                      <button onClick={()=>{
+                        const admis = eleves.filter(e=>e.classe===classeSource && e.decision_fin_annee==='Admis').map(e=>e.id);
+                        setElevesSelectionnesRepartition(admis);
+                      }} style={{...s.btnSecondaire,fontSize:'0.8rem',background:'#e8f5e9',color:'#1b5e20',borderColor:'#2e7d32'}}>✅ Sélectionner tous les Admis ({eleves.filter(e=>e.classe===classeSource && e.decision_fin_annee==='Admis').length})</button>
+                      <button onClick={()=>{
+                        const redoublants = eleves.filter(e=>e.classe===classeSource && e.decision_fin_annee==='Redoublant').map(e=>e.id);
+                        setElevesSelectionnesRepartition(redoublants);
+                      }} style={{...s.btnSecondaire,fontSize:'0.8rem',background:'#fff3e0',color:'#e65100',borderColor:'#ef6c00'}}>🔄 Sélectionner tous les Redoublants ({eleves.filter(e=>e.classe===classeSource && e.decision_fin_annee==='Redoublant').length})</button>
+                      <button onClick={()=>{
+                        const exclus = eleves.filter(e=>e.classe===classeSource && e.decision_fin_annee==='Exclu').map(e=>e.id);
+                        setElevesSelectionnesRepartition(exclus);
+                      }} style={{...s.btnSecondaire,fontSize:'0.8rem',background:'#ffebee',color:'#b71c1c',borderColor:'#c62828'}}>⛔ Sélectionner tous les Exclus ({eleves.filter(e=>e.classe===classeSource && e.decision_fin_annee==='Exclu').length})</button>
+                      <button onClick={()=>setElevesSelectionnesRepartition([])}
+                        style={{...s.btnSecondaire,fontSize:'0.8rem',color:'#64748b',borderColor:'#64748b'}}>✖ Désélectionner tout</button>
+                    </div>
+                    <div style={s.tableWrap}>
+                      <table style={s.table}>
+                        <thead style={s.tableHead}>
+                          <tr>
+                            <th style={s.th}>☑</th><th style={s.th}>Matricule</th><th style={s.th}>Nom</th>
+                            <th style={s.th}>Prénom</th><th style={s.th}>Sexe</th><th style={s.th}>Classe</th>
+                            <th style={s.th}>MGA</th><th style={s.th}>Décision</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {eleves.filter(e=>e.classe===classeSource).sort((a,b)=>(a.nom||'').localeCompare(b.nom||'')).map((e,i)=>(
+                            <tr key={e.id} style={{...(i%2===0?s.trPair:s.trImpair),cursor:'pointer'}}
+                              onClick={()=>toggleSelectionEleve(e.id)}>
+                              <td style={s.td}><input type="checkbox" checked={elevesSelectionnesRepartition.includes(e.id)} onChange={()=>toggleSelectionEleve(e.id)} style={{width:'16px',height:'16px',cursor:'pointer'}}/></td>
+                              <td style={s.td}>{e.matricule}</td>
+                              <td style={s.td}><strong>{e.nom}</strong></td><td style={s.td}>{e.prenom}</td>
+                              <td style={s.td}><span style={e.sexe==='M'?s.badgeGarcon:e.sexe==='F'?s.badgeFille:{}}>{e.sexe||'-'}</span></td>
+                              <td style={s.td}><span style={s.badgeClasse}>{e.classe}</span></td>
+                              <td style={s.td}><strong>{e.moyenne_generale||'-'}</strong></td>
+                              <td style={s.td}><span style={e.decision_fin_annee==='Admis'?s.badgeAdmis:e.decision_fin_annee==='Redoublant'?s.badgeRedoublant:s.badgeExclu}>{e.decision_fin_annee||'-'}</span></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+                {!classeSource && <div style={s.bilanVide}><p>Sélectionnez une classe source pour voir les élèves</p></div>}
               </div>
-              <div style={{marginTop:'1.2rem'}}>
-                <button onClick={affecterClasseCible}
-                  style={{background:'#1e3a5f',color:'white',border:'none',borderRadius:'8px',padding:'0.6rem 1.2rem',cursor:'pointer',fontWeight:'700',fontSize:'0.9rem'}}>
-                  ✅ Affecter ({elevesSelectionnesRepartition.length} sélectionné{elevesSelectionnesRepartition.length>1?'s':''})
-                </button>
+            </>
+          )}
+
+          {/* === Sous-onglet CLASSES NOUVELLE ANNÉE === */}
+          {sousOngletRepartition==='nouvelle-annee' && (
+            <div style={s.importCard}>
+              {chargementNA && <p style={{color:'#0f766e',fontWeight:'600'}}>⏳ Chargement des classes...</p>}
+
+              {/* Vue détail d'une classe */}
+              {classeNASelectionnee ? (
+                <>
+                  <div style={{display:'flex',gap:'1rem',alignItems:'center',marginBottom:'1rem',flexWrap:'wrap'}}>
+                    <button onClick={()=>{setClasseNASelectionnee(null);setElevesNAClasse([]);}}
+                      style={s.btnRetour}>← Retour aux classes</button>
+                    <h3 style={{margin:0,color:'#0f766e'}}>🏫 Classe {classeNASelectionnee} — {elevesNAClasse.length} élève(s)</h3>
+                    <button onClick={()=>exporterClasseNAPDF(classeNASelectionnee, elevesNAClasse)}
+                      style={{background:'#1e3a5f',color:'white',border:'none',borderRadius:'8px',padding:'0.5rem 1rem',cursor:'pointer',fontWeight:'600'}}>
+                      🖨️ Imprimer PDF
+                    </button>
+                    <button onClick={()=>exporterClasseNAExcel(classeNASelectionnee, elevesNAClasse)}
+                      style={{background:'#166534',color:'white',border:'none',borderRadius:'8px',padding:'0.5rem 1rem',cursor:'pointer',fontWeight:'600'}}>
+                      📊 Exporter CSV/Excel
+                    </button>
+                  </div>
+                  <div style={{display:'flex',gap:'1rem',marginBottom:'1rem',flexWrap:'wrap'}}>
+                    <span style={{...s.statPill,background:'#dbeafe'}}>👥 Total : <strong>{elevesNAClasse.length}</strong></span>
+                    <span style={{...s.statPill,background:'#dbeafe'}}>👦 Garçons : <strong>{elevesNAClasse.filter(e=>e.sexe==='M').length}</strong></span>
+                    <span style={{...s.statPill,background:'#fce7f3'}}>👧 Filles : <strong>{elevesNAClasse.filter(e=>e.sexe==='F').length}</strong></span>
+                    <span style={{...s.statPill,background:'#dcfce7'}}>✅ Admis : <strong>{elevesNAClasse.filter(e=>e.decision_fin_annee==='Admis').length}</strong></span>
+                    <span style={{...s.statPill,background:'#fef3c7'}}>🔄 Redoublants : <strong>{elevesNAClasse.filter(e=>e.decision_fin_annee==='Redoublant').length}</strong></span>
+                  </div>
+                  <div style={s.tableWrap}>
+                    <table style={s.table}>
+                      <thead style={{...s.tableHead,background:'#0f766e'}}>
+                        <tr>
+                          <th style={s.th}>#</th>
+                          <th style={s.th}>Matricule</th>
+                          <th style={s.th}>Nom</th>
+                          <th style={s.th}>Prénom</th>
+                          <th style={s.th}>Sexe</th>
+                          <th style={s.th}>Décision précédente</th>
+                          <th style={s.th}>MGA</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {elevesNAClasse.map((e,i)=>(
+                          <tr key={e.id} style={i%2===0?s.trPair:s.trImpair}>
+                            <td style={s.td}>{i+1}</td>
+                            <td style={{...s.td,fontFamily:'monospace',fontSize:'0.8rem'}}>{e.matricule||'-'}</td>
+                            <td style={s.td}><strong>{e.nom||''}</strong></td>
+                            <td style={s.td}>{e.prenom||''}</td>
+                            <td style={s.td}><span style={e.sexe==='M'?s.badgeGarcon:e.sexe==='F'?s.badgeFille:{}}>{e.sexe||'-'}</span></td>
+                            <td style={s.td}><span style={e.decision_fin_annee==='Admis'?s.badgeAdmis:e.decision_fin_annee==='Redoublant'?s.badgeRedoublant:e.decision_fin_annee==='Exclu'?s.badgeExclu:{}}>{e.decision_fin_annee||'-'}</span></td>
+                            <td style={{...s.td,textAlign:'center',fontWeight:'bold',color: e.moyenne_generale?(parseFloat(e.moyenne_generale)>=10?'#166534':'#991b1b'):'#94a3b8'}}>{e.moyenne_generale||'-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              ) : (
+                /* Vue grille de toutes les classes */
+                <>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem',flexWrap:'wrap',gap:'0.5rem'}}>
+                    <h3 style={{margin:0,color:'#0f766e'}}>🏫 Classes de la nouvelle année ({classesNouvelleAnnee.length} classes)</h3>
+                    <button onClick={chargerClassesNouvelleAnnee}
+                      style={{background:'#0f766e',color:'white',border:'none',borderRadius:'8px',padding:'0.5rem 1rem',cursor:'pointer',fontWeight:'600'}}>
+                      🔄 Actualiser
+                    </button>
+                  </div>
+                  {classesNouvelleAnnee.length === 0 && !chargementNA && (
+                    <div style={s.bilanVide}>
+                      <p>Aucune classe trouvée. Effectuez d'abord des affectations dans l'onglet "Répartition".</p>
+                    </div>
+                  )}
+                  <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))',gap:'1rem'}}>
+                    {classesNouvelleAnnee.map(cls=>(
+                      <div key={cls.nom} style={{background:'white',border:'2px solid #e2e8f0',borderRadius:'12px',padding:'1.25rem',boxShadow:'0 2px 8px rgba(0,0,0,0.06)',cursor:'pointer',transition:'border-color 0.2s'}}
+                        onMouseEnter={e=>e.currentTarget.style.borderColor='#0f766e'}
+                        onMouseLeave={e=>e.currentTarget.style.borderColor='#e2e8f0'}
+                        onClick={()=>voirClasseNA(cls.nom)}>
+                        <div style={{fontSize:'1.5rem',fontWeight:'bold',color:'#0f766e',marginBottom:'0.5rem'}}>{cls.nom}</div>
+                        <div style={{display:'flex',gap:'0.5rem',flexWrap:'wrap',marginBottom:'0.75rem'}}>
+                          <span style={{...s.statPill,background:'#dbeafe',fontSize:'0.78rem'}}>👥 {cls.nb_eleves}</span>
+                          <span style={{...s.statPill,background:'#dbeafe',fontSize:'0.78rem'}}>👦 {cls.nb_garcons}</span>
+                          <span style={{...s.statPill,background:'#fce7f3',fontSize:'0.78rem'}}>👧 {cls.nb_filles}</span>
+                        </div>
+                        <button onClick={e=>{e.stopPropagation();voirClasseNA(cls.nom);}}
+                          style={{width:'100%',background:'#0f766e',color:'white',border:'none',borderRadius:'6px',padding:'0.4rem 0',cursor:'pointer',fontWeight:'600',fontSize:'0.85rem'}}>
+                          👁️ Voir les élèves
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== TRANSFÉRÉS ===== */}
+      {onglet==='transferes' && (
+        <div style={s.contenu}>
+          <h2 style={s.titrePage}>🔄 Gestion des élèves transférés</h2>
+
+          {/* Bandeau effectifs classes */}
+          {Object.keys(effectifsClasses).length > 0 && (
+            <div style={{background:'#fef3c7',border:'1.5px solid #fcd34d',borderRadius:'10px',padding:'0.75rem 1rem',marginBottom:'1rem',overflowX:'auto'}}>
+              <p style={{fontWeight:'700',color:'#92400e',fontSize:'0.85rem',margin:'0 0 0.5rem'}}>📊 Effectifs actuels des classes</p>
+              <div style={{display:'flex',gap:'0.5rem',flexWrap:'wrap'}}>
+                {Object.entries(effectifsClasses).sort(([a],[b])=>a.localeCompare(b)).map(([cls,nb])=>(
+                  <span key={cls} style={{background:'white',border:'1px solid #fcd34d',borderRadius:'8px',padding:'3px 10px',fontSize:'0.82rem',fontWeight:'600',color:'#1e3a5f'}}>
+                    {cls} : <strong style={{color: nb>=40?'#dc2626':nb>=35?'#d97706':'#166534'}}>{nb}</strong>
+                  </span>
+                ))}
               </div>
             </div>
-            {messageRepartition && <div style={messageRepartition.includes('✅')?s.alertSucces:s.alertErreur}>{messageRepartition}</div>}
-            {classeSource && (
-              <>
-                <div style={{display:'flex',gap:'0.5rem',marginBottom:'0.75rem',alignItems:'center',flexWrap:'wrap'}}>
-                  <button onClick={()=>{
-                    const admis = eleves.filter(e=>e.classe===classeSource && e.decision_fin_annee==='Admis').map(e=>e.id);
-                    setElevesSelectionnesRepartition(admis);
-                  }} style={{...s.btnSecondaire,fontSize:'0.8rem',background:'#e8f5e9',color:'#1b5e20',borderColor:'#2e7d32'}}>✅ Sélectionner tous les Admis ({eleves.filter(e=>e.classe===classeSource && e.decision_fin_annee==='Admis').length})</button>
-                  <button onClick={()=>{
-                    const redoublants = eleves.filter(e=>e.classe===classeSource && e.decision_fin_annee==='Redoublant').map(e=>e.id);
-                    setElevesSelectionnesRepartition(redoublants);
-                  }} style={{...s.btnSecondaire,fontSize:'0.8rem',background:'#fff3e0',color:'#e65100',borderColor:'#ef6c00'}}>🔄 Sélectionner tous les Redoublants ({eleves.filter(e=>e.classe===classeSource && e.decision_fin_annee==='Redoublant').length})</button>
-                  <button onClick={()=>{
-                    const exclus = eleves.filter(e=>e.classe===classeSource && e.decision_fin_annee==='Exclu').map(e=>e.id);
-                    setElevesSelectionnesRepartition(exclus);
-                  }} style={{...s.btnSecondaire,fontSize:'0.8rem',background:'#ffebee',color:'#b71c1c',borderColor:'#c62828'}}>⛔ Sélectionner tous les Exclus ({eleves.filter(e=>e.classe===classeSource && e.decision_fin_annee==='Exclu').length})</button>
-                  <button onClick={()=>setElevesSelectionnesRepartition([])}
-                    style={{...s.btnSecondaire,fontSize:'0.8rem',color:'#64748b',borderColor:'#64748b'}}>✖ Désélectionner tout</button>
-                </div>
-                <div style={s.tableWrap}>
-                  <table style={s.table}>
-                    <thead style={s.tableHead}>
-                      <tr>
-                        <th style={s.th}>☑</th><th style={s.th}>Matricule</th><th style={s.th}>Nom</th>
-                        <th style={s.th}>Prénom</th><th style={s.th}>Sexe</th><th style={s.th}>Classe</th>
-                        <th style={s.th}>MGA</th><th style={s.th}>Décision</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {eleves.filter(e=>e.classe===classeSource).sort((a,b)=>(a.nom||'').localeCompare(b.nom||'')).map((e,i)=>(
-                        <tr key={e.id} style={{...(i%2===0?s.trPair:s.trImpair),cursor:'pointer'}}
-                          onClick={()=>toggleSelectionEleve(e.id)}>
-                          <td style={s.td}><input type="checkbox" checked={elevesSelectionnesRepartition.includes(e.id)} onChange={()=>toggleSelectionEleve(e.id)} style={{width:'16px',height:'16px',cursor:'pointer'}}/></td>
-                          <td style={s.td}>{e.matricule}</td>
-                          <td style={s.td}><strong>{e.nom}</strong></td><td style={s.td}>{e.prenom}</td>
-                          <td style={s.td}><span style={e.sexe==='M'?s.badgeGarcon:e.sexe==='F'?s.badgeFille:{}}>{e.sexe||'-'}</span></td>
-                          <td style={s.td}><span style={s.badgeClasse}>{e.classe}</span></td>
-                          <td style={s.td}><strong>{e.moyenne_generale||'-'}</strong></td>
-                          <td style={s.td}><span style={e.decision_fin_annee==='Admis'?s.badgeAdmis:e.decision_fin_annee==='Redoublant'?s.badgeRedoublant:s.badgeExclu}>{e.decision_fin_annee||'-'}</span></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            )}
-            {!classeSource && <div style={s.bilanVide}><p>Sélectionnez une classe source pour voir les élèves</p></div>}
+          )}
+
+          {messageTransfere && (
+            <div style={messageTransfere.includes('✅')?s.alertSucces:s.alertErreur}>{messageTransfere}</div>
+          )}
+
+          {/* Import fichier */}
+          <div style={{...s.importCard,marginBottom:'1rem'}}>
+            <h3 style={s.sectionTitre}>📤 Importer la liste des transférés (CSV/Excel)</h3>
+            <p style={{color:'#64748b',fontSize:'0.85rem',margin:'0 0 0.75rem'}}>
+              Colonnes attendues : <strong>matricule, nom, prenoms, niveau, lv2, etaborigine, etabfin</strong>
+            </p>
+            <div style={{display:'flex',gap:'1rem',alignItems:'center',flexWrap:'wrap'}}>
+              <input type="file" accept=".csv,.xls,.xlsx,.tsv"
+                onChange={e => { if(e.target.files[0]) importerTransferes(e.target.files[0]); }}
+                style={{padding:'0.5rem',border:'2px dashed #d97706',borderRadius:'8px',background:'#fffbeb',cursor:'pointer'}}/>
+              {importTransfereEnCours && <span style={{color:'#d97706',fontWeight:'600'}}>⏳ Import en cours...</span>}
+              {importTransfereStatus && <span style={importTransfereStatus.includes('✅')?{color:'#166534',fontWeight:'600'}:{color:'#991b1b',fontWeight:'600'}}>{importTransfereStatus}</span>}
+            </div>
           </div>
+
+          {/* Filtres */}
+          <div style={{...s.filtres,marginBottom:'0.75rem'}}>
+            <input placeholder="🔍 Rechercher nom ou prénom..." value={rechercheTransfere}
+              onChange={e=>setRechercheTransfere(e.target.value)} style={s.inputRecherche}/>
+            <select value={niveauFiltreTransfere} onChange={e=>setNiveauFiltreTransfere(e.target.value)} style={s.selectClasse}>
+              <option value="">Tous les niveaux</option>
+              {['6EME','5EME','4EME','3EME'].map(n=><option key={n} value={n}>{n}</option>)}
+            </select>
+            <span style={s.statPill}>⏳ En attente : <strong>{transferes.length}</strong></span>
+            <button onClick={()=>{chargerTransferes();chargerEffectifsClasses();}} style={{...s.btnSecondaire,fontSize:'0.85rem'}}>🔄 Actualiser</button>
+          </div>
+
+          {transferes.length === 0 ? (
+            <div style={s.bilanVide}><p>Aucun transféré en attente. Importez d'abord la liste Excel.</p></div>
+          ) : (
+            <div style={s.tableWrap}>
+              <table style={s.table}>
+                <thead style={{...s.tableHead,background:'#b45309'}}>
+                  <tr>
+                    <th style={s.th}>#</th>
+                    <th style={s.th}>Matricule</th>
+                    <th style={s.th}>Nom & Prénoms</th>
+                    <th style={s.th}>Niveau</th>
+                    <th style={s.th}>Établissement d'origine</th>
+                    <th style={s.th}>Sexe</th>
+                    <th style={s.th}>DFA</th>
+                    <th style={s.th}>LV2</th>
+                    <th style={s.th}>Classe destination</th>
+                    <th style={s.th}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {transferes
+                    .filter(t => {
+                      const q = rechercheTransfere.toLowerCase();
+                      const matchRecherche = !q || t.nom.toLowerCase().includes(q) || t.prenoms.toLowerCase().includes(q);
+                      const matchNiveau = !niveauFiltreTransfere || t.niveau === niveauFiltreTransfere;
+                      return matchRecherche && matchNiveau;
+                    })
+                    .map((t, i) => {
+                      const edit = editTransfere[t.id] || {};
+                      const dfa = edit.dfa !== undefined ? edit.dfa : (t.dfa || '');
+                      const lv2 = edit.lv2 !== undefined ? edit.lv2 : (t.lv2 || '');
+                      const sexe = edit.sexe !== undefined ? edit.sexe : (t.sexe || '');
+                      const classeEdit = edit.classe !== undefined ? edit.classe : '';
+                      const suggNiveau = suggererClasse(t.niveau, dfa);
+                      const besoinLV2 = t.niveau === '4EME' || t.niveau === '3EME';
+                      const est3emeAdmis = t.niveau === '3EME' && dfa === 'Admis';
+
+                      return (
+                        <tr key={t.id} style={{...(i%2===0?s.trPair:s.trImpair),borderLeft: est3emeAdmis?'4px solid #2563eb':'none'}}>
+                          <td style={s.td}>{i+1}</td>
+                          <td style={{...s.td,fontFamily:'monospace',fontSize:'0.78rem'}}>{t.matricule||'-'}</td>
+                          <td style={s.td}>
+                            <strong>{t.nom}</strong> {t.prenoms}
+                            {est3emeAdmis && <span style={{...s.badgeAdmis,display:'block',marginTop:'2px',fontSize:'0.7rem'}}>🎓 Orienté 2nde</span>}
+                          </td>
+                          <td style={{...s.td,textAlign:'center'}}>
+                            <span style={{background:'#dbeafe',color:'#1e40af',padding:'2px 8px',borderRadius:'12px',fontSize:'0.8rem',fontWeight:'700'}}>{t.niveau}</span>
+                          </td>
+                          <td style={{...s.td,fontSize:'0.78rem',maxWidth:'180px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}} title={t.etaborigine}>{t.etaborigine||'-'}</td>
+                          <td style={{...s.td,textAlign:'center'}}>
+                            <select value={sexe} onChange={e=>{
+                              const v = e.target.value;
+                              setEditTransfere(prev=>({...prev,[t.id]:{...prev[t.id],sexe:v}}));
+                              mettreAJourTransfere(t.id,{...t,sexe:v});
+                            }} style={{padding:'3px 6px',borderRadius:'6px',border:'1px solid #cbd5e1',fontSize:'0.82rem'}}>
+                              <option value="">-</option>
+                              <option value="M">M</option>
+                              <option value="F">F</option>
+                            </select>
+                          </td>
+                          <td style={{...s.td,textAlign:'center'}}>
+                            <select value={dfa} onChange={e=>{
+                              const v = e.target.value;
+                              setEditTransfere(prev=>({...prev,[t.id]:{...prev[t.id],dfa:v}}));
+                              mettreAJourTransfere(t.id,{...t,dfa:v});
+                            }} style={{padding:'3px 6px',borderRadius:'6px',border:'1px solid #cbd5e1',fontSize:'0.82rem',
+                              background:dfa==='Admis'?'#dcfce7':dfa==='Redoublant'?'#fef3c7':'white',
+                              fontWeight:'bold',color:dfa==='Admis'?'#166534':dfa==='Redoublant'?'#92400e':'#64748b'}}>
+                              <option value="">— DFA —</option>
+                              <option value="Admis">✅ Admis</option>
+                              <option value="Redoublant">🔄 Redoublant</option>
+                            </select>
+                          </td>
+                          <td style={{...s.td,textAlign:'center'}}>
+                            {besoinLV2 ? (
+                              <select value={lv2} onChange={e=>{
+                                const v = e.target.value;
+                                setEditTransfere(prev=>({...prev,[t.id]:{...prev[t.id],lv2:v}}));
+                                mettreAJourTransfere(t.id,{...t,lv2:v});
+                              }} style={{padding:'3px 6px',borderRadius:'6px',border:'1px solid #cbd5e1',fontSize:'0.82rem',
+                                background:lv2==='ALL'?'#ede9fe':lv2==='ESP'?'#fce7f3':'white',fontWeight:'bold'}}>
+                                <option value="">— LV2 —</option>
+                                <option value="ALL">🇩🇪 ALL</option>
+                                <option value="ESP">🇪🇸 ESP</option>
+                              </select>
+                            ) : <span style={{color:'#94a3b8',fontSize:'0.78rem'}}>N/A</span>}
+                          </td>
+                          <td style={{...s.td,minWidth:'160px'}}>
+                            {est3emeAdmis ? (
+                              <span style={{color:'#2563eb',fontSize:'0.82rem',fontStyle:'italic'}}>Hors collège</span>
+                            ) : (
+                              <div>
+                                {suggNiveau && <p style={{fontSize:'0.72rem',color:'#64748b',margin:'0 0 3px'}}>💡 Suggestion : <strong>{suggNiveau}x</strong></p>}
+                                <select value={classeEdit} onChange={e=>setEditTransfere(prev=>({...prev,[t.id]:{...prev[t.id],classe:e.target.value}}))}
+                                  style={{padding:'4px 6px',borderRadius:'6px',border:'2px solid #b45309',fontSize:'0.82rem',width:'100%'}}>
+                                  <option value="">-- Choisir classe --</option>
+                                  {classes.filter(c=>c.toLowerCase().startsWith(suggNiveau.toLowerCase())).map(c=>(
+                                    <option key={c} value={c}>{c} ({effectifsClasses[c]||0} élèves)</option>
+                                  ))}
+                                  <optgroup label="── Autres classes ──">
+                                    {classes.filter(c=>!c.toLowerCase().startsWith(suggNiveau.toLowerCase())).map(c=>(
+                                      <option key={c} value={c}>{c} ({effectifsClasses[c]||0} élèves)</option>
+                                    ))}
+                                  </optgroup>
+                                </select>
+                              </div>
+                            )}
+                          </td>
+                          <td style={{...s.td,whiteSpace:'nowrap'}}>
+                            {est3emeAdmis ? (
+                              <button onClick={()=>supprimerTransfere(t.id)}
+                                style={{...s.btnSupprimer,fontSize:'0.78rem',padding:'3px 7px'}}>🗑️ Retirer</button>
+                            ) : (
+                              <>
+                                <button onClick={()=>validerTransfere(t, classeEdit)}
+                                  disabled={!classeEdit || !dfa}
+                                  style={{...s.btnPayer,fontSize:'0.78rem',padding:'4px 8px',marginRight:'4px',opacity:(!classeEdit||!dfa)?0.5:1}}>
+                                  ✅ Valider
+                                </button>
+                                <button onClick={()=>supprimerTransfere(t.id)}
+                                  style={{...s.btnSupprimer,fontSize:'0.78rem',padding:'3px 7px'}}>🗑️</button>
+                              </>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 

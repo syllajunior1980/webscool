@@ -265,3 +265,73 @@ router.put('/orientation/:id', async (req, res) => {
     res.json(result.rows[0]);
   } catch (err) { res.status(500).json({ erreur: err.message }); }
 });
+// ============================================================
+// À AJOUTER dans backend/routes/eleves.js
+// Juste avant la ligne : module.exports = router;
+// ============================================================
+
+// GET classes de la nouvelle année (groupées par classe avec leurs élèves)
+// Retourne toutes les classes distinctes avec le détail de chaque élève
+router.get('/nouvelle-annee/classes', async (req, res) => {
+  try {
+    // Récupérer toutes les classes distinctes
+    const classesResult = await pool.query(
+      `SELECT DISTINCT classe, COUNT(*) as nb_eleves 
+       FROM eleves 
+       WHERE classe IS NOT NULL AND classe != ''
+       GROUP BY classe 
+       ORDER BY classe`
+    );
+
+    const classes = [];
+
+    for (const row of classesResult.rows) {
+      // Pour chaque classe, récupérer les élèves avec leurs infos
+      const elevesResult = await pool.query(
+        `SELECT 
+          id, matricule, nom, prenom, sexe,
+          classe as nouvelle_classe,
+          decision_fin_annee,
+          moyenne_generale,
+          photo_url
+         FROM eleves
+         WHERE classe = $1
+         ORDER BY nom, prenom`,
+        [row.classe]
+      );
+
+      classes.push({
+        nom: row.classe,
+        nb_eleves: parseInt(row.nb_eleves),
+        nb_garcons: elevesResult.rows.filter(e => e.sexe === 'M').length,
+        nb_filles: elevesResult.rows.filter(e => e.sexe === 'F').length,
+        eleves: elevesResult.rows
+      });
+    }
+
+    res.json(classes);
+  } catch (err) {
+    res.status(500).json({ erreur: err.message });
+  }
+});
+
+// GET élèves d'une classe spécifique pour la nouvelle année
+router.get('/nouvelle-annee/classe/:classe', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT 
+        id, matricule, nom, prenom, sexe,
+        classe as nouvelle_classe,
+        decision_fin_annee,
+        moyenne_generale,
+        photo_url
+       FROM eleves
+       WHERE classe = $1
+       ORDER BY nom, prenom`,
+      [req.params.classe]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ erreur: err.message });
+  }
+});
