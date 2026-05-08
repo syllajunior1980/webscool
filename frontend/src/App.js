@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 
 const API = 'https://webscool.onrender.com/api';
@@ -86,6 +86,10 @@ export default function App() {
   const [aperçuImport, setAperçuImport] = useState([]);
   const [colonnesDetectees, setColonnesDetectees] = useState([]);
   const [afficherAperçu, setAfficherAperçu] = useState(false);
+
+  // Statistiques
+  const [stats, setStats] = useState(null);
+  const [statsChargement, setStatsChargement] = useState(false);
 
   // Wake-up du serveur au chargement initial
   useEffect(() => {
@@ -1165,6 +1169,15 @@ export default function App() {
     } catch (err) { console.error(err); }
   };
 
+  const chargerStats = async () => {
+    setStatsChargement(true);
+    try {
+      const res = await axios.get(`${API}/statistiques`);
+      setStats(res.data);
+    } catch (err) { console.error(err); }
+    setStatsChargement(false);
+  };
+
   const chargerElevesArchive = async (annee) => {
     try {
       const res = await axios.get(`${API}/archives/${annee}`);
@@ -1232,22 +1245,43 @@ export default function App() {
     setImportTransfereEnCours(true);
     setImportTransfereStatus('⏳ Lecture du fichier...');
     try {
-      const XLSX = await import('xlsx');
-      const buffer = await fichier.arrayBuffer();
-      const workbook = XLSX.read(buffer, { type: 'array' });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-      if (!rows || rows.length === 0) {
-        setImportTransfereStatus('❌ Fichier vide ou format non reconnu');
-        setImportTransfereEnCours(false);
-        return;
+      const nom = fichier.name.toLowerCase();
+      let rows = [];
+
+      if (nom.endsWith('.xls') || nom.endsWith('.xlsx')) {
+        // Lecture fichier Excel binaire
+        const XLSX = await import('xlsx');
+        const buffer = await fichier.arrayBuffer();
+        const wb = XLSX.read(buffer, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      } else {
+        // Lecture CSV/TSV
+        const text = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = e => resolve(e.target.result);
+          reader.onerror = () => reject(new Error('Lecture impossible'));
+          reader.readAsText(fichier, 'UTF-8');
+        });
+        const cleanText = text.replace(/^\uFEFF/, '');
+        const lines = cleanText.split(/\r?\n/).filter(l => l.trim());
+        if (lines.length < 2) { setImportTransfereStatus('❌ Fichier vide'); setImportTransfereEnCours(false); return; }
+        const sep = lines[0].includes(';') ? ';' : lines[0].includes('\t') ? '\t' : ',';
+        const headers = lines[0].split(sep).map(h => h.trim().replace(/^"|"$/g, ''));
+        rows = lines.slice(1).map(l => {
+          const vals = l.split(sep).map(v => v.trim().replace(/^"|"$/g, ''));
+          const obj = {};
+          headers.forEach((h, i) => { obj[h] = vals[i] || ''; });
+          return obj;
+        }).filter(r => Object.values(r).some(v => v));
       }
+
+      if (rows.length === 0) { setImportTransfereStatus('❌ Aucune donnée trouvée dans le fichier'); setImportTransfereEnCours(false); return; }
+
       const res = await axios.post(`${API}/transferes/importer`, { rows });
-      setImportTransfereStatus(
-        `✅ ${res.data.importes} transférés importés !` +
-        (res.data.doublons > 0 ? ` ⚠️ ${res.data.doublons} doublon(s) ignoré(s).` : '')
-      );
+      setImportTransfereStatus(`✅ ${res.data.importes} transférés importés !${res.data.doublons > 0 ? ` ⚠️ ${res.data.doublons} doublon(s) ignoré(s).` : ''}`);
       chargerTransferes();
+      chargerEffectifsClasses();
     } catch (err) {
       setImportTransfereStatus('❌ Erreur: ' + (err.response?.data?.erreur || err.message));
     }
@@ -1358,8 +1392,8 @@ export default function App() {
         {[['liste','👥 Élèves'],['formulaire','➕ Ajouter'],['importer','📤 Importer'],
           ['bepc','🎓 BEPC'],['inscription','💰 Inscription'],['photos','📷 Photos'],
           ['educateurs','📋 Éducateurs'],['controle','🔍 Contrôle'],['repartition','🏫 Répartition'],
-          ['transferes','🔄 Transférés'],['archives','🗂️ Archives']].map(([id,label])=>(
-          <button key={id} onClick={()=>{if(id==='archives'){allerArchives();}else if(id==='transferes'){setOnglet(id);chargerTransferes();chargerEffectifsClasses();}else{setOnglet(id);if(id==='formulaire')ouvrirFormulaire();}}}
+          ['transferes','🔄 Transférés'],['archives','🗂️ Archives'],['statistiques','📊 Statistiques']].map(([id,label])=>(
+          <button key={id} onClick={()=>{if(id==='archives'){allerArchives();}else if(id==='transferes'){setOnglet(id);chargerTransferes();chargerEffectifsClasses();}else if(id==='statistiques'){setOnglet(id);chargerStats();}else{setOnglet(id);if(id==='formulaire')ouvrirFormulaire();}}}
             style={onglet===id?{...s.navBtnActif,background:'#b45309',borderColor:'#b45309'}:s.navBtn}>{label}</button>
         ))}
       </div>
@@ -2969,6 +3003,155 @@ export default function App() {
           )}
         </div>
       )}
+      {/* ===== STATISTIQUES ===== */}
+      {onglet==='statistiques' && (
+        <div style={{padding:'1rem 1.2rem'}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1.2rem',flexWrap:'wrap',gap:'0.75rem'}}>
+            <h2 style={{margin:0,color:'#1e3a5f',fontSize:'1.3rem'}}>📊 Tableaux Statistiques</h2>
+            <button onClick={chargerStats} disabled={statsChargement}
+              style={{background:'#2563eb',color:'white',border:'none',borderRadius:'8px',padding:'0.5rem 1.2rem',cursor:'pointer',fontWeight:'600',fontSize:'0.9rem'}}>
+              {statsChargement ? '⏳ Chargement...' : '🔄 Actualiser'}
+            </button>
+          </div>
+
+          {statsChargement && (
+            <div style={{textAlign:'center',padding:'3rem',color:'#64748b',fontSize:'1rem'}}>
+              ⏳ Calcul des statistiques en cours...
+            </div>
+          )}
+
+          {!statsChargement && !stats && (
+            <div style={{textAlign:'center',padding:'3rem',color:'#94a3b8'}}>
+              Cliquez sur <strong>Actualiser</strong> pour charger les statistiques.
+            </div>
+          )}
+
+          {!statsChargement && stats && (() => {
+            const CLASSES_6 = ['6ème1','6ème2','6ème3','6ème4','6ème5','6ème6','6ème7','6ème8'];
+            const CLASSES_5 = ['5ème1','5ème2','5ème3','5ème4','5ème5'];
+            const CLASSES_4 = ['4ème1','4ème2','4ème3','4ème4','4ème5'];
+            const CLASSES_3 = ['3ème1','3ème2','3ème3','3ème4','3ème5','3ème6','3ème7'];
+            const NIVEAUX = [
+              { label:'6ème', classes: CLASSES_6 },
+              { label:'5ème', classes: CLASSES_5 },
+              { label:'4ème', classes: CLASSES_4 },
+              { label:'3ème', classes: CLASSES_3 },
+            ];
+            const pct = (n,d) => d > 0 ? (n/d*100).toFixed(1)+'%' : '—';
+            const sTable = {width:'100%',borderCollapse:'collapse',fontSize:'0.82rem',background:'white',borderRadius:'10px',overflow:'hidden',boxShadow:'0 2px 10px rgba(0,0,0,0.08)'};
+            const sTitre = {background:'#1B3A6B',color:'white',padding:'0.7rem 1rem',fontWeight:'700',fontSize:'1rem',borderRadius:'8px 8px 0 0',textAlign:'left'};
+            const thBase = {padding:'0.5rem 0.4rem',textAlign:'center',color:'white',fontWeight:'700',fontSize:'0.8rem',border:'1px solid rgba(255,255,255,0.2)'};
+            const thClasse = {...thBase,background:'#1B3A6B',width:'110px',textAlign:'left',paddingLeft:'0.6rem'};
+            const tdBase = {padding:'0.45rem 0.4rem',textAlign:'center',border:'1px solid #e2e8f0',fontSize:'0.82rem'};
+            const tdClasse = {...tdBase,textAlign:'left',paddingLeft:'0.6rem',fontWeight:'500',color:'#1e3a5f'};
+            const trPair = {background:'#EAF2FF'};
+            const trImpair = {background:'white'};
+            const trSub = {background:'#D5F5E3'};
+            const trTotal = {background:'#1B3A6B'};
+            const tdTotal = {...tdBase,color:'white',fontWeight:'700',background:'transparent'};
+            const tdSub = {...tdBase,fontWeight:'700',color:'#145A32'};
+            const GFTHeaders = (bg) => (<><th style={{...thBase,background:bg}}>G</th><th style={{...thBase,background:bg}}>F</th><th style={{...thBase,background:bg}}>T</th></>);
+            const GFTCells = (obj, st={}) => {
+              if (!obj) return <><td style={{...tdBase,...st}}>0</td><td style={{...tdBase,...st}}>0</td><td style={{...tdBase,...st}}>0</td></>;
+              return (<><td style={{...tdBase,...st}}>{obj.g||0}</td><td style={{...tdBase,...st}}>{obj.f||0}</td><td style={{...tdBase,...st,fontWeight:'600'}}>{obj.t||0}</td></>);
+            };
+            return (
+              <div style={{display:'flex',flexDirection:'column',gap:'2rem'}}>
+
+                {/* TABLEAU 1 — QUALITE ELEVE */}
+                <div>
+                  <div style={sTitre}>1.  QUALITÉ ÉLÈVE  —  Redoublants / Non Redoublants par Sexe et par Classe</div>
+                  <div style={{overflowX:'auto'}}>
+                    <table style={sTable}>
+                      <thead>
+                        <tr>
+                          <th style={thClasse} rowSpan={2}>Classe</th>
+                          <th style={{...thBase,background:'#5D6D7E'}} colSpan={3}>EFFECTIF TOTAL</th>
+                          <th style={{...thBase,background:'#F39C12'}} colSpan={3}>REDOUBLANTS</th>
+                          <th style={{...thBase,background:'#2E75B6'}} colSpan={3}>NON REDOUBLANTS</th>
+                          <th style={{...thBase,background:'#5D6D7E'}} colSpan={2}>% REDOUBLANTS</th>
+                        </tr>
+                        <tr>{GFTHeaders('#7F8C8D')}{GFTHeaders('#E67E22')}{GFTHeaders('#2980B9')}<th style={{...thBase,background:'#7F8C8D'}}>G%</th><th style={{...thBase,background:'#7F8C8D'}}>T%</th></tr>
+                      </thead>
+                      <tbody>
+                        {NIVEAUX.map(({label,classes})=>[
+                          ...classes.map((cl,i)=>{
+                            const d=stats.tableau1.classes[cl];
+                            if(!d) return null;
+                            return (<tr key={cl} style={i%2===0?trPair:trImpair}><td style={tdClasse}>{cl}</td>{GFTCells(d.effectif)}{GFTCells(d.redoublants)}{GFTCells(d.non_redoublants)}<td style={tdBase}>{pct(d.redoublants?.g||0,d.effectif?.g||0)}</td><td style={{...tdBase,fontWeight:'600'}}>{pct(d.redoublants?.t||0,d.effectif?.t||0)}</td></tr>);
+                          }),
+                          (()=>{const st=stats.tableau1.sousTotal[label];return(<tr key={`st1-${label}`} style={trSub}><td style={{...tdClasse,...tdSub}}>Sous-total {label}</td>{GFTCells(st?.effectif,{fontWeight:'700',color:'#145A32'})}{GFTCells(st?.redoublants,{fontWeight:'700',color:'#145A32'})}{GFTCells(st?.non_redoublants,{fontWeight:'700',color:'#145A32'})}<td style={{...tdSub,textAlign:'center'}}>{pct(st?.redoublants?.g||0,st?.effectif?.g||0)}</td><td style={{...tdSub,textAlign:'center'}}>{pct(st?.redoublants?.t||0,st?.effectif?.t||0)}</td></tr>);})()
+                        ])}
+                        <tr style={trTotal}><td style={{...tdTotal,textAlign:'left',paddingLeft:'0.6rem'}}>TOTAL GÉNÉRAL</td>{GFTCells(stats.tableau1.total?.effectif,{color:'white',fontWeight:'700',background:'transparent'})}{GFTCells(stats.tableau1.total?.redoublants,{color:'white',fontWeight:'700',background:'transparent'})}{GFTCells(stats.tableau1.total?.non_redoublants,{color:'white',fontWeight:'700',background:'transparent'})}<td style={tdTotal}>{pct(stats.tableau1.total?.redoublants?.g||0,stats.tableau1.total?.effectif?.g||0)}</td><td style={tdTotal}>{pct(stats.tableau1.total?.redoublants?.t||0,stats.tableau1.total?.effectif?.t||0)}</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* TABLEAU 2 — RESULTATS SCOLAIRES DFA */}
+                <div>
+                  <div style={sTitre}>2.  RÉSULTATS SCOLAIRES  —  DFA par Classe et par Sexe</div>
+                  <div style={{overflowX:'auto'}}>
+                    <table style={sTable}>
+                      <thead>
+                        <tr>
+                          <th style={thClasse} rowSpan={2}>Classe</th>
+                          <th style={{...thBase,background:'#5D6D7E'}} colSpan={3}>EFFECTIF</th>
+                          <th style={{...thBase,background:'#17A589'}} colSpan={3}>ADMIS</th>
+                          <th style={{...thBase,background:'#F39C12'}} colSpan={3}>REDOUBLÉS</th>
+                          <th style={{...thBase,background:'#C0392B'}} colSpan={3}>EXCLUS</th>
+                          <th style={{...thBase,background:'#5D6D7E'}} colSpan={2}>TAUX ADMIS</th>
+                        </tr>
+                        <tr>{GFTHeaders('#7F8C8D')}{GFTHeaders('#1ABC9C')}{GFTHeaders('#E67E22')}{GFTHeaders('#E74C3C')}<th style={{...thBase,background:'#7F8C8D'}}>G%</th><th style={{...thBase,background:'#7F8C8D'}}>T%</th></tr>
+                      </thead>
+                      <tbody>
+                        {NIVEAUX.map(({label,classes})=>[
+                          ...classes.map((cl,i)=>{
+                            const d=stats.tableau2.classes[cl];
+                            if(!d) return null;
+                            return (<tr key={cl} style={i%2===0?trPair:trImpair}><td style={tdClasse}>{cl}</td>{GFTCells(d.effectif)}{GFTCells(d.admis)}{GFTCells(d.redoubles)}{GFTCells(d.exclus)}<td style={tdBase}>{pct(d.admis?.g||0,d.effectif?.g||0)}</td><td style={{...tdBase,fontWeight:'600'}}>{pct(d.admis?.t||0,d.effectif?.t||0)}</td></tr>);
+                          }),
+                          (()=>{const st=stats.tableau2.sousTotal[label];return(<tr key={`st2-${label}`} style={trSub}><td style={{...tdClasse,...tdSub}}>Sous-total {label}</td>{GFTCells(st?.effectif,{fontWeight:'700',color:'#145A32'})}{GFTCells(st?.admis,{fontWeight:'700',color:'#145A32'})}{GFTCells(st?.redoubles,{fontWeight:'700',color:'#145A32'})}{GFTCells(st?.exclus,{fontWeight:'700',color:'#145A32'})}<td style={{...tdSub,textAlign:'center'}}>{pct(st?.admis?.g||0,st?.effectif?.g||0)}</td><td style={{...tdSub,textAlign:'center'}}>{pct(st?.admis?.t||0,st?.effectif?.t||0)}</td></tr>);})()
+                        ])}
+                        <tr style={trTotal}><td style={{...tdTotal,textAlign:'left',paddingLeft:'0.6rem'}}>TOTAL GÉNÉRAL</td>{GFTCells(stats.tableau2.total?.effectif,{color:'white',fontWeight:'700',background:'transparent'})}{GFTCells(stats.tableau2.total?.admis,{color:'white',fontWeight:'700',background:'transparent'})}{GFTCells(stats.tableau2.total?.redoubles,{color:'white',fontWeight:'700',background:'transparent'})}{GFTCells(stats.tableau2.total?.exclus,{color:'white',fontWeight:'700',background:'transparent'})}<td style={tdTotal}>{pct(stats.tableau2.total?.admis?.g||0,stats.tableau2.total?.effectif?.g||0)}</td><td style={tdTotal}>{pct(stats.tableau2.total?.admis?.t||0,stats.tableau2.total?.effectif?.t||0)}</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* TABLEAU 3 — BEPC */}
+                <div>
+                  <div style={sTitre}>3.  RÉSULTATS BEPC  —  Admis et Orientés en 2nde par Sexe  (Classes de 3ème)</div>
+                  <div style={{overflowX:'auto'}}>
+                    <table style={sTable}>
+                      <thead>
+                        <tr>
+                          <th style={thClasse} rowSpan={2}>Classe</th>
+                          <th style={{...thBase,background:'#5D6D7E'}} colSpan={3}>INSCRITS BEPC</th>
+                          <th style={{...thBase,background:'#2E75B6'}} colSpan={3}>ADMIS BEPC</th>
+                          <th style={{...thBase,background:'#F39C12'}} colSpan={3}>ORIENTÉS EN 2NDE</th>
+                          <th style={{...thBase,background:'#5D6D7E'}} colSpan={2}>TAUX RÉUSSITE</th>
+                        </tr>
+                        <tr>{GFTHeaders('#7F8C8D')}{GFTHeaders('#2980B9')}{GFTHeaders('#E67E22')}<th style={{...thBase,background:'#7F8C8D'}}>G%</th><th style={{...thBase,background:'#7F8C8D'}}>T%</th></tr>
+                      </thead>
+                      <tbody>
+                        {CLASSES_3.map((cl,i)=>{
+                          const d=stats.tableau3.classes[cl];
+                          if(!d) return null;
+                          return (<tr key={cl} style={i%2===0?trPair:trImpair}><td style={tdClasse}>{cl}</td>{GFTCells(d.inscrits)}{GFTCells(d.admis)}{GFTCells(d.orientes)}<td style={tdBase}>{pct(d.admis?.g||0,d.inscrits?.g||0)}</td><td style={{...tdBase,fontWeight:'600'}}>{pct(d.admis?.t||0,d.inscrits?.t||0)}</td></tr>);
+                        })}
+                        <tr style={trTotal}><td style={{...tdTotal,textAlign:'left',paddingLeft:'0.6rem'}}>TOTAL 3ème</td>{GFTCells(stats.tableau3.total?.inscrits,{color:'white',fontWeight:'700',background:'transparent'})}{GFTCells(stats.tableau3.total?.admis,{color:'white',fontWeight:'700',background:'transparent'})}{GFTCells(stats.tableau3.total?.orientes,{color:'white',fontWeight:'700',background:'transparent'})}<td style={tdTotal}>{pct(stats.tableau3.total?.admis?.g||0,stats.tableau3.total?.inscrits?.g||0)}</td><td style={tdTotal}>{pct(stats.tableau3.total?.admis?.t||0,stats.tableau3.total?.inscrits?.t||0)}</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
     </div>
   );
 }

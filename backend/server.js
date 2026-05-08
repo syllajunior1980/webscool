@@ -8,6 +8,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 const path = require('path');
 app.use('/photos', express.static(path.join(__dirname, 'uploads/photos')));
+app.use('/api/statistiques', require('./routes/statistiques'));
 
 // ============================================================
 // MIGRATION AUTOMATIQUE — Ajoute les colonnes manquantes
