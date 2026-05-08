@@ -3027,15 +3027,15 @@ export default function App() {
           )}
 
           {!statsChargement && stats && (() => {
-            const CLASSES_6 = ['6ème1','6ème2','6ème3','6ème4','6ème5','6ème6','6ème7','6ème8'];
-            const CLASSES_5 = ['5ème1','5ème2','5ème3','5ème4','5ème5'];
-            const CLASSES_4 = ['4ème1','4ème2','4ème3','4ème4','4ème5'];
-            const CLASSES_3 = ['3ème1','3ème2','3ème3','3ème4','3ème5','3ème6','3ème7'];
+            const CLASSES_6 = ['6eme1','6eme2','6eme3','6eme4','6eme5','6eme6','6eme7','6eme8'];
+            const CLASSES_5 = ['5eme1','5eme2','5eme3','5eme4','5eme5'];
+            const CLASSES_4 = ['4eme1','4eme2','4eme3','4eme4','4eme5'];
+            const CLASSES_3 = ['3eme1','3eme2','3eme3','3eme4','3eme5','3eme6','3eme7'];
             const NIVEAUX = [
-              { label:'6ème', classes: CLASSES_6 },
-              { label:'5ème', classes: CLASSES_5 },
-              { label:'4ème', classes: CLASSES_4 },
-              { label:'3ème', classes: CLASSES_3 },
+              { label:'6eme', classes: CLASSES_6 },
+              { label:'5eme', classes: CLASSES_5 },
+              { label:'4eme', classes: CLASSES_4 },
+              { label:'3eme', classes: CLASSES_3 },
             ];
             const pct = (n,d) => d > 0 ? (n/d*100).toFixed(1)+'%' : '—';
             const sTable = {width:'100%',borderCollapse:'collapse',fontSize:'0.82rem',background:'white',borderRadius:'10px',overflow:'hidden',boxShadow:'0 2px 10px rgba(0,0,0,0.08)'};
