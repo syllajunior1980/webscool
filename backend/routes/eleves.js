@@ -42,15 +42,34 @@ router.get('/classe/:classe', async (req, res) => {
 });
 
 // POST calculer MGA et DFA
+// Règle : moyenne = 21 ou NULL → trimestre non classé, ignoré dans le calcul
+// Coefficients : T1=1, T2=2, T3=3 — seuls les trimestres classés comptent
 router.post('/calculer-moyennes', async (req, res) => {
   try {
     const eleves = await pool.query(
-      'SELECT id, moyenne_t1, moyenne_t2, moyenne_t3 FROM eleves WHERE moyenne_t1 IS NOT NULL AND moyenne_t2 IS NOT NULL AND moyenne_t3 IS NOT NULL'
+      'SELECT id, moyenne_t1, moyenne_t2, moyenne_t3 FROM eleves WHERE moyenne_t1 IS NOT NULL OR moyenne_t2 IS NOT NULL OR moyenne_t3 IS NOT NULL'
     );
     let mis_a_jour = 0, admis = 0, redoublants = 0, exclus = 0;
     for (const eleve of eleves.rows) {
-      const mga = (parseFloat(eleve.moyenne_t1) + parseFloat(eleve.moyenne_t2) + parseFloat(eleve.moyenne_t3)) / 3;
-      const mga_arrondi = Math.round(mga * 100) / 100;
+      // Convertir : NULL ou 21 → non classé (ignoré)
+      const raw1 = eleve.moyenne_t1 !== null ? parseFloat(eleve.moyenne_t1) : null;
+      const raw2 = eleve.moyenne_t2 !== null ? parseFloat(eleve.moyenne_t2) : null;
+      const raw3 = eleve.moyenne_t3 !== null ? parseFloat(eleve.moyenne_t3) : null;
+
+      const t1 = (raw1 === null || raw1 === 21) ? null : raw1;
+      const t2 = (raw2 === null || raw2 === 21) ? null : raw2;
+      const t3 = (raw3 === null || raw3 === 21) ? null : raw3;
+
+      // Calcul pondéré uniquement sur les trimestres classés
+      let somme = 0, poids = 0;
+      if (t1 !== null) { somme += t1 * 1; poids += 1; }
+      if (t2 !== null) { somme += t2 * 2; poids += 2; }
+      if (t3 !== null) { somme += t3 * 3; poids += 3; }
+
+      // Aucun trimestre valide → on saute
+      if (poids === 0) continue;
+
+      const mga_arrondi = Math.round((somme / poids) * 100) / 100;
       let dfa = '';
       if (mga_arrondi < 8.5) { dfa = 'Exclu'; exclus++; }
       else if (mga_arrondi < 10) { dfa = 'Redoublant'; redoublants++; }
