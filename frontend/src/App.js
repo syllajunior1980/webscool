@@ -33,6 +33,10 @@ export default function App() {
   const [importElevesStatus, setImportElevesStatus] = useState('');
   const [importElevesEnCours, setImportElevesEnCours] = useState(false);
   const [calcEnCours, setCalcEnCours] = useState(false);
+  // ===== IMPORT MGA + DFA =====
+  const [mgaDfaFichier, setMgaDfaFichier] = useState(null);
+  const [mgaDfaStatus, setMgaDfaStatus] = useState('');
+  const [mgaDfaEnCours, setMgaDfaEnCours] = useState(false);
   const [calcStatus, setCalcStatus] = useState('');
   
   // ===== MODIFICATION SÉCURISÉE DES MOYENNES =====
@@ -733,6 +737,25 @@ export default function App() {
     setModifEnCours(false);
   };
 
+
+  // ── Import MGA + DFA plateforme nationale ──
+  const importerMgaDfa = async () => {
+    if (!mgaDfaFichier) { setMgaDfaStatus('⚠️ Choisissez un fichier'); return; }
+    setMgaDfaEnCours(true); setMgaDfaStatus('⏳ Import en cours...');
+    try {
+      const formData = new FormData();
+      formData.append('fichier', mgaDfaFichier);
+      const res = await axios.post(`${API}/import/mga-dfa`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      const { mis_a_jour, non_trouves, total } = res.data;
+      setMgaDfaStatus(`✅ ${mis_a_jour} élèves mis à jour sur ${total} lignes (${non_trouves} matricules non trouvés)`);
+      chargerEleves();
+    } catch (err) {
+      setMgaDfaStatus('❌ Erreur: ' + (err.response?.data?.erreur || err.message));
+    }
+    setMgaDfaEnCours(false);
+  };
   const ouvrirFiche = (eleve) => { setEleveSelectionne(eleve); setOnglet('fiche'); };
   const ouvrirFormulaire = (eleve = null) => {
     if (eleve) {
@@ -1814,7 +1837,33 @@ export default function App() {
             </button>
             {importStatus&&<p style={importStatus.includes('✅')?s.succes:s.erreur}>{importStatus}</p>}
 
-            <hr style={{margin:'2rem 0',border:'none',borderTop:'2px solid #e2e8f0'}}/>
+                        <hr style={{margin:'2rem 0',border:'none',borderTop:'2px solid #e2e8f0'}}/>
+            {/* ===== IMPORT MGA + DFA PLATEFORME NATIONALE ===== */}
+            <h3 style={{...s.sectionTitre,color:'#7c3aed'}}>📥 Importer MGA + DFA (Plateforme nationale)</h3>
+            <p style={{color:'#64748b',fontSize:'0.9rem',margin:'0 0 1rem'}}>
+              Fichier Excel de la plateforme — colonnes : <code>MATRICULE</code>, <code>MOY. AN.</code>, <code>DÉCISION</code>
+            </p>
+            <div style={{display:'flex',gap:'0.75rem',alignItems:'center',flexWrap:'wrap',marginBottom:'0.75rem'}}>
+              <input type="file" accept=".xls,.xlsx,.csv"
+                onChange={e=>{{setMgaDfaFichier(e.target.files[0]); setMgaDfaStatus('');}} }
+                style={{flex:1,minWidth:'200px'}}
+              />
+              <button onClick={importerMgaDfa} disabled={mgaDfaEnCours}
+                style={{background:'#7c3aed',color:'white',border:'none',borderRadius:'10px',
+                  padding:'0.65rem 1.5rem',cursor:'pointer',fontWeight:'700',fontSize:'0.95rem',
+                  opacity:mgaDfaEnCours?0.7:1}}>
+                {mgaDfaEnCours ? '⏳ Import...' : '📥 Importer MGA + DFA'}
+              </button>
+            </div>
+            {mgaDfaStatus && (
+              <p style={{fontWeight:'600',
+                color:mgaDfaStatus.includes('✅')?'#166534':mgaDfaStatus.includes('⏳')?'#1e40af':'#dc2626',
+                margin:'0.5rem 0',padding:'0.75rem',borderRadius:'8px',
+                background:mgaDfaStatus.includes('✅')?'#f0fdf4':mgaDfaStatus.includes('⏳')?'#eff6ff':'#fef2f2'}}>
+                {mgaDfaStatus}
+              </p>
+            )}
+<hr style={{margin:'2rem 0',border:'none',borderTop:'2px solid #e2e8f0'}}/>
             <h3 style={s.sectionTitre}>📊 Calcul automatique MGA + DFA</h3>
             <button onClick={calculerMoyennesAnnuelles} disabled={calcEnCours} style={s.btnCalculer}>
               {calcEnCours?'⏳ Calcul...':'📊 Calculer MGA + DFA'}

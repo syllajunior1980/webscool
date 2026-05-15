@@ -306,4 +306,64 @@ router.post('/json', async (req, res) => {
   res.json({ importes, mises_a_jour, erreurs, doublons_matricule, doublons_nom });
 });
 
+
+// ── Import MGA + DFA depuis fichier plateforme nationale ──
+// Accepte le fichier tel quel (colonnes: MATRICULE, MOY. AN., DÉCISION)
+// Admis(e) → Admis | Exclu(e) → Exclu | Redoublant(e) → Redoublant | NC → ignoré
+router.post('/mga-dfa', upload.single('fichier'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ erreur: 'Aucun fichier' });
+  try {
+    const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const data = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+    let mis_a_jour = 0, non_trouves = 0, ignores = 0, erreurs = [];
+
+    for (const row of data) {
+      try {
+        const matricule = String(
+          row['MATRICULE'] || row['Matricule'] || row['matricule'] || ''
+        ).trim();
+        if (!matricule) continue;
+
+        // MGA — plusieurs noms de colonnes possibles
+        const mga_raw = row['MOY. AN.'] || row['MOY.AN.'] || row['Moy. An.'] ||
+                        row['moy_an'] || row['MGA'] || row['moyenne_generale'] ||
+                        row['Moyenne Annuelle'] || row['MOYENNE AN'] || '';
+        const mga_str = String(mga_raw).replace(',', '.').trim();
+        const mga = mga_str && mga_str !== 'NC' && mga_str !== '' ? parseFloat(mga_str) : null;
+
+        // DFA — normaliser les valeurs
+        const dfa_raw = String(
+          row['DÉCISION'] || row['DECISION'] || row['Décision'] ||
+          row['Decision'] || row['decision'] || row['DFA'] || ''
+        ).trim();
+        let dfa = '';
+        const d = dfa_raw.toLowerCase();
+        if (d.includes('admis')) dfa = 'Admis';
+        else if (d.includes('exclu')) dfa = 'Exclu';
+        else if (d.includes('redoublant')) dfa = 'Redoublant';
+
+        // Ignorer si NC ou rien d'utile
+        if (mga === null && dfa === '') { ignores++; continue; }
+
+        const sets = [], vals = [];
+        let idx = 1;
+        if (mga !== null && !isNaN(mga)) { sets.push(`moyenne_generale=$${idx++}`); vals.push(mga); }
+        if (dfa !== '') { sets.push(`decision_fin_annee=$${idx++}`); vals.push(dfa); }
+        if (sets.length === 0) { ignores++; continue; }
+        vals.push(matricule);
+
+        const result = await pool.query(
+          `UPDATE eleves SET ${sets.join(', ')} WHERE matricule=$${idx}`, vals
+        );
+        if (result.rowCount > 0) mis_a_jour++;
+        else non_trouves++;
+      } catch (e) { erreurs.push(e.message); }
+    }
+
+    res.json({ mis_a_jour, non_trouves, ignores, total: data.length, erreurs });
+  } catch (err) { res.status(500).json({ erreur: err.message }); }
+});
+
 module.exports = router;
