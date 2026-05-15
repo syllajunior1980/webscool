@@ -60,11 +60,12 @@ router.post('/calculer-moyennes', async (req, res) => {
       const t2 = (raw2 === null || raw2 === 21) ? null : raw2;
       const t3 = (raw3 === null || raw3 === 21) ? null : raw3;
 
-      // Calcul pondéré uniquement sur les trimestres classés
+      // Calcul pondéré — coefficients : T1×1, T2×2, T3×2 → total=5
+      // T=21 ou null → non classé, son coeff retiré du diviseur
       let somme = 0, poids = 0;
       if (t1 !== null) { somme += t1 * 1; poids += 1; }
       if (t2 !== null) { somme += t2 * 2; poids += 2; }
-      if (t3 !== null) { somme += t3 * 3; poids += 3; }
+      if (t3 !== null) { somme += t3 * 2; poids += 2; }
 
       // Aucun trimestre valide → on saute
       if (poids === 0) continue;

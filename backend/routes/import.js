@@ -157,20 +157,8 @@ router.post('/trimestre', upload.single('fichier'), async (req, res) => {
     }
 
     // ── Calcul automatique MGA + DFA après import ──
-    // Règle : moyenne = 21 ou NULL → trimestre non classé, ignoré dans le calcul
-    //
-    // Cas possibles :
-    //   T1 + T2 + T3 valides  → MGA = (T1×1 + T2×2 + T3×3) / 6
-    //   T3 non classé seul    → MGA = (T1×1 + T2×2) / 3
-    //   T2 non classé seul    → MGA = (T1×1 + T3×3) / 4
-    //   T1 non classé seul    → MGA = (T2×2 + T3×3) / 5
-    //   T1 + T2 valides, T3 non classé → MGA = (T1×1 + T2×2) / 3
-    //   T1 + T3 valides, T2 non classé → MGA = (T1×1 + T3×3) / 4
-    //   T2 + T3 valides, T1 non classé → MGA = (T2×2 + T3×3) / 5
-    //   T1 seul valide        → MGA = T1
-    //   T2 seul valide        → MGA = T2
-    //   T3 seul valide        → MGA = T3
-    //   Aucun trimestre valide → pas de calcul
+    // Règle : T=21 ou NULL → trimestre non classé, ignoré dans la somme
+    // Diviseur TOUJOURS 3 : MGA = (T1×1 + T2×2 + T3×3) / 3
     let admis = 0, redoublants = 0, exclus = 0, calcules = 0;
     try {
       const eleves = await pool.query(
@@ -186,12 +174,12 @@ router.post('/trimestre', upload.single('fichier'), async (req, res) => {
         const t2 = (raw2 === null || raw2 === 21) ? null : raw2;
         const t3 = (raw3 === null || raw3 === 21) ? null : raw3;
 
-        // Calcul pondéré uniquement sur les trimestres classés
-        // Coefficients : T1=1, T2=2, T3=3
+        // Calcul pondéré — coefficients : T1×1, T2×2, T3×2 → total=5
+        // T=21 ou null → non classé, son coeff retiré du diviseur
         let somme = 0, poids = 0;
         if (t1 !== null) { somme += t1 * 1; poids += 1; }
         if (t2 !== null) { somme += t2 * 2; poids += 2; }
-        if (t3 !== null) { somme += t3 * 3; poids += 3; }
+        if (t3 !== null) { somme += t3 * 2; poids += 2; }
 
         // Aucun trimestre valide → on saute cet élève
         if (poids === 0) continue;
