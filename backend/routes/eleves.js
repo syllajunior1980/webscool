@@ -47,7 +47,7 @@ router.get('/classe/:classe', async (req, res) => {
 router.post('/calculer-moyennes', async (req, res) => {
   try {
     const eleves = await pool.query(
-      'SELECT id, statut, qualite, moyenne_t1, moyenne_t2, moyenne_t3 FROM eleves WHERE moyenne_t1 IS NOT NULL OR moyenne_t2 IS NOT NULL OR moyenne_t3 IS NOT NULL'
+      'SELECT id, statut, moyenne_t1, moyenne_t2, moyenne_t3 FROM eleves WHERE moyenne_t1 IS NOT NULL OR moyenne_t2 IS NOT NULL OR moyenne_t3 IS NOT NULL'
     );
     let mis_a_jour = 0, admis = 0, redoublants = 0, exclus = 0;
     for (const eleve of eleves.rows) {
@@ -82,9 +82,7 @@ router.post('/calculer-moyennes', async (req, res) => {
       if (poids === 0) continue;
 
       const mga_arrondi = Math.round((somme / poids) * 100) / 100;
-      // Vérifier statut ET qualite (Redoublant peut être dans l'un ou l'autre selon l'import)
-      const dejaredoublant = (eleve.statut || '').toLowerCase().includes('redoublant')
-                          || (eleve.qualite || '').toLowerCase().includes('redoublant');
+      const dejaredoublant = (eleve.statut || '').toLowerCase().includes('redoublant');
 
       // Règle DFA :
       // - Déjà Redoublant : MGA < 10 → Exclu, MGA >= 10 → Admis (pas de 2ème redoublement)
