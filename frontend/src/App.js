@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 
 const API = 'https://webscool.onrender.com/api';
@@ -34,6 +34,19 @@ export default function App() {
   const [importElevesEnCours, setImportElevesEnCours] = useState(false);
   const [calcEnCours, setCalcEnCours] = useState(false);
   const [calcStatus, setCalcStatus] = useState('');
+  
+  // ===== MODIFICATION SÉCURISÉE DES MOYENNES =====
+  const PIN_ADMIN = 'dares2026';
+  const [modifMoyenneOuvert, setModifMoyenneOuvert] = useState(false);
+  const [pinSaisi, setPinSaisi] = useState('');
+  const [pinErreur, setPinErreur] = useState('');
+  const [pinValide, setPinValide] = useState(false);
+  const [modifRecherche, setModifRecherche] = useState('');
+  const [modifEleve, setModifEleve] = useState(null);
+  const [modifTrimestre, setModifTrimestre] = useState('moyenne_t1');
+  const [modifValeur, setModifValeur] = useState('');
+  const [modifStatus, setModifStatus] = useState('');
+  const [modifEnCours, setModifEnCours] = useState(false);
   const [formulaire, setFormulaire] = useState({
     matricule:'',nom:'',prenom:'',classe:'',numero_extrait:'',
     sexe:'',statut:'Non affecté',qualite:'',
@@ -673,6 +686,51 @@ export default function App() {
       chargerEleves();
     } catch (err) { setCalcStatus('❌ Erreur: ' + (err.response?.data?.erreur || err.message)); }
     setCalcEnCours(false);
+  };
+
+
+  // ── Vérification PIN admin ──
+  const verifierPin = () => {
+    if (pinSaisi === PIN_ADMIN) {
+      setPinValide(true); setPinErreur(''); setPinSaisi('');
+    } else {
+      setPinErreur('❌ Mot de passe incorrect');
+    }
+  };
+
+  // ── Recherche élève pour modification moyenne ──
+  const rechercherElevePourModif = async () => {
+    if (!modifRecherche.trim()) return;
+    try {
+      const res = await axios.get(`${API}/eleves/recherche?q=${encodeURIComponent(modifRecherche)}`);
+      if (res.data.length === 1) {
+        setModifEleve(res.data[0]);
+        setModifValeur('');
+        setModifStatus('');
+      } else if (res.data.length === 0) {
+        setModifStatus('❌ Aucun élève trouvé');
+        setModifEleve(null);
+      } else {
+        setModifEleve(res.data[0]);
+        setModifStatus(`⚠️ ${res.data.length} élèves trouvés, premier affiché`);
+      }
+    } catch (err) { setModifStatus('❌ Erreur: ' + err.message); }
+  };
+
+  // ── Sauvegarder la modification de moyenne ──
+  const sauvegarderModifMoyenne = async () => {
+    if (!modifEleve) { setModifStatus("⚠️ Recherchez d'abord un élève"); return; }
+    const val = parseFloat(modifValeur);
+    if (isNaN(val) || val < 0 || val > 21) { setModifStatus('⚠️ Valeur invalide (0 à 21, ou 21 = non classé)'); return; }
+    setModifEnCours(true);
+    try {
+      const data = { ...modifEleve, [modifTrimestre]: val };
+      await axios.put(`${API}/eleves/${modifEleve.id}`, data);
+      setModifStatus(`✅ ${modifTrimestre.replace('moyenne_','').toUpperCase()} de ${modifEleve.nom} ${modifEleve.prenom} → ${val}`);
+      setModifEleve({ ...modifEleve, [modifTrimestre]: val });
+      chargerEleves();
+    } catch (err) { setModifStatus('❌ Erreur: ' + (err.response?.data?.erreur || err.message)); }
+    setModifEnCours(false);
   };
 
   const ouvrirFiche = (eleve) => { setEleveSelectionne(eleve); setOnglet('fiche'); };
@@ -1762,6 +1820,87 @@ export default function App() {
               {calcEnCours?'⏳ Calcul...':'📊 Calculer MGA + DFA'}
             </button>
             {calcStatus&&<p style={calcStatus.includes('✅')?s.succes:s.erreur}>{calcStatus}</p>}
+
+            <hr style={{margin:'2rem 0',border:'none',borderTop:'2px solid #e2e8f0'}}/>
+            {/* ===== MODIFICATION SÉCURISÉE DES MOYENNES ===== */}
+            <h3 style={{...s.sectionTitre,color:'#0f766e'}}>✏️ Correction d'une moyenne (accès restreint)</h3>
+            {!pinValide ? (
+              <div style={{background:'#f0fdf4',border:'2px solid #0f766e',borderRadius:'12px',padding:'1.5rem',maxWidth:'380px'}}>
+                <p style={{margin:'0 0 1rem',color:'#0f766e',fontWeight:'600'}}>🔒 Saisissez le mot de passe administrateur</p>
+                <input
+                  type="password"
+                  placeholder="Mot de passe..."
+                  value={pinSaisi}
+                  onChange={e=>setPinSaisi(e.target.value)}
+                  onKeyDown={e=>e.key==='Enter'&&verifierPin()}
+                  style={{...s.input,marginBottom:'0.75rem',borderColor:'#0f766e'}}
+                />
+                {pinErreur && <p style={{color:'#dc2626',fontWeight:'600',marginBottom:'0.5rem'}}>{pinErreur}</p>}
+                <button onClick={verifierPin} style={{background:'#0f766e',color:'white',border:'none',borderRadius:'8px',padding:'0.6rem 1.5rem',cursor:'pointer',fontWeight:'700'}}>
+                  🔓 Accéder
+                </button>
+              </div>
+            ) : (
+              <div style={{background:'#f0fdf4',border:'2px solid #0f766e',borderRadius:'12px',padding:'1.5rem'}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
+                  <p style={{margin:0,color:'#0f766e',fontWeight:'700'}}>✅ Accès autorisé</p>
+                  <button onClick={()=>{setPinValide(false);setModifEleve(null);setModifStatus('');setModifRecherche('');}}
+                    style={{background:'#dc2626',color:'white',border:'none',borderRadius:'6px',padding:'4px 10px',cursor:'pointer',fontSize:'0.82rem'}}>
+                    🔒 Verrouiller
+                  </button>
+                </div>
+                {/* Recherche élève */}
+                <div style={{display:'flex',gap:'0.5rem',marginBottom:'1rem',flexWrap:'wrap'}}>
+                  <input
+                    type="text"
+                    placeholder="Nom, prénom ou matricule..."
+                    value={modifRecherche}
+                    onChange={e=>setModifRecherche(e.target.value)}
+                    onKeyDown={e=>e.key==='Enter'&&rechercherElevePourModif()}
+                    style={{...s.input,flex:1,minWidth:'200px',borderColor:'#0f766e'}}
+                  />
+                  <button onClick={rechercherElevePourModif}
+                    style={{background:'#0f766e',color:'white',border:'none',borderRadius:'8px',padding:'0.6rem 1.2rem',cursor:'pointer',fontWeight:'600'}}>
+                    🔍 Rechercher
+                  </button>
+                </div>
+                {/* Élève trouvé */}
+                {modifEleve && (
+                  <div style={{background:'white',borderRadius:'8px',padding:'1rem',marginBottom:'1rem',border:'1px solid #d1fae5'}}>
+                    <p style={{margin:'0 0 0.5rem',fontWeight:'700',color:'#1e3a5f'}}>
+                      {modifEleve.nom} {modifEleve.prenom} — <span style={s.badgeClasse}>{modifEleve.classe}</span>
+                    </p>
+                    <p style={{margin:'0 0 0.75rem',color:'#64748b',fontSize:'0.88rem'}}>
+                      Matricule : {modifEleve.matricule} &nbsp;|&nbsp;
+                      T1 : <strong>{modifEleve.moyenne_t1||'—'}</strong> &nbsp;
+                      T2 : <strong>{modifEleve.moyenne_t2||'—'}</strong> &nbsp;
+                      T3 : <strong>{modifEleve.moyenne_t3||'—'}</strong> &nbsp;
+                      MGA : <strong style={{color:'#2563eb'}}>{modifEleve.moyenne_generale||'—'}</strong>
+                    </p>
+                    <div style={{display:'flex',gap:'0.75rem',alignItems:'center',flexWrap:'wrap'}}>
+                      <select value={modifTrimestre} onChange={e=>setModifTrimestre(e.target.value)}
+                        style={{padding:'0.5rem',borderRadius:'8px',border:'2px solid #0f766e',fontWeight:'600',color:'#0f766e'}}>
+                        <option value="moyenne_t1">Trimestre 1</option>
+                        <option value="moyenne_t2">Trimestre 2</option>
+                        <option value="moyenne_t3">Trimestre 3</option>
+                      </select>
+                      <input
+                        type="number" step="0.01" min="0" max="21"
+                        placeholder="Nouvelle valeur (ex: 12.50)"
+                        value={modifValeur}
+                        onChange={e=>setModifValeur(e.target.value)}
+                        style={{...s.input,width:'180px',borderColor:'#0f766e'}}
+                      />
+                      <button onClick={sauvegarderModifMoyenne} disabled={modifEnCours}
+                        style={{background:'#0f766e',color:'white',border:'none',borderRadius:'8px',padding:'0.6rem 1.5rem',cursor:'pointer',fontWeight:'700'}}>
+                        {modifEnCours?'⏳ Sauvegarde...':'💾 Sauvegarder'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {modifStatus && <p style={{fontWeight:'600',color:modifStatus.includes('✅')?'#166534':'#dc2626',margin:'0.5rem 0 0'}}>{modifStatus}</p>}
+              </div>
+            )}
 
             <hr style={{margin:'2rem 0',border:'none',borderTop:'2px solid #e2e8f0'}}/>
             <h3 style={{...s.sectionTitre,color:'#991b1b'}}>🔄 Réinitialisation nouvelle année</h3>
