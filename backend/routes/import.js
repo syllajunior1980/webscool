@@ -163,7 +163,7 @@ router.post('/trimestre', upload.single('fichier'), async (req, res) => {
     let admis = 0, redoublants = 0, exclus = 0, calcules = 0;
     try {
       const eleves = await pool.query(
-        'SELECT id, statut, moyenne_t1, moyenne_t2, moyenne_t3 FROM eleves WHERE moyenne_t1 IS NOT NULL OR moyenne_t2 IS NOT NULL OR moyenne_t3 IS NOT NULL'
+        'SELECT id, statut, qualite, moyenne_t1, moyenne_t2, moyenne_t3 FROM eleves WHERE moyenne_t1 IS NOT NULL OR moyenne_t2 IS NOT NULL OR moyenne_t3 IS NOT NULL'
       );
       for (const eleve of eleves.rows) {
         const raw1 = eleve.moyenne_t1 !== null ? parseFloat(eleve.moyenne_t1) : null;
@@ -194,7 +194,9 @@ router.post('/trimestre', upload.single('fichier'), async (req, res) => {
         if (poids === 0) continue;
 
         const mga_arrondi = Math.round((somme / poids) * 100) / 100;
-        const dejaredoublant = (eleve.statut || '').toLowerCase().includes('redoublant');
+        // Vérifier statut ET qualite
+        const dejaredoublant = (eleve.statut || '').toLowerCase().includes('redoublant')
+                            || (eleve.qualite || '').toLowerCase().includes('redoublant');
 
         let dfa = '';
         if (dejaredoublant) {
