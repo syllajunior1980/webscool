@@ -47,7 +47,7 @@ router.get('/classe/:classe', async (req, res) => {
 router.post('/calculer-moyennes', async (req, res) => {
   try {
     const eleves = await pool.query(
-      'SELECT id, moyenne_t1, moyenne_t2, moyenne_t3 FROM eleves WHERE moyenne_t1 IS NOT NULL OR moyenne_t2 IS NOT NULL OR moyenne_t3 IS NOT NULL'
+      'SELECT id, statut, moyenne_t1, moyenne_t2, moyenne_t3 FROM eleves WHERE moyenne_t1 IS NOT NULL OR moyenne_t2 IS NOT NULL OR moyenne_t3 IS NOT NULL'
     );
     let mis_a_jour = 0, admis = 0, redoublants = 0, exclus = 0;
     for (const eleve of eleves.rows) {
@@ -61,7 +61,6 @@ router.post('/calculer-moyennes', async (req, res) => {
       const t3 = (raw3 === null || raw3 === 21) ? null : raw3;
 
       // Calcul pondéré — coefficients : T1×1, T2×2, T3×2 → total=5
-      // T=21 ou null → non classé, son coeff retiré du diviseur
       let somme = 0, poids = 0;
       if (t1 !== null) { somme += t1 * 1; poids += 1; }
       if (t2 !== null) { somme += t2 * 2; poids += 2; }
@@ -71,10 +70,20 @@ router.post('/calculer-moyennes', async (req, res) => {
       if (poids === 0) continue;
 
       const mga_arrondi = Math.round((somme / poids) * 100) / 100;
+      const dejaredoublant = (eleve.statut || '').toLowerCase().includes('redoublant');
+
+      // Règle DFA :
+      // - Déjà Redoublant : MGA < 10 → Exclu, MGA >= 10 → Admis (pas de 2ème redoublement)
+      // - Normal         : MGA < 8.5 → Exclu, MGA < 10 → Redoublant, MGA >= 10 → Admis
       let dfa = '';
-      if (mga_arrondi < 8.5) { dfa = 'Exclu'; exclus++; }
-      else if (mga_arrondi < 10) { dfa = 'Redoublant'; redoublants++; }
-      else { dfa = 'Admis'; admis++; }
+      if (dejaredoublant) {
+        if (mga_arrondi < 10) { dfa = 'Exclu'; exclus++; }
+        else { dfa = 'Admis'; admis++; }
+      } else {
+        if (mga_arrondi < 8.5) { dfa = 'Exclu'; exclus++; }
+        else if (mga_arrondi < 10) { dfa = 'Redoublant'; redoublants++; }
+        else { dfa = 'Admis'; admis++; }
+      }
       await pool.query(
         'UPDATE eleves SET moyenne_generale = $1, decision_fin_annee = $2 WHERE id = $3',
         [mga_arrondi, dfa, eleve.id]
