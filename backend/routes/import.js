@@ -174,10 +174,22 @@ router.post('/trimestre', upload.single('fichier'), async (req, res) => {
         const t2 = (raw2 === null || raw2 === 21) ? null : raw2;
         const t3 = (raw3 === null || raw3 === 21) ? null : raw3;
 
+        // Calcul MGA — T1 absent → T2 coeff 1, T3 coeff 2 → /3
+        // T2 absent → T1 coeff 1, T3 coeff 2 → /3
+        // T3 absent → T1 coeff 1, T2 coeff 2 → /3
+        // Tous présents → T1×1+T2×2+T3×2 → /5
         let somme = 0, poids = 0;
-        if (t1 !== null) { somme += t1 * 1; poids += 1; }
-        if (t2 !== null) { somme += t2 * 2; poids += 2; }
-        if (t3 !== null) { somme += t3 * 2; poids += 2; }
+        if (t1 !== null && t2 !== null && t3 !== null) {
+          somme = t1*1 + t2*2 + t3*2; poids = 5;
+        } else if (t1 === null && t2 !== null && t3 !== null) {
+          somme = t2*1 + t3*2; poids = 3;
+        } else if (t2 === null && t1 !== null && t3 !== null) {
+          somme = t1*1 + t3*2; poids = 3;
+        } else if (t3 === null && t1 !== null && t2 !== null) {
+          somme = t1*1 + t2*2; poids = 3;
+        } else if (t1 !== null) { somme = t1; poids = 1; }
+        else if (t2 !== null) { somme = t2; poids = 1; }
+        else if (t3 !== null) { somme = t3; poids = 1; }
 
         if (poids === 0) continue;
 
