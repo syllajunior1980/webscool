@@ -194,7 +194,7 @@ router.post('/trimestre', upload.single('fichier'), async (req, res) => {
         if (poids === 0) continue;
 
         const mga_arrondi = Math.round((somme / poids) * 100) / 100;
-        const dejaredoublant = (eleve.statut || '').toLowerCase().includes('redoublant');
+        const dejaredoublant = (eleve.qualite || eleve.statut || '').toLowerCase().includes('redouble');
 
         let dfa = '';
         if (dejaredoublant) {
@@ -202,7 +202,7 @@ router.post('/trimestre', upload.single('fichier'), async (req, res) => {
           else { dfa = 'Admis'; admis++; }
         } else {
           if (mga_arrondi < 8.5) { dfa = 'Exclu'; exclus++; }
-          else if (mga_arrondi < 10) { dfa = 'Redoublant'; redoublants++; }
+          else if (mga_arrondi < 10) { dfa = 'Redouble'; redoublants++; }
           else { dfa = 'Admis'; admis++; }
         }
         await pool.query(
@@ -309,7 +309,7 @@ router.post('/json', async (req, res) => {
 
 // ── Import MGA + DFA depuis fichier plateforme nationale ──
 // Accepte le fichier tel quel (colonnes: MATRICULE, MOY. AN., DÉCISION)
-// Admis(e) → Admis | Exclu(e) → Exclu | Redoublant(e) → Redoublant | NC → ignoré
+// Admis(e) → Admis | Exclu(e) → Exclu | Redouble(e) → Redouble | NC → ignoré
 router.post('/mga-dfa', upload.single('fichier'), async (req, res) => {
   if (!req.file) return res.status(400).json({ erreur: 'Aucun fichier' });
   try {
@@ -342,7 +342,7 @@ router.post('/mga-dfa', upload.single('fichier'), async (req, res) => {
         const d = dfa_raw.toLowerCase();
         if (d.includes('admis')) dfa = 'Admis';
         else if (d.includes('exclu')) dfa = 'Exclu';
-        else if (d.includes('redoublant')) dfa = 'Redoublant';
+        else if (d.includes('redouble')) dfa = 'Redouble';
 
         // Ignorer si NC ou rien d'utile
         if (mga === null && dfa === '') { ignores++; continue; }

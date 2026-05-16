@@ -82,7 +82,7 @@ router.post('/calculer-moyennes', async (req, res) => {
       if (poids === 0) continue;
 
       const mga_arrondi = Math.round((somme / poids) * 100) / 100;
-      const dejaredoublant = (eleve.statut || '').toLowerCase().includes('redoublant');
+      const dejaredoublant = (eleve.qualite || eleve.statut || '').toLowerCase().includes('redouble');
 
       // Règle DFA :
       // - Déjà Redoublant : MGA < 10 → Exclu, MGA >= 10 → Admis (pas de 2ème redoublement)
@@ -93,7 +93,7 @@ router.post('/calculer-moyennes', async (req, res) => {
         else { dfa = 'Admis'; admis++; }
       } else {
         if (mga_arrondi < 8.5) { dfa = 'Exclu'; exclus++; }
-        else if (mga_arrondi < 10) { dfa = 'Redoublant'; redoublants++; }
+        else if (mga_arrondi < 10) { dfa = 'Redouble'; redoublants++; }
         else { dfa = 'Admis'; admis++; }
       }
       await pool.query(
