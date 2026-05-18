@@ -8,7 +8,7 @@ const ANNEE_SCOLAIRE = '2025-2026';
 const MONTANT_INSCRIPTION = 1000;
 
 const STATUTS = ['Non affecté', 'Affecté', 'Transféré'];
-const QUALITES = ['', 'Nouveau', 'Ancien', 'Redoublant', 'Transféré entrant', 'Transféré sortant'];
+const QUALITES = ['', 'Nouveau', 'Ancien', 'Redouble', 'Transféré entrant', 'Transféré sortant'];
 
 export default function App() {
   const [connecte, setConnecte] = useState(false);
@@ -440,9 +440,9 @@ export default function App() {
   const telechargerModeleEleves = () => {
     const entetes = ['Matricule','Nom','Prenom','DateNaiss','LieuNaiss','Sexe','Statut','Qualite','Classe','nom_parent','telephone1','telephone2'];
     const exemples = [
-      ['21421986V','ABDON','GRACE EMMANUELA','21/06/2009','SAOUNDI','Feminin','Affecte','Redoublant','6eme6','ABDON PAUL','0759109875',''],
-      ['23666672E','ABDON','MELEDJE BEST','23/12/2013','SAOUNDI','Feminin','Affecte','NRedoublant','5eme4','ABDON PAUL','0759109875',''],
-      ['23654577C','KONE','AMINATA FATOUMATA','21/03/2012','SAOUNDI','Feminin','Affecte','NRedoublant','5eme2','KONE IBRAHIM','0707123456',''],
+      ['21421986V','ABDON','GRACE EMMANUELA','21/06/2009','SAOUNDI','Feminin','Affecte','Redouble','6eme6','ABDON PAUL','0759109875',''],
+      ['23666672E','ABDON','MELEDJE BEST','23/12/2013','SAOUNDI','Feminin','Affecte','Non Redouble','5eme4','ABDON PAUL','0759109875',''],
+      ['23654577C','KONE','AMINATA FATOUMATA','21/03/2012','SAOUNDI','Feminin','Affecte','Non Redouble','5eme2','KONE IBRAHIM','0707123456',''],
     ];
 
     // Générer CSV avec séparateur point-virgule (standard Excel français → colonnes séparées automatiquement)
@@ -603,7 +603,7 @@ export default function App() {
         <span>👦 Garçons : <strong>${nbG}</strong></span>
         <span>👧 Filles : <strong>${nbF}</strong></span>
         <span style="color:green;">✅ Admis : <strong>${elevesListe.filter(e => e.decision_fin_annee === 'Admis').length}</strong></span>
-        <span style="color:orange;">🔄 Redoublants : <strong>${elevesListe.filter(e => e.decision_fin_annee === 'Redoublant').length}</strong></span>
+        <span style="color:orange;">🔄 Redoublants : <strong>${elevesListe.filter(e => e.decision_fin_annee === 'Redouble').length}</strong></span>
       </div>
       <div class="footer"><span>Imprimé le : ${new Date().toLocaleDateString('fr-FR')}</span>
       <span>Signature du Directeur : ________________</span></div>
@@ -686,7 +686,7 @@ export default function App() {
     setCalcEnCours(true); setCalcStatus('⏳ Calcul en cours...');
     try {
       const res = await axios.post(`${API}/eleves/calculer-moyennes`);
-      setCalcStatus(`✅ ${res.data.mis_a_jour} élèves mis à jour ! (Admis: ${res.data.admis}, Redoublants: ${res.data.redoublants}, Exclus: ${res.data.exclus})`);
+      setCalcStatus(`✅ ${res.data.mis_a_jour} élèves mis à jour ! (Admis: ${res.data.admis}, Redoublés: ${res.data.redoublants}, Exclus: ${res.data.exclus})`);
       chargerEleves();
     } catch (err) { setCalcStatus('❌ Erreur: ' + (err.response?.data?.erreur || err.message)); }
     setCalcEnCours(false);
@@ -728,10 +728,22 @@ export default function App() {
     if (isNaN(val) || val < 0 || val > 21) { setModifStatus('⚠️ Valeur invalide (0 à 21, ou 21 = non classé)'); return; }
     setModifEnCours(true);
     try {
+      // 1️⃣ Sauvegarder la nouvelle valeur du trimestre
       const data = { ...modifEleve, [modifTrimestre]: val };
       await axios.put(`${API}/eleves/${modifEleve.id}`, data);
-      setModifStatus(`✅ ${modifTrimestre.replace('moyenne_','').toUpperCase()} de ${modifEleve.nom} ${modifEleve.prenom} → ${val}`);
-      setModifEleve({ ...modifEleve, [modifTrimestre]: val });
+
+      // 2️⃣ Recalculer MGA + DFA (prend en compte la correction)
+      await axios.post(`${API}/eleves/calculer-moyennes`);
+
+      // 3️⃣ Recharger l'élève depuis la base pour afficher MGA + DFA recalculées
+      const res = await axios.get(`${API}/eleves/${modifEleve.id}`);
+      const eleveMAJ = res.data;
+      setModifEleve(eleveMAJ);
+      setModifValeur('');
+
+      setModifStatus(
+        `✅ ${modifTrimestre.replace('moyenne_', '').toUpperCase()} → ${val} | MGA recalculée : ${eleveMAJ.moyenne_generale} | DFA : ${eleveMAJ.decision_fin_annee}`
+      );
       chargerEleves();
     } catch (err) { setModifStatus('❌ Erreur: ' + (err.response?.data?.erreur || err.message)); }
     setModifEnCours(false);
@@ -809,7 +821,7 @@ export default function App() {
     if (!classeFiltre) { alert("Veuillez sélectionner une classe d'abord !"); return; }
     const elevesAImprimer = elevesFiltres.slice().sort((a,b) => (a.nom||'').localeCompare(b.nom||''));
     const admis = elevesAImprimer.filter(e => e.decision_fin_annee === 'Admis').length;
-    const redoublants = elevesAImprimer.filter(e => e.decision_fin_annee === 'Redoublant').length;
+    const redoublants = elevesAImprimer.filter(e => e.decision_fin_annee === 'Redouble').length;
     const exclus = elevesAImprimer.filter(e => e.decision_fin_annee === 'Exclu').length;
     const moyennesValides = elevesAImprimer.filter(e => e.moyenne_generale && parseFloat(e.moyenne_generale) > 0);
     const moyenneClasse = moyennesValides.length > 0
@@ -825,7 +837,7 @@ export default function App() {
       <td style="padding:5px 4px;text-align:center;border:1px solid #ccc;">${e.moyenne_t2||'-'}</td>
       <td style="padding:5px 4px;text-align:center;border:1px solid #ccc;">${e.moyenne_t3||'-'}</td>
       <td style="padding:5px 4px;text-align:center;font-weight:bold;border:1px solid #ccc;">${e.moyenne_generale||'-'}</td>
-      <td style="padding:5px 4px;text-align:center;border:1px solid #ccc;color:${e.decision_fin_annee==='Admis'?'green':e.decision_fin_annee==='Redoublant'?'orange':'red'};font-weight:bold;">${e.decision_fin_annee||'-'}</td></tr>`).join('');
+      <td style="padding:5px 4px;text-align:center;border:1px solid #ccc;color:${e.decision_fin_annee==='Admis'?'green':e.decision_fin_annee==='Redouble'?'orange':'red'};font-weight:bold;">${e.decision_fin_annee||'-'}</td></tr>`).join('');
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Liste ${classeFiltre}</title>
       <style>body{font-family:Arial,sans-serif;margin:20px;font-size:12px;}
       .entete{text-align:center;margin-bottom:20px;border-bottom:2px solid #000;padding-bottom:10px;}
@@ -1408,7 +1420,7 @@ export default function App() {
     if (n === '6EME') return d === 'Admis' ? '5eme' : '6eme';
     if (n === '5EME') return d === 'Admis' ? '4eme' : '5eme';
     if (n === '4EME') return d === 'Admis' ? '3eme' : '4eme';
-    if (n === '3EME') return d === 'Redoublant' ? '3eme' : '';
+    if (n === '3EME') return d === 'Redouble' ? '3eme' : '';
     return '';
   };
 
@@ -1508,7 +1520,7 @@ export default function App() {
             <span style={{...s.statPill,background:'#fce7f3'}}>👧 Filles : <strong>{nbFilles}</strong></span>
             {classeFiltre && <span style={{...s.statPill,background:'#dcfce7'}}>Moy. : <strong>{moyenneClasseFiltre}</strong></span>}
             {classeFiltre && <span style={{...s.statPill,background:'#dcfce7'}}>✅ Admis : <strong>{elevesClasse.filter(e=>e.decision_fin_annee==='Admis').length}</strong></span>}
-            {classeFiltre && <span style={{...s.statPill,background:'#fef3c7'}}>🔄 Redoublants : <strong>{elevesClasse.filter(e=>e.decision_fin_annee==='Redoublant').length}</strong></span>}
+            {classeFiltre && <span style={{...s.statPill,background:'#fef3c7'}}>🔄 Redoublants : <strong>{elevesClasse.filter(e=>e.decision_fin_annee==='Redouble').length}</strong></span>}
           </div>
 
           <div style={s.tableWrap}>
@@ -1597,7 +1609,7 @@ export default function App() {
                       </strong>
                     </td>
                     <td style={{...s.td, padding:'4px'}}>
-                      <span style={{...(e.decision_fin_annee==='Admis'?s.badgeAdmis:e.decision_fin_annee==='Redoublant'?s.badgeRedoublant:e.decision_fin_annee==='Exclu'?s.badgeExclu:{}), fontSize:'0.68rem', padding:'1px 5px', whiteSpace:'nowrap'}}>
+                      <span style={{...(e.decision_fin_annee==='Admis'?s.badgeAdmis:e.decision_fin_annee==='Redouble'?s.badgeRedoublant:e.decision_fin_annee==='Exclu'?s.badgeExclu:{}), fontSize:'0.68rem', padding:'1px 5px', whiteSpace:'nowrap'}}>
                         {e.decision_fin_annee||'-'}
                       </span>
                     </td>
@@ -1666,7 +1678,7 @@ export default function App() {
                 <p><strong>T2 :</strong> {eleveSelectionne.moyenne_t2||'-'}</p>
                 <p><strong>T3 :</strong> {eleveSelectionne.moyenne_t3||'-'}</p>
                 <p><strong>MGA :</strong> <span style={{fontWeight:'bold',fontSize:'1.1rem'}}>{eleveSelectionne.moyenne_generale||'-'}</span></p>
-                <p><strong>Décision :</strong> <span style={eleveSelectionne.decision_fin_annee==='Admis'?s.badgeAdmis:eleveSelectionne.decision_fin_annee==='Redoublant'?s.badgeRedoublant:s.badgeExclu}>{eleveSelectionne.decision_fin_annee||'-'}</span></p>
+                <p><strong>Décision :</strong> <span style={eleveSelectionne.decision_fin_annee==='Admis'?s.badgeAdmis:eleveSelectionne.decision_fin_annee==='Redouble'?s.badgeRedoublant:s.badgeExclu}>{eleveSelectionne.decision_fin_annee||'-'}</span></p>
               </div>
             </div>
           </div>
@@ -1838,32 +1850,6 @@ export default function App() {
             {importStatus&&<p style={importStatus.includes('✅')?s.succes:s.erreur}>{importStatus}</p>}
 
                         <hr style={{margin:'2rem 0',border:'none',borderTop:'2px solid #e2e8f0'}}/>
-            {/* ===== IMPORT MGA + DFA PLATEFORME NATIONALE ===== */}
-            <h3 style={{...s.sectionTitre,color:'#7c3aed'}}>📥 Importer MGA + DFA (Plateforme nationale)</h3>
-            <p style={{color:'#64748b',fontSize:'0.9rem',margin:'0 0 1rem'}}>
-              Fichier Excel de la plateforme — colonnes : <code>MATRICULE</code>, <code>MOY. AN.</code>, <code>DÉCISION</code>
-            </p>
-            <div style={{display:'flex',gap:'0.75rem',alignItems:'center',flexWrap:'wrap',marginBottom:'0.75rem'}}>
-              <input type="file" accept=".xls,.xlsx,.csv"
-                onChange={e=>{{setMgaDfaFichier(e.target.files[0]); setMgaDfaStatus('');}} }
-                style={{flex:1,minWidth:'200px'}}
-              />
-              <button onClick={importerMgaDfa} disabled={mgaDfaEnCours}
-                style={{background:'#7c3aed',color:'white',border:'none',borderRadius:'10px',
-                  padding:'0.65rem 1.5rem',cursor:'pointer',fontWeight:'700',fontSize:'0.95rem',
-                  opacity:mgaDfaEnCours?0.7:1}}>
-                {mgaDfaEnCours ? '⏳ Import...' : '📥 Importer MGA + DFA'}
-              </button>
-            </div>
-            {mgaDfaStatus && (
-              <p style={{fontWeight:'600',
-                color:mgaDfaStatus.includes('✅')?'#166534':mgaDfaStatus.includes('⏳')?'#1e40af':'#dc2626',
-                margin:'0.5rem 0',padding:'0.75rem',borderRadius:'8px',
-                background:mgaDfaStatus.includes('✅')?'#f0fdf4':mgaDfaStatus.includes('⏳')?'#eff6ff':'#fef2f2'}}>
-                {mgaDfaStatus}
-              </p>
-            )}
-<hr style={{margin:'2rem 0',border:'none',borderTop:'2px solid #e2e8f0'}}/>
             <h3 style={s.sectionTitre}>📊 Calcul automatique MGA + DFA</h3>
             <button onClick={calculerMoyennesAnnuelles} disabled={calcEnCours} style={s.btnCalculer}>
               {calcEnCours?'⏳ Calcul...':'📊 Calculer MGA + DFA'}
@@ -1871,7 +1857,34 @@ export default function App() {
             {calcStatus&&<p style={calcStatus.includes('✅')?s.succes:s.erreur}>{calcStatus}</p>}
 
             <hr style={{margin:'2rem 0',border:'none',borderTop:'2px solid #e2e8f0'}}/>
-            {/* ===== MODIFICATION SÉCURISÉE DES MOYENNES ===== */}
+            {/* ===== IMPORT MGA+DFA + CORRECTION MOYENNE côte à côte ===== */}
+            <div style={{display:'flex',gap:'1.5rem',flexWrap:'wrap',alignItems:'flex-start'}}>
+
+              {/* CARTE : Importer MGA + DFA */}
+              <div style={{flex:1,minWidth:'320px',background:'#f5f3ff',border:'2px solid #7c3aed',borderRadius:'12px',padding:'1.5rem'}}>
+                <p style={{margin:'0 0 0.25rem',color:'#7c3aed',fontWeight:'700',fontSize:'1rem'}}>📥 Importer MGA + DFA</p>
+                <p style={{margin:'0 0 1rem',color:'#6d28d9',fontSize:'0.82rem'}}>Fichier plateforme nationale — colonnes : MATRICULE, MOY. AN., DÉCISION</p>
+                <input type="file" accept=".xls,.xlsx,.csv"
+                  onChange={e=>{setMgaDfaFichier(e.target.files[0]); setMgaDfaStatus('');}}
+                  style={{display:'block',marginBottom:'0.75rem',width:'100%'}}
+                />
+                <button onClick={importerMgaDfa} disabled={mgaDfaEnCours}
+                  style={{background:'#7c3aed',color:'white',border:'none',borderRadius:'8px',
+                    padding:'0.6rem 1.4rem',cursor:'pointer',fontWeight:'700',
+                    opacity:mgaDfaEnCours?0.7:1,fontSize:'0.9rem'}}>
+                  {mgaDfaEnCours ? '⏳ Import...' : '📥 Importer MGA + DFA'}
+                </button>
+                {mgaDfaStatus && (
+                  <p style={{fontWeight:'600',marginTop:'0.75rem',padding:'0.6rem',borderRadius:'8px',fontSize:'0.88rem',
+                    color:mgaDfaStatus.includes('✅')?'#166534':mgaDfaStatus.includes('⏳')?'#1e40af':'#dc2626',
+                    background:mgaDfaStatus.includes('✅')?'#f0fdf4':mgaDfaStatus.includes('⏳')?'#eff6ff':'#fef2f2'}}>
+                    {mgaDfaStatus}
+                  </p>
+                )}
+              </div>
+
+              {/* CARTE : Correction d'une moyenne */}
+              <div style={{flex:1,minWidth:'320px'}}>
             <h3 style={{...s.sectionTitre,color:'#0f766e'}}>✏️ Correction d'une moyenne (accès restreint)</h3>
             {!pinValide ? (
               <div style={{background:'#f0fdf4',border:'2px solid #0f766e',borderRadius:'12px',padding:'1.5rem',maxWidth:'380px'}}>
@@ -1950,6 +1963,9 @@ export default function App() {
                 {modifStatus && <p style={{fontWeight:'600',color:modifStatus.includes('✅')?'#166534':'#dc2626',margin:'0.5rem 0 0'}}>{modifStatus}</p>}
               </div>
             )}
+
+              </div>{/* fin carte correction */}
+            </div>{/* fin flex row */}
 
             <hr style={{margin:'2rem 0',border:'none',borderTop:'2px solid #e2e8f0'}}/>
             <h3 style={{...s.sectionTitre,color:'#991b1b'}}>🔄 Réinitialisation nouvelle année</h3>
@@ -2041,7 +2057,7 @@ export default function App() {
                       <td style={s.td}><span style={s.badgeClasse}>{e.classe}</span></td>
                       <td style={s.td}><strong style={{color:'#2563eb'}}>{e.moyenne_generale||'-'}</strong></td>
                       <td style={s.td}>
-                        <span style={e.decision_fin_annee==='Admis'?s.badgeAdmis:e.decision_fin_annee==='Redoublant'?s.badgeRedoublant:s.badgeExclu}>
+                        <span style={e.decision_fin_annee==='Admis'?s.badgeAdmis:e.decision_fin_annee==='Redouble'?s.badgeRedoublant:s.badgeExclu}>
                           {e.decision_fin_annee||'-'}
                         </span>
                       </td>
@@ -2324,7 +2340,7 @@ export default function App() {
                       <div style={{background:'#f0fdf4',borderRadius:'8px',padding:'0.75rem'}}><div style={{fontSize:'0.75rem',color:'#64748b'}}>MGA</div><div style={{fontWeight:'bold',color:'#166534',fontSize:'1rem'}}>{eleveRecherchePhoto.moyenne_generale||'-'}</div></div>
                     </div>
                     <div style={{marginTop:'1rem',background:'#f8fafc',borderRadius:'8px',padding:'0.75rem'}}><div style={{fontSize:'0.75rem',color:'#64748b'}}>PARENT</div><div style={{fontWeight:'600',color:'#374151'}}>{eleveRecherchePhoto.nom_parent||'-'}</div></div>
-                    <div style={{marginTop:'0.75rem'}}><span style={eleveRecherchePhoto.decision_fin_annee==='Admis'?s.badgeAdmis:eleveRecherchePhoto.decision_fin_annee==='Redoublant'?s.badgeRedoublant:s.badgeExclu}>{eleveRecherchePhoto.decision_fin_annee||'Décision non disponible'}</span></div>
+                    <div style={{marginTop:'0.75rem'}}><span style={eleveRecherchePhoto.decision_fin_annee==='Admis'?s.badgeAdmis:eleveRecherchePhoto.decision_fin_annee==='Redouble'?s.badgeRedoublant:s.badgeExclu}>{eleveRecherchePhoto.decision_fin_annee||'Décision non disponible'}</span></div>
                   </div>
                 </div>
               )}
@@ -2614,9 +2630,9 @@ export default function App() {
                         setElevesSelectionnesRepartition(admis);
                       }} style={{...s.btnSecondaire,fontSize:'0.8rem',background:'#e8f5e9',color:'#1b5e20',borderColor:'#2e7d32'}}>✅ Sélectionner tous les Admis ({eleves.filter(e=>e.classe===classeSource && e.decision_fin_annee==='Admis').length})</button>
                       <button onClick={()=>{
-                        const redoublants = eleves.filter(e=>e.classe===classeSource && e.decision_fin_annee==='Redoublant').map(e=>e.id);
+                        const redoublants = eleves.filter(e=>e.classe===classeSource && e.decision_fin_annee==='Redouble').map(e=>e.id);
                         setElevesSelectionnesRepartition(redoublants);
-                      }} style={{...s.btnSecondaire,fontSize:'0.8rem',background:'#fff3e0',color:'#e65100',borderColor:'#ef6c00'}}>🔄 Sélectionner tous les Redoublants ({eleves.filter(e=>e.classe===classeSource && e.decision_fin_annee==='Redoublant').length})</button>
+                      }} style={{...s.btnSecondaire,fontSize:'0.8rem',background:'#fff3e0',color:'#e65100',borderColor:'#ef6c00'}}>🔄 Sélectionner tous les Redoublants ({eleves.filter(e=>e.classe===classeSource && e.decision_fin_annee==='Redouble').length})</button>
                       <button onClick={()=>{
                         const exclus = eleves.filter(e=>e.classe===classeSource && e.decision_fin_annee==='Exclu').map(e=>e.id);
                         setElevesSelectionnesRepartition(exclus);
@@ -2643,7 +2659,7 @@ export default function App() {
                               <td style={s.td}><span style={e.sexe==='M'?s.badgeGarcon:e.sexe==='F'?s.badgeFille:{}}>{e.sexe||'-'}</span></td>
                               <td style={s.td}><span style={s.badgeClasse}>{e.classe}</span></td>
                               <td style={s.td}><strong>{e.moyenne_generale||'-'}</strong></td>
-                              <td style={s.td}><span style={e.decision_fin_annee==='Admis'?s.badgeAdmis:e.decision_fin_annee==='Redoublant'?s.badgeRedoublant:s.badgeExclu}>{e.decision_fin_annee||'-'}</span></td>
+                              <td style={s.td}><span style={e.decision_fin_annee==='Admis'?s.badgeAdmis:e.decision_fin_annee==='Redouble'?s.badgeRedoublant:s.badgeExclu}>{e.decision_fin_annee||'-'}</span></td>
                             </tr>
                           ))}
                         </tbody>
@@ -2682,7 +2698,7 @@ export default function App() {
                     <span style={{...s.statPill,background:'#dbeafe'}}>👦 Garçons : <strong>{elevesNAClasse.filter(e=>e.sexe==='M').length}</strong></span>
                     <span style={{...s.statPill,background:'#fce7f3'}}>👧 Filles : <strong>{elevesNAClasse.filter(e=>e.sexe==='F').length}</strong></span>
                     <span style={{...s.statPill,background:'#dcfce7'}}>✅ Admis : <strong>{elevesNAClasse.filter(e=>e.decision_fin_annee==='Admis').length}</strong></span>
-                    <span style={{...s.statPill,background:'#fef3c7'}}>🔄 Redoublants : <strong>{elevesNAClasse.filter(e=>e.decision_fin_annee==='Redoublant').length}</strong></span>
+                    <span style={{...s.statPill,background:'#fef3c7'}}>🔄 Redoublants : <strong>{elevesNAClasse.filter(e=>e.decision_fin_annee==='Redouble').length}</strong></span>
                   </div>
                   <div style={s.tableWrap}>
                     <table style={s.table}>
@@ -2705,7 +2721,7 @@ export default function App() {
                             <td style={s.td}><strong>{e.nom||''}</strong></td>
                             <td style={s.td}>{e.prenom||''}</td>
                             <td style={s.td}><span style={e.sexe==='M'?s.badgeGarcon:e.sexe==='F'?s.badgeFille:{}}>{e.sexe||'-'}</span></td>
-                            <td style={s.td}><span style={e.decision_fin_annee==='Admis'?s.badgeAdmis:e.decision_fin_annee==='Redoublant'?s.badgeRedoublant:e.decision_fin_annee==='Exclu'?s.badgeExclu:{}}>{e.decision_fin_annee||'-'}</span></td>
+                            <td style={s.td}><span style={e.decision_fin_annee==='Admis'?s.badgeAdmis:e.decision_fin_annee==='Redouble'?s.badgeRedoublant:e.decision_fin_annee==='Exclu'?s.badgeExclu:{}}>{e.decision_fin_annee||'-'}</span></td>
                             <td style={{...s.td,textAlign:'center',fontWeight:'bold',color: e.moyenne_generale?(parseFloat(e.moyenne_generale)>=10?'#166534':'#991b1b'):'#94a3b8'}}>{e.moyenne_generale||'-'}</td>
                           </tr>
                         ))}
@@ -2870,11 +2886,11 @@ export default function App() {
                               setEditTransfere(prev=>({...prev,[t.id]:{...prev[t.id],dfa:v}}));
                               mettreAJourTransfere(t.id,{...t,dfa:v});
                             }} style={{padding:'3px 6px',borderRadius:'6px',border:'1px solid #cbd5e1',fontSize:'0.82rem',
-                              background:dfa==='Admis'?'#dcfce7':dfa==='Redoublant'?'#fef3c7':'white',
-                              fontWeight:'bold',color:dfa==='Admis'?'#166534':dfa==='Redoublant'?'#92400e':'#64748b'}}>
+                              background:dfa==='Admis'?'#dcfce7':dfa==='Redouble'?'#fef3c7':'white',
+                              fontWeight:'bold',color:dfa==='Admis'?'#166534':dfa==='Redouble'?'#92400e':'#64748b'}}>
                               <option value="">— DFA —</option>
                               <option value="Admis">✅ Admis</option>
-                              <option value="Redoublant">🔄 Redoublant</option>
+                              <option value="Redouble">🔄 Redoublé</option>
                             </select>
                           </td>
                           <td style={{...s.td,textAlign:'center'}}>
@@ -3019,7 +3035,7 @@ export default function App() {
                             <p style={{margin:'4px 0',fontSize:'0.85rem',color:'#64748b'}}>Année : <strong style={{color:'#7c2d12'}}>{anneeSelectionnee}</strong></p>
                             <div style={{display:'flex',gap:'0.5rem',flexWrap:'wrap',marginTop:'0.5rem'}}>
                               {eleveArchiveSelectionne.sexe && <span style={eleveArchiveSelectionne.sexe==='M'?s.badgeGarcon:s.badgeFille}>{eleveArchiveSelectionne.sexe==='M'?'👦 Garçon':'👧 Fille'}</span>}
-                              <span style={eleveArchiveSelectionne.decision_fin_annee==='Admis'?s.badgeAdmis:eleveArchiveSelectionne.decision_fin_annee==='Redoublant'?s.badgeRedoublant:s.badgeExclu}>{eleveArchiveSelectionne.decision_fin_annee||'-'}</span>
+                              <span style={eleveArchiveSelectionne.decision_fin_annee==='Admis'?s.badgeAdmis:eleveArchiveSelectionne.decision_fin_annee==='Redouble'?s.badgeRedoublant:s.badgeExclu}>{eleveArchiveSelectionne.decision_fin_annee||'-'}</span>
                             </div>
                           </div>
                         </div>
@@ -3089,7 +3105,7 @@ export default function App() {
                                 <td style={s.td}><span style={e.sexe==='M'?s.badgeGarcon:e.sexe==='F'?s.badgeFille:{}}>{e.sexe||'-'}</span></td>
                                 <td style={s.td}><span style={s.badgeClasse}>{e.classe}</span></td>
                                 <td style={{...s.td,textAlign:'center',fontWeight:'bold',color:e.moyenne_generale?(parseFloat(e.moyenne_generale)>=10?'#166534':'#991b1b'):'#9ca3af'}}>{e.moyenne_generale||'-'}</td>
-                                <td style={s.td}><span style={e.decision_fin_annee==='Admis'?s.badgeAdmis:e.decision_fin_annee==='Redoublant'?s.badgeRedoublant:e.decision_fin_annee==='Exclu'?s.badgeExclu:{}}>{e.decision_fin_annee||'-'}</span></td>
+                                <td style={s.td}><span style={e.decision_fin_annee==='Admis'?s.badgeAdmis:e.decision_fin_annee==='Redouble'?s.badgeRedoublant:e.decision_fin_annee==='Exclu'?s.badgeExclu:{}}>{e.decision_fin_annee||'-'}</span></td>
                                 <td style={s.td}>{e.inscrit_economatf?<span style={s.badgeAdmis}>✅</span>:<span style={s.badgeExclu}>❌</span>}</td>
                               </tr>
                             ))}
@@ -3177,7 +3193,7 @@ export default function App() {
                               <td style={s.td}><strong>{e.nom}</strong> {e.prenom}</td>
                               <td style={s.td}><span style={s.badgeClasse}>{e.classe}</span></td>
                               <td style={{...s.td,textAlign:'center',fontWeight:'bold'}}>{e.moyenne_generale||'-'}</td>
-                              <td style={s.td}><span style={e.decision_fin_annee==='Admis'?s.badgeAdmis:e.decision_fin_annee==='Redoublant'?s.badgeRedoublant:e.decision_fin_annee==='Exclu'?s.badgeExclu:{}}>{e.decision_fin_annee||'-'}</span></td>
+                              <td style={s.td}><span style={e.decision_fin_annee==='Admis'?s.badgeAdmis:e.decision_fin_annee==='Redouble'?s.badgeRedoublant:e.decision_fin_annee==='Exclu'?s.badgeExclu:{}}>{e.decision_fin_annee||'-'}</span></td>
                             </tr>
                           ))}
                         </tbody>
