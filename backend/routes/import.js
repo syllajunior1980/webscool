@@ -317,7 +317,14 @@ router.post('/mga-dfa', upload.single('fichier'), async (req, res) => {
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const data = XLSX.utils.sheet_to_json(sheet, { defval: '' });
 
+    // DEBUG : logger les noms de colonnes du fichier reçu
+    if (data.length > 0) {
+      console.log('📋 Colonnes détectées dans le fichier MGA+DFA:', Object.keys(data[0]));
+      console.log('📋 Première ligne exemple:', data[0]);
+    }
+
     let mis_a_jour = 0, non_trouves = 0, ignores = 0, erreurs = [];
+    let colonnes_mga_non_trouvees = 0;
 
     for (const row of data) {
       try {
@@ -326,17 +333,47 @@ router.post('/mga-dfa', upload.single('fichier'), async (req, res) => {
         ).trim();
         if (!matricule) continue;
 
-        // MGA — plusieurs noms de colonnes possibles
-        const mga_raw = row['MOY. AN.'] || row['MOY.AN.'] || row['Moy. An.'] ||
-                        row['moy_an'] || row['MGA'] || row['moyenne_generale'] ||
-                        row['Moyenne Annuelle'] || row['MOYENNE AN'] || '';
+        // MGA — recherche exhaustive sur tous les noms de colonnes possibles
+        // On parcourt toutes les clés de la ligne pour trouver la MGA
+        let mga_raw = '';
+        const cles_mga = [
+          'MOY. AN.', 'MOY.AN.', 'Moy. An.', 'moy_an', 'MGA', 'Mga',
+          'moyenne_generale', 'Moyenne_Generale', 'MOYENNE_GENERALE',
+          'Moyenne Annuelle', 'MOYENNE ANNUELLE', 'moyenne annuelle',
+          'MOYENNE AN', 'Moyenne An', 'MOY AN', 'Moy An', 'moy an',
+          'MOY.AN', 'Moy.An', 'moy.an',
+          'MOYENNE', 'Moyenne', 'moyenne',
+          'MOY. AN', 'Moy. An'
+        ];
+        for (const cle of cles_mga) {
+          if (row[cle] !== undefined && row[cle] !== '') {
+            mga_raw = row[cle];
+            break;
+          }
+        }
+        // Fallback : chercher dans toutes les clés une colonne contenant "moy" et "an"
+        if (mga_raw === '') {
+          for (const cle of Object.keys(row)) {
+            const cleN = cle.toLowerCase().replace(/[.\s_]/g, '');
+            if ((cleN.includes('moy') && cleN.includes('an')) || cleN === 'mga') {
+              if (row[cle] !== undefined && row[cle] !== '') {
+                mga_raw = row[cle];
+                console.log(`✅ MGA trouvée via fallback — colonne: "${cle}", valeur: ${mga_raw}`);
+                break;
+              }
+            }
+          }
+        }
+
         const mga_str = String(mga_raw).replace(',', '.').trim();
         const mga = mga_str && mga_str !== 'NC' && mga_str !== '' ? parseFloat(mga_str) : null;
+        if (mga_raw !== '' && mga === null) colonnes_mga_non_trouvees++;
 
         // DFA — normaliser les valeurs
         const dfa_raw = String(
           row['DÉCISION'] || row['DECISION'] || row['Décision'] ||
-          row['Decision'] || row['decision'] || row['DFA'] || ''
+          row['Decision'] || row['decision'] || row['DFA'] ||
+          row['Décision fin année'] || row['DECISION FIN ANNEE'] || ''
         ).trim();
         let dfa = '';
         const d = dfa_raw.toLowerCase();
@@ -362,7 +399,9 @@ router.post('/mga-dfa', upload.single('fichier'), async (req, res) => {
       } catch (e) { erreurs.push(e.message); }
     }
 
-    res.json({ mis_a_jour, non_trouves, ignores, total: data.length, erreurs });
+    // Inclure les noms de colonnes dans la réponse pour diagnostic
+    const colonnes_fichier = data.length > 0 ? Object.keys(data[0]) : [];
+    res.json({ mis_a_jour, non_trouves, ignores, total: data.length, erreurs, colonnes_fichier, colonnes_mga_non_trouvees });
   } catch (err) { res.status(500).json({ erreur: err.message }); }
 });
 
