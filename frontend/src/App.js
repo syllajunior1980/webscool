@@ -33,6 +33,11 @@ export default function App() {
   const [importElevesStatus, setImportElevesStatus] = useState('');
   const [importElevesEnCours, setImportElevesEnCours] = useState(false);
   const [calcEnCours, setCalcEnCours] = useState(false);
+  // ===== IMPORT BEPC EXCEL =====
+  const [bepcFichier, setBepcFichier] = useState(null);
+  const [bepcStatus, setBepcStatus] = useState('');
+  const [bepcEnCours, setBepcEnCours] = useState(false);
+
   // ===== IMPORT MGA + DFA =====
   const [mgaDfaFichier, setMgaDfaFichier] = useState(null);
   const [mgaDfaStatus, setMgaDfaStatus] = useState('');
@@ -1047,6 +1052,83 @@ export default function App() {
     } catch (err) { alert('Erreur: ' + err.message); }
   };
 
+  // ===== TÉLÉCHARGER MODÈLE BEPC =====
+  const telechargerModeleBepc = () => {
+    const XLSX = require('xlsx');
+    const ws_data = [
+      ['Matricule', 'Résultat BEPC', 'Orienté 2nde'],
+      ['21012369K', 'Admis', 'Orienté'],
+      ['21013060Y', 'Échoué', 'Non orienté'],
+      ['21127240K', 'Absent', ''],
+      ['21239791L', 'Admis', 'Orienté'],
+    ];
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(ws_data);
+    ws['!cols'] = [{wch:18},{wch:20},{wch:18}];
+    XLSX.utils.book_append_sheet(wb, ws, 'Résultats BEPC');
+    XLSX.writeFile(wb, 'modele_import_bepc.xlsx');
+  };
+
+  // ===== IMPORT BEPC EXCEL =====
+  const importerBepcExcel = async () => {
+    if (!bepcFichier) { setBepcStatus('⚠️ Choisissez un fichier Excel'); return; }
+    setBepcEnCours(true);
+    setBepcStatus('⏳ Lecture du fichier Excel...');
+    try {
+      const XLSX = require('xlsx');
+      const data = await bepcFichier.arrayBuffer();
+      const workbook = XLSX.read(data, { type: 'array' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+      if (rows.length === 0) {
+        setBepcStatus('❌ Fichier vide ou colonnes introuvables');
+        setBepcEnCours(false); return;
+      }
+      const premiereColonne = Object.keys(rows[0]);
+      const colMatricule = premiereColonne.find(c => c.toLowerCase().includes('matricule') || c.toLowerCase() === 'mat');
+      const colResultat = premiereColonne.find(c => c.toLowerCase().includes('résultat') || c.toLowerCase().includes('resultat') || c.toLowerCase().includes('bepc'));
+      const colOrientation = premiereColonne.find(c => c.toLowerCase().includes('orient') || c.toLowerCase().includes('2nde') || c.toLowerCase().includes('seconde'));
+      if (!colMatricule || !colResultat) {
+        setBepcStatus(`❌ Colonnes non trouvées. Trouvées : ${premiereColonne.join(', ')}. Attendues : "Matricule" et "Résultat BEPC"`);
+        setBepcEnCours(false); return;
+      }
+      let succes = 0; let erreurs = 0; const erreursDetails = [];
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const matricule = String(row[colMatricule] || '').trim();
+        const resultat = String(row[colResultat] || '').trim();
+        const orientation = colOrientation ? String(row[colOrientation] || '').trim() : '';
+        if (!matricule || !resultat) continue;
+        const resultatNormalise = resultat === 'Admis' ? 'Admis'
+          : resultat.toLowerCase().includes('cho') ? 'Échoué'
+          : resultat.toLowerCase().includes('abs') ? 'Absent' : resultat;
+        const eleve = eleves.find(e => (e.matricule || '').trim().toUpperCase() === matricule.toUpperCase());
+        if (!eleve) { erreursDetails.push(`Matricule introuvable : ${matricule}`); erreurs++; continue; }
+        try {
+          await axios.put(`${API}/eleves/bepc/${eleve.id}`, { resultat_bepc: resultatNormalise });
+          let orientationNormalisee = '';
+          if (orientation) {
+            orientationNormalisee = orientation.toLowerCase().includes('non') ? 'Non orienté'
+              : orientation.toLowerCase().includes('orient') ? 'Orienté' : orientation;
+            await axios.put(`${API}/eleves/orientation/${eleve.id}`, { orientation_seconde: orientationNormalisee });
+          }
+          setEleves(prev => prev.map(e => e.id === eleve.id
+            ? { ...e, resultat_bepc: resultatNormalise, ...(orientationNormalisee ? { orientation_seconde: orientationNormalisee } : {}) }
+            : e
+          ));
+          succes++;
+        } catch (err) { erreursDetails.push(`Erreur pour ${matricule}: ${err.message}`); erreurs++; }
+        if ((i + 1) % 10 === 0) setBepcStatus(`⏳ ${i + 1}/${rows.length} élèves traités...`);
+      }
+      if (erreursDetails.length > 0 && erreursDetails.length <= 10) alert('⚠️ Détails erreurs :\n' + erreursDetails.join('\n'));
+      setBepcStatus(`✅ ${succes} résultat(s) importé(s) avec succès !` + (erreurs > 0 ? ` ⚠️ ${erreurs} erreur(s).` : ''));
+      setBepcFichier(null);
+      const inputFile = document.getElementById('import-bepc-file');
+      if (inputFile) inputFile.value = '';
+    } catch (err) { setBepcStatus('❌ Erreur : ' + err.message); }
+    setBepcEnCours(false);
+  };
+
   const imprimerListePayes = () => {
     const filtre = classeFiltreInscription;
     const liste = elevesInscription.filter(e => paiements[e.id]).sort((a,b) => (a.nom||'').localeCompare(b.nom||''));
@@ -2034,6 +2116,36 @@ export default function App() {
             <p style={{color:'#64748b',marginBottom:'1rem',fontSize:'0.9rem'}}>
               Cochez le résultat BEPC de chaque élève de 3ème indépendamment de sa DFA de classe.
             </p>
+
+            {/* ===== BLOC IMPORT EXCEL BEPC ===== */}
+            <div style={{background:'#f0fdf4',border:'2px solid #16a34a',borderRadius:'10px',padding:'1rem',marginBottom:'1.5rem'}}>
+              <h4 style={{margin:'0 0 0.75rem',color:'#166534',fontSize:'1rem'}}>📥 Import Excel — Résultats BEPC en masse</h4>
+              <div style={{display:'flex',gap:'0.75rem',flexWrap:'wrap',alignItems:'center',marginBottom:'0.75rem'}}>
+                <button onClick={telechargerModeleBepc}
+                  style={{background:'#0f766e',color:'white',border:'none',borderRadius:'8px',padding:'0.5rem 1rem',cursor:'pointer',fontWeight:'600',fontSize:'0.88rem'}}>
+                  ⬇️ Télécharger modèle Excel
+                </button>
+                <input id="import-bepc-file" type="file" accept=".xlsx,.xls"
+                  onChange={e => { setBepcFichier(e.target.files[0]); setBepcStatus(''); }}
+                  style={{fontSize:'0.88rem',border:'1px solid #cbd5e1',borderRadius:'6px',padding:'4px 8px',background:'white'}} />
+                <button onClick={importerBepcExcel} disabled={bepcEnCours || !bepcFichier}
+                  style={{background:bepcEnCours||!bepcFichier?'#94a3b8':'#16a34a',color:'white',border:'none',borderRadius:'8px',
+                    padding:'0.5rem 1.2rem',cursor:bepcEnCours||!bepcFichier?'not-allowed':'pointer',fontWeight:'700',fontSize:'0.9rem'}}>
+                  {bepcEnCours ? '⏳ Import en cours...' : '📤 Importer'}
+                </button>
+              </div>
+              {bepcStatus && (
+                <div style={{padding:'0.5rem 0.75rem',borderRadius:'6px',fontWeight:'600',fontSize:'0.88rem',
+                  background:bepcStatus.startsWith('✅')?'#dcfce7':bepcStatus.startsWith('❌')?'#fee2e2':'#fef9c3',
+                  color:bepcStatus.startsWith('✅')?'#166534':bepcStatus.startsWith('❌')?'#991b1b':'#92400e'}}>
+                  {bepcStatus}
+                </div>
+              )}
+              <p style={{margin:'0.5rem 0 0',color:'#64748b',fontSize:'0.8rem'}}>
+                ℹ️ Colonnes requises : <strong>Matricule</strong>, <strong>Résultat BEPC</strong> (Admis / Échoué / Absent), <strong>Orienté 2nde</strong> (optionnel : Orienté / Non orienté)
+              </p>
+            </div>
+            {/* ===== FIN IMPORT EXCEL BEPC ===== */}
             <div style={s.tableWrap}>
               <table style={s.table}>
                 <thead style={{...s.tableHead,background:'#1e3a5f'}}>
