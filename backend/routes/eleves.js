@@ -16,7 +16,7 @@ router.get('/admis-bepc', async (req, res) => {
     await pool.query(`ALTER TABLE eleves ADD COLUMN IF NOT EXISTS resultat_bepc VARCHAR(20)`).catch(()=>{});
     await pool.query(`ALTER TABLE eleves ADD COLUMN IF NOT EXISTS orientation_seconde VARCHAR(20)`).catch(()=>{});
     const result = await pool.query(
-      `SELECT * FROM eleves WHERE resultat_bepc = 'Admis' ORDER BY nom, prenom`
+      `SELECT * FROM eleves WHERE resultat_bepc = 'Admis' ORDER BY UPPER(TRIM(nom)), UPPER(TRIM(prenom))`
     );
     res.json(result.rows);
   } catch (err) { res.status(500).json({ erreur: err.message }); }
