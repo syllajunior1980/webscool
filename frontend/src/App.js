@@ -37,6 +37,8 @@ export default function App() {
   const [bepcFichier, setBepcFichier] = useState(null);
   const [bepcStatus, setBepcStatus] = useState('');
   const [bepcEnCours, setBepcEnCours] = useState(false);
+  // ===== TRI LISTE BEPC =====
+  const [triAdmis, setTriAdmis] = useState('alpha');
 
   // ===== IMPORT MGA + DFA =====
   const [mgaDfaFichier, setMgaDfaFichier] = useState(null);
@@ -2211,7 +2213,20 @@ export default function App() {
 
           {/* --- Liste officielle des admis --- */}
           <div style={{...s.importCard,marginTop:'1.5rem'}}>
-            <h3 style={{margin:'0 0 1rem',color:'#166534'}}>✅ Liste officielle des admis au BEPC ({totalAdmisBepc})</h3>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:'0.75rem',marginBottom:'1rem'}}>
+              <h3 style={{margin:0,color:'#166534'}}>✅ Liste officielle des admis au BEPC ({totalAdmisBepc})</h3>
+              <div style={{display:'flex',gap:'0.5rem'}}>
+                {[['alpha','🔤 A→Z'],['classe','🏫 Classe'],['moyenne','📊 Moyenne']].map(([val,label])=>(
+                  <button key={val} onClick={()=>setTriAdmis(val)}
+                    style={{padding:'0.35rem 0.75rem',borderRadius:'6px',border:'2px solid',fontSize:'0.82rem',fontWeight:'600',cursor:'pointer',
+                      borderColor:triAdmis===val?'#166534':'#e2e8f0',
+                      background:triAdmis===val?'#166534':'white',
+                      color:triAdmis===val?'white':'#475569'}}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div style={s.tableWrap}>
               <table style={s.table}>
                 <thead style={{...s.tableHead,background:'#166534'}}>
@@ -2219,7 +2234,11 @@ export default function App() {
                 </thead>
                 <tbody>
                   {eleves.filter(e=>classes3eme.some(c=>c===e.classe)&&e.resultat_bepc==='Admis')
-                    .sort((a,b)=>(parseFloat(b.moyenne_generale)||0)-(parseFloat(a.moyenne_generale)||0))
+                    .sort((a,b)=>
+                      triAdmis==='alpha' ? (a.nom||'').localeCompare(b.nom||'') :
+                      triAdmis==='classe' ? (a.classe||'').localeCompare(b.classe||'')||(a.nom||'').localeCompare(b.nom||'') :
+                      (parseFloat(b.moyenne_generale)||0)-(parseFloat(a.moyenne_generale)||0)
+                    )
                     .map((e,i)=>(
                     <tr key={e.id} style={i%2===0?s.trPair:s.trImpair}>
                       <td style={s.td}>{i+1}</td><td style={s.td}>{e.matricule}</td>
@@ -2240,7 +2259,20 @@ export default function App() {
 
           {/* --- Liste officielle des orientés 2nde --- */}
           <div style={{...s.importCard,marginTop:'1.5rem'}}>
-            <h3 style={{margin:'0 0 1rem',color:'#1e40af'}}>🎓 Liste officielle des orientés en 2nde ({totalOrientes})</h3>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:'0.75rem',marginBottom:'1rem'}}>
+              <h3 style={{margin:0,color:'#1e40af'}}>🎓 Liste officielle des orientés en 2nde ({totalOrientes})</h3>
+              <div style={{display:'flex',gap:'0.5rem'}}>
+                {[['alpha','🔤 A→Z'],['classe','🏫 Classe'],['moyenne','📊 Moyenne']].map(([val,label])=>(
+                  <button key={val} onClick={()=>setTriAdmis(val)}
+                    style={{padding:'0.35rem 0.75rem',borderRadius:'6px',border:'2px solid',fontSize:'0.82rem',fontWeight:'600',cursor:'pointer',
+                      borderColor:triAdmis===val?'#1e40af':'#e2e8f0',
+                      background:triAdmis===val?'#1e40af':'white',
+                      color:triAdmis===val?'white':'#475569'}}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div style={s.tableWrap}>
               <table style={s.table}>
                 <thead style={{...s.tableHead,background:'#1e40af'}}>
@@ -2248,7 +2280,11 @@ export default function App() {
                 </thead>
                 <tbody>
                   {eleves.filter(e=>classes3eme.some(c=>c===e.classe)&&e.orientation_seconde==='Orienté')
-                    .sort((a,b)=>(parseFloat(b.moyenne_generale)||0)-(parseFloat(a.moyenne_generale)||0))
+                    .sort((a,b)=>
+                      triAdmis==='alpha' ? (a.nom||'').localeCompare(b.nom||'') :
+                      triAdmis==='classe' ? (a.classe||'').localeCompare(b.classe||'')||(a.nom||'').localeCompare(b.nom||'') :
+                      (parseFloat(b.moyenne_generale)||0)-(parseFloat(a.moyenne_generale)||0)
+                    )
                     .map((e,i)=>(
                     <tr key={e.id} style={i%2===0?s.trPair:s.trImpair}>
                       <td style={s.td}>{i+1}</td><td style={s.td}>{e.matricule}</td>
