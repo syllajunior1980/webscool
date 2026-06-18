@@ -10,6 +10,18 @@ router.get('/', async (req, res) => {
   } catch (err) { res.status(500).json({ erreur: err.message }); }
 });
 
+// ===== GET admis BEPC triés alphabétiquement (pour Phoenix Android) =====
+router.get('/admis-bepc', async (req, res) => {
+  try {
+    await pool.query(`ALTER TABLE eleves ADD COLUMN IF NOT EXISTS resultat_bepc VARCHAR(20)`).catch(()=>{});
+    await pool.query(`ALTER TABLE eleves ADD COLUMN IF NOT EXISTS orientation_seconde VARCHAR(20)`).catch(()=>{});
+    const result = await pool.query(
+      `SELECT * FROM eleves WHERE resultat_bepc = 'Admis' ORDER BY nom, prenom`
+    );
+    res.json(result.rows);
+  } catch (err) { res.status(500).json({ erreur: err.message }); }
+});
+
 // GET classes distinctes
 router.get('/classes', async (req, res) => {
   try {
