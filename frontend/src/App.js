@@ -2335,9 +2335,10 @@ export default function App() {
               <p style={{margin:'0.5rem 0 0',color:'#64748b',fontSize:'0.8rem'}}>
                 ℹ️ Colonnes requises : <strong>Matricule</strong>, <strong>Nom</strong>, <strong>Prenoms</strong>, <strong>Classe</strong>, <strong>Math</strong>, <strong>Ph-Ch</strong>, <strong>Ang</strong>, <strong>Cf</strong>.
               </p>
-              <p style={{margin:'0.5rem 0 0',color:'#64748b',fontSize:'0.8rem'}}>
-                🔗 Page publique (parents/collègues, sans mot de passe) : <strong>{window.location.origin}/?orientation=1</strong>
-              </p>
+              <button onClick={() => window.open(window.location.origin + '/?orientation=1', '_blank')}
+                style={{marginTop:'0.6rem',background:'#7c3aed',color:'white',border:'none',borderRadius:'8px',padding:'0.5rem 1rem',cursor:'pointer',fontWeight:'700',fontSize:'0.85rem'}}>
+                🔗 Ouvrir la page Moyenne Orientation (publique)
+              </button>
             </div>
             {/* ===== FIN IMPORT MGA — MOYENNE ORIENTATION ===== */}
 
