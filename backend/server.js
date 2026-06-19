@@ -45,6 +45,7 @@ app.use('/api/eleves', require('./routes/reconnaissance'));
 app.use('/api/archives', require('./routes/archives'));  // ← ARCHIVES
 app.use('/api/transferes', require('./routes/transferes'));
 app.use('/api/points-bepc', require('./routes/points_bepc'));  // ← POINTS BEPC (admis/refusés)
+app.use('/api/moyenne-orientation', require('./routes/moyenne_orientation'));  // ← MOYENNE ORIENTATION
 app.get('/', (req, res) => { res.json({ message: 'WebScool', status: 'OK' }); });
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => { console.log(`Serveur démarré sur http://localhost:${PORT}`); });
