@@ -40,6 +40,13 @@ export default function App() {
   // ===== TRI LISTE BEPC =====
   const [triAdmis, setTriAdmis] = useState('alpha');
 
+  // ===== IMPORT POINTS BEPC (Admis + Refusés avec points officiels) =====
+  const [pointsFichier, setPointsFichier] = useState(null);
+  const [pointsStatus, setPointsStatus] = useState('');
+  const [pointsEnCours, setPointsEnCours] = useState(false);
+  const [pointsBepcAdmis, setPointsBepcAdmis] = useState([]);
+  const [pointsBepcRefuses, setPointsBepcRefuses] = useState([]);
+
   // ===== IMPORT MGA + DFA =====
   const [mgaDfaFichier, setMgaDfaFichier] = useState(null);
   const [mgaDfaStatus, setMgaDfaStatus] = useState('');
@@ -143,7 +150,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (connecte) { chargerEleves(); chargerClasses(); chargerPaiements(); chargerInscriptionsEducateurs(); }
+    if (connecte) { chargerEleves(); chargerClasses(); chargerPaiements(); chargerInscriptionsEducateurs(); chargerPointsBepc(); }
   }, [connecte]);
 
   const seConnecter = () => {
@@ -1129,6 +1136,72 @@ export default function App() {
       if (inputFile) inputFile.value = '';
     } catch (err) { setBepcStatus('❌ Erreur : ' + err.message); }
     setBepcEnCours(false);
+  };
+
+  // ===== CHARGER LES POINTS BEPC (admis + refusés) =====
+  const chargerPointsBepc = async () => {
+    try {
+      const [resAdmis, resRefuses] = await Promise.all([
+        axios.get(`${API}/points-bepc/admis`),
+        axios.get(`${API}/points-bepc/refuses`)
+      ]);
+      setPointsBepcAdmis(resAdmis.data);
+      setPointsBepcRefuses(resRefuses.data);
+    } catch (err) { console.error('Erreur chargement points BEPC :', err.message); }
+  };
+
+  // ===== IMPORT FICHIER OFFICIEL DU MINISTÈRE (Points BEPC : admis + refusés) =====
+  const importerPointsBepc = async () => {
+    if (!pointsFichier) { setPointsStatus('⚠️ Choisissez le fichier Excel du ministère'); return; }
+    setPointsEnCours(true);
+    setPointsStatus('⏳ Lecture du fichier Excel...');
+    try {
+      const XLSX = require('xlsx');
+      const data = await pointsFichier.arrayBuffer();
+      const workbook = XLSX.read(data, { type: 'array' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+      if (rows.length === 0) {
+        setPointsStatus('❌ Fichier vide');
+        setPointsEnCours(false); return;
+      }
+      const colonnes = Object.keys(rows[0]);
+      const colMatricule = colonnes.find(c => c.toLowerCase().includes('matricule'));
+      const colNom = colonnes.find(c => c.toLowerCase() === 'nom');
+      const colPrenom = colonnes.find(c => c.toLowerCase().includes('prénom') || c.toLowerCase().includes('prenom'));
+      const colClasse = colonnes.find(c => c.toLowerCase().includes('classe'));
+      const colPoints = colonnes.find(c => c.toLowerCase().includes('point'));
+      const colDecision = colonnes.find(c => c.toLowerCase().includes('decision') || c.toLowerCase().includes('décision'));
+
+      if (!colMatricule || !colNom || !colPoints || !colDecision) {
+        setPointsStatus(`❌ Colonnes non trouvées. Trouvées : ${colonnes.join(', ')}. Attendues : Matricule, Nom, Prénoms, Points, Decisions`);
+        setPointsEnCours(false); return;
+      }
+
+      const candidats = rows.map(row => {
+        const decisionBrute = String(row[colDecision] || '').trim();
+        const decision = decisionBrute.toLowerCase().startsWith('adm') ? 'Admis'
+          : decisionBrute.toLowerCase().startsWith('ref') ? 'Refusé' : decisionBrute;
+        return {
+          matricule: String(row[colMatricule] || '').trim(),
+          nom: String(row[colNom] || '').trim(),
+          prenom: colPrenom ? String(row[colPrenom] || '').trim() : '',
+          classe: colClasse ? String(row[colClasse] || '').trim() : '',
+          points: parseFloat(row[colPoints]),
+          decision
+        };
+      }).filter(c => c.matricule && c.nom);
+
+      setPointsStatus(`⏳ Envoi de ${candidats.length} candidats au serveur...`);
+      const res = await axios.post(`${API}/points-bepc/importer`, { candidats });
+      const { inseres, misAJour, erreurs } = res.data;
+      setPointsStatus(`✅ Import terminé : ${inseres} ajouté(s), ${misAJour} mis à jour` + (erreurs > 0 ? `, ⚠️ ${erreurs} erreur(s)` : ''));
+      setPointsFichier(null);
+      const inputFile = document.getElementById('import-points-bepc-file');
+      if (inputFile) inputFile.value = '';
+      await chargerPointsBepc();
+    } catch (err) { setPointsStatus('❌ Erreur : ' + (err.response?.data?.erreur || err.message)); }
+    setPointsEnCours(false);
   };
 
   const imprimerListePayes = () => {
@@ -2148,6 +2221,33 @@ export default function App() {
               </p>
             </div>
             {/* ===== FIN IMPORT EXCEL BEPC ===== */}
+
+            {/* ===== BLOC IMPORT POINTS BEPC (fichier officiel du ministère) ===== */}
+            <div style={{background:'#eff6ff',border:'2px solid #2563eb',borderRadius:'10px',padding:'1rem',marginBottom:'1.5rem'}}>
+              <h4 style={{margin:'0 0 0.75rem',color:'#1e40af',fontSize:'1rem'}}>📊 Import Points BEPC — Fichier officiel du ministère (Admis + Refusés)</h4>
+              <div style={{display:'flex',gap:'0.75rem',flexWrap:'wrap',alignItems:'center',marginBottom:'0.75rem'}}>
+                <input id="import-points-bepc-file" type="file" accept=".xlsx,.xls"
+                  onChange={e => { setPointsFichier(e.target.files[0]); setPointsStatus(''); }}
+                  style={{fontSize:'0.88rem',border:'1px solid #cbd5e1',borderRadius:'6px',padding:'4px 8px',background:'white'}} />
+                <button onClick={importerPointsBepc} disabled={pointsEnCours || !pointsFichier}
+                  style={{background:pointsEnCours||!pointsFichier?'#94a3b8':'#2563eb',color:'white',border:'none',borderRadius:'8px',
+                    padding:'0.5rem 1.2rem',cursor:pointsEnCours||!pointsFichier?'not-allowed':'pointer',fontWeight:'700',fontSize:'0.9rem'}}>
+                  {pointsEnCours ? '⏳ Import en cours...' : '📤 Importer les points'}
+                </button>
+              </div>
+              {pointsStatus && (
+                <div style={{padding:'0.5rem 0.75rem',borderRadius:'6px',fontWeight:'600',fontSize:'0.88rem',
+                  background:pointsStatus.startsWith('✅')?'#dcfce7':pointsStatus.startsWith('❌')?'#fee2e2':'#fef9c3',
+                  color:pointsStatus.startsWith('✅')?'#166534':pointsStatus.startsWith('❌')?'#991b1b':'#92400e'}}>
+                  {pointsStatus}
+                </div>
+              )}
+              <p style={{margin:'0.5rem 0 0',color:'#64748b',fontSize:'0.8rem'}}>
+                ℹ️ Colonnes requises : <strong>Matricule</strong>, <strong>Nom</strong>, <strong>Prénoms</strong>, <strong>Classe</strong>, <strong>Points</strong>, <strong>Decisions</strong> (Admis / Refusé) — fichier tel que reçu du ministère, sans modification.
+              </p>
+            </div>
+            {/* ===== FIN IMPORT POINTS BEPC ===== */}
+
             <div style={s.tableWrap}>
               <table style={s.table}>
                 <thead style={{...s.tableHead,background:'#1e3a5f'}}>
@@ -2255,6 +2355,54 @@ export default function App() {
             </div>
             <br/>
             <button onClick={imprimerListeBEPC} style={{...s.btnCalculer,background:'#166534'}}>🖨️ Imprimer liste BEPC</button>
+          </div>
+
+          {/* --- Liste officielle des admis avec POINTS (fichier ministère) --- */}
+          <div style={{...s.importCard,marginTop:'1.5rem'}}>
+            <h3 style={{margin:'0 0 1rem',color:'#1e40af'}}>📊 Admis BEPC — Points officiels du ministère ({pointsBepcAdmis.length})</h3>
+            <div style={s.tableWrap}>
+              <table style={s.table}>
+                <thead style={{...s.tableHead,background:'#1e40af'}}>
+                  <tr>{['#','Matricule','Nom','Prénom','Classe','Points'].map(h=><th key={h} style={s.th}>{h}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {pointsBepcAdmis.map((c,i)=>(
+                    <tr key={c.matricule} style={i%2===0?s.trPair:s.trImpair}>
+                      <td style={s.td}>{i+1}</td>
+                      <td style={s.td}>{c.matricule}</td>
+                      <td style={s.td}><strong>{c.nom}</strong></td>
+                      <td style={s.td}>{c.prenom}</td>
+                      <td style={s.td}><span style={s.badgeClasse}>{c.classe}</span></td>
+                      <td style={s.td}><strong style={{color:'#1e40af'}}>{c.points}</strong></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* --- Liste des refusés au BEPC (fichier ministère) --- */}
+          <div style={{...s.importCard,marginTop:'1.5rem'}}>
+            <h3 style={{margin:'0 0 1rem',color:'#991b1b'}}>❌ Refusés au BEPC — Points officiels du ministère ({pointsBepcRefuses.length})</h3>
+            <div style={s.tableWrap}>
+              <table style={s.table}>
+                <thead style={{...s.tableHead,background:'#991b1b'}}>
+                  <tr>{['#','Matricule','Nom','Prénom','Classe','Points'].map(h=><th key={h} style={s.th}>{h}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {pointsBepcRefuses.map((c,i)=>(
+                    <tr key={c.matricule} style={i%2===0?s.trPair:s.trImpair}>
+                      <td style={s.td}>{i+1}</td>
+                      <td style={s.td}>{c.matricule}</td>
+                      <td style={s.td}><strong>{c.nom}</strong></td>
+                      <td style={s.td}>{c.prenom}</td>
+                      <td style={s.td}><span style={s.badgeClasse}>{c.classe}</span></td>
+                      <td style={s.td}><strong style={{color:'#991b1b'}}>{c.points}</strong></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {/* --- Liste officielle des orientés 2nde --- */}
