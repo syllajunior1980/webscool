@@ -12,12 +12,6 @@ const STATUTS = ['Non affecté', 'Affecté', 'Transféré'];
 const QUALITES = ['', 'Nouveau', 'Ancien', 'Redouble', 'Transféré entrant', 'Transféré sortant'];
 
 export default function App() {
-  // ===== PAGE PUBLIQUE MOYENNE ORIENTATION (sans mot de passe) =====
-  // Accessible via : https://cmdares.vercel.app/?orientation=1
-  if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('orientation') === '1') {
-    return <PageOrientation />;
-  }
-
   const [connecte, setConnecte] = useState(false);
   const [appChargee, setAppChargee] = useState(false);
   const [progressChargement, setProgressChargement] = useState(0);
@@ -1644,6 +1638,12 @@ export default function App() {
     if (n === '3EME') return d === 'Redouble' ? '3eme' : '';
     return '';
   };
+
+  // ===== PAGE PUBLIQUE MOYENNE ORIENTATION (sans mot de passe) =====
+  // Accessible via : https://cmdares.vercel.app/?orientation=1
+  if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('orientation') === '1') {
+    return <PageOrientation />;
+  }
 
   if (!appChargee) {
 
