@@ -25,14 +25,16 @@ router.get('/admis', async (req, res) => {
 });
 
 // GET /api/points-bepc/refuses
-// Liste des refusés avec points, triée alphabétique (nom, prénom)
+// Liste des refusés avec points + photo (jointure eleves), triée alphabétique (nom, prénom)
 router.get('/refuses', async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT matricule, nom, prenom, points, classe, annee_session
-       FROM points_bepc
-       WHERE decision = 'Refusé'
-       ORDER BY UPPER(TRIM(nom)), UPPER(TRIM(prenom))`
+      `SELECT pb.matricule, pb.nom, pb.prenom, pb.points, pb.classe, pb.annee_session,
+              e.photo_url
+       FROM points_bepc pb
+       LEFT JOIN eleves e ON e.matricule = pb.matricule
+       WHERE pb.decision = 'Refusé'
+       ORDER BY UPPER(TRIM(pb.nom)), UPPER(TRIM(pb.prenom))`
     );
     res.json(result.rows);
   } catch (err) {
