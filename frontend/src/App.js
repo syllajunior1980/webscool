@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import PageOrientation from './PageOrientation';
 
 const API = 'https://webscool.onrender.com/api';
 const MOT_DE_PASSE = 'dares2026';
@@ -11,6 +12,12 @@ const STATUTS = ['Non affecté', 'Affecté', 'Transféré'];
 const QUALITES = ['', 'Nouveau', 'Ancien', 'Redouble', 'Transféré entrant', 'Transféré sortant'];
 
 export default function App() {
+  // ===== PAGE PUBLIQUE MOYENNE ORIENTATION (sans mot de passe) =====
+  // Accessible via : https://cmdares.vercel.app/?orientation=1
+  if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('orientation') === '1') {
+    return <PageOrientation />;
+  }
+
   const [connecte, setConnecte] = useState(false);
   const [appChargee, setAppChargee] = useState(false);
   const [progressChargement, setProgressChargement] = useState(0);
@@ -46,6 +53,11 @@ export default function App() {
   const [pointsEnCours, setPointsEnCours] = useState(false);
   const [pointsBepcAdmis, setPointsBepcAdmis] = useState([]);
   const [pointsBepcRefuses, setPointsBepcRefuses] = useState([]);
+
+  // ===== IMPORT MGA POUR MOYENNE ORIENTATION (Maths, PH-CH, Anglais, CF) =====
+  const [orientationFichier, setOrientationFichier] = useState(null);
+  const [orientationStatus, setOrientationStatus] = useState('');
+  const [orientationEnCours, setOrientationEnCours] = useState(false);
 
   // ===== IMPORT MGA + DFA =====
   const [mgaDfaFichier, setMgaDfaFichier] = useState(null);
@@ -1204,6 +1216,58 @@ export default function App() {
     setPointsEnCours(false);
   };
 
+  // ===== IMPORT FICHIER EXCEL — MGA POUR MOYENNE ORIENTATION (3ème) =====
+  const importerMgaOrientation = async () => {
+    if (!orientationFichier) { setOrientationStatus('⚠️ Choisissez le fichier Excel des MGA'); return; }
+    setOrientationEnCours(true);
+    setOrientationStatus('⏳ Lecture du fichier Excel...');
+    try {
+      const XLSX = require('xlsx');
+      const data = await orientationFichier.arrayBuffer();
+      const workbook = XLSX.read(data, { type: 'array' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+      if (rows.length === 0) {
+        setOrientationStatus('❌ Fichier vide');
+        setOrientationEnCours(false); return;
+      }
+      const colonnes = Object.keys(rows[0]);
+      const colMatricule = colonnes.find(c => c.toLowerCase().includes('matricule'));
+      const colNom = colonnes.find(c => c.toLowerCase() === 'nom');
+      const colPrenom = colonnes.find(c => c.toLowerCase().includes('prénom') || c.toLowerCase().includes('prenom'));
+      const colClasse = colonnes.find(c => c.toLowerCase().includes('classe'));
+      const colMath = colonnes.find(c => c.toLowerCase() === 'math' || c.toLowerCase().includes('maths'));
+      const colPhCh = colonnes.find(c => c.toLowerCase().includes('ph-ch') || c.toLowerCase().includes('phch') || c.toLowerCase().includes('physique'));
+      const colAng = colonnes.find(c => c.toLowerCase() === 'ang' || c.toLowerCase().includes('anglais'));
+      const colCf = colonnes.find(c => c.toLowerCase() === 'cf' || c.toLowerCase().includes('française') || c.toLowerCase().includes('francaise'));
+
+      if (!colMatricule || !colNom || !colMath || !colPhCh || !colAng || !colCf) {
+        setOrientationStatus(`❌ Colonnes non trouvées. Trouvées : ${colonnes.join(', ')}. Attendues : Matricule, Nom, Prenoms, Classe, Math, Ph-Ch, Ang, Cf`);
+        setOrientationEnCours(false); return;
+      }
+
+      const eleves = rows.map(row => ({
+        matricule: String(row[colMatricule] || '').trim(),
+        nom: String(row[colNom] || '').trim(),
+        prenoms: colPrenom ? String(row[colPrenom] || '').trim() : '',
+        classe: colClasse ? String(row[colClasse] || '').trim() : '',
+        math_mga: parseFloat(row[colMath]),
+        phch_mga: parseFloat(row[colPhCh]),
+        ang_mga: parseFloat(row[colAng]),
+        cf_mga: parseFloat(row[colCf])
+      })).filter(e => e.matricule && e.nom);
+
+      setOrientationStatus(`⏳ Envoi de ${eleves.length} élèves au serveur...`);
+      const res = await axios.post(`${API}/moyenne-orientation/importer`, { eleves });
+      const { importes, erreurs } = res.data;
+      setOrientationStatus(`✅ Import terminé : ${importes} élève(s) importé(s)` + (erreurs > 0 ? `, ⚠️ ${erreurs} erreur(s)` : ''));
+      setOrientationFichier(null);
+      const inputFile = document.getElementById('import-orientation-file');
+      if (inputFile) inputFile.value = '';
+    } catch (err) { setOrientationStatus('❌ Erreur : ' + (err.response?.data?.error || err.message)); }
+    setOrientationEnCours(false);
+  };
+
   const imprimerListePayes = () => {
     const filtre = classeFiltreInscription;
     const liste = elevesInscription.filter(e => paiements[e.id]).sort((a,b) => (a.nom||'').localeCompare(b.nom||''));
@@ -2247,6 +2311,35 @@ export default function App() {
               </p>
             </div>
             {/* ===== FIN IMPORT POINTS BEPC ===== */}
+
+            {/* ===== BLOC IMPORT MGA — MOYENNE ORIENTATION (3ème) ===== */}
+            <div style={{background:'#fdf4ff',border:'2px solid #a21caf',borderRadius:'10px',padding:'1rem',marginBottom:'1.5rem'}}>
+              <h4 style={{margin:'0 0 0.75rem',color:'#86198f',fontSize:'1rem'}}>🎓 Import MGA — Moyenne Orientation (Maths, Ph-Ch, Anglais, Comp. Française)</h4>
+              <div style={{display:'flex',gap:'0.75rem',flexWrap:'wrap',alignItems:'center',marginBottom:'0.75rem'}}>
+                <input id="import-orientation-file" type="file" accept=".xlsx,.xls"
+                  onChange={e => { setOrientationFichier(e.target.files[0]); setOrientationStatus(''); }}
+                  style={{fontSize:'0.88rem',border:'1px solid #cbd5e1',borderRadius:'6px',padding:'4px 8px',background:'white'}} />
+                <button onClick={importerMgaOrientation} disabled={orientationEnCours || !orientationFichier}
+                  style={{background:orientationEnCours||!orientationFichier?'#94a3b8':'#a21caf',color:'white',border:'none',borderRadius:'8px',
+                    padding:'0.5rem 1.2rem',cursor:orientationEnCours||!orientationFichier?'not-allowed':'pointer',fontWeight:'700',fontSize:'0.9rem'}}>
+                  {orientationEnCours ? '⏳ Import en cours...' : '📤 Importer les MGA'}
+                </button>
+              </div>
+              {orientationStatus && (
+                <div style={{padding:'0.5rem 0.75rem',borderRadius:'6px',fontWeight:'600',fontSize:'0.88rem',
+                  background:orientationStatus.startsWith('✅')?'#dcfce7':orientationStatus.startsWith('❌')?'#fee2e2':'#fef9c3',
+                  color:orientationStatus.startsWith('✅')?'#166534':orientationStatus.startsWith('❌')?'#991b1b':'#92400e'}}>
+                  {orientationStatus}
+                </div>
+              )}
+              <p style={{margin:'0.5rem 0 0',color:'#64748b',fontSize:'0.8rem'}}>
+                ℹ️ Colonnes requises : <strong>Matricule</strong>, <strong>Nom</strong>, <strong>Prenoms</strong>, <strong>Classe</strong>, <strong>Math</strong>, <strong>Ph-Ch</strong>, <strong>Ang</strong>, <strong>Cf</strong>.
+              </p>
+              <p style={{margin:'0.5rem 0 0',color:'#64748b',fontSize:'0.8rem'}}>
+                🔗 Page publique (parents/collègues, sans mot de passe) : <strong>{window.location.origin}/?orientation=1</strong>
+              </p>
+            </div>
+            {/* ===== FIN IMPORT MGA — MOYENNE ORIENTATION ===== */}
 
             <div style={s.tableWrap}>
               <table style={s.table}>
