@@ -177,6 +177,22 @@ router.put('/:matricule/notes', async (req, res) => {
     const row = result.rows[0];
     const calcul = calculerMoyenne(row);
 
+    // ===== LIEN AVEC LA LISTE OFFICIELLE DES ORIENTÉS 2NDE =====
+    // Dès que les 5 notes sont complètes, on met à jour automatiquement
+    // la colonne orientation_seconde de l'élève dans la table eleves :
+    // moyenne >= 10 → "Orienté", sinon → "Non orienté"
+    if (calcul.complet) {
+      const decisionOrientation = calcul.moyenne_orientation >= 10 ? 'Orienté' : 'Non orienté';
+      try {
+        await pool.query(
+          'UPDATE eleves SET orientation_seconde = $1 WHERE matricule = $2',
+          [decisionOrientation, matricule]
+        );
+      } catch (errLien) {
+        console.error('⚠️ Erreur mise à jour orientation_seconde :', errLien.message);
+      }
+    }
+
     res.json({ message: 'Notes enregistrées', ...calcul });
   } catch (err) {
     res.status(500).json({ error: err.message });
