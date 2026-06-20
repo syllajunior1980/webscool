@@ -27,6 +27,7 @@ async function migrerBase() {
     await pool.query(`ALTER TABLE eleves ADD COLUMN IF NOT EXISTS nom_parent VARCHAR(150)`);
     await pool.query(`ALTER TABLE eleves ADD COLUMN IF NOT EXISTS telephone1 VARCHAR(20)`);
     await pool.query(`ALTER TABLE eleves ADD COLUMN IF NOT EXISTS telephone2 VARCHAR(20)`);
+    await pool.query(`ALTER TABLE eleves ADD COLUMN IF NOT EXISTS moyenne_orientation_finale NUMERIC(5,2)`);
     console.log('✅ Migration base de données OK');
   } catch (err) {
     console.error('⚠️ Migration erreur:', err.message);

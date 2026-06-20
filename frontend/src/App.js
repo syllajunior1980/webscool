@@ -48,6 +48,11 @@ export default function App() {
   const [pointsBepcAdmis, setPointsBepcAdmis] = useState([]);
   const [pointsBepcRefuses, setPointsBepcRefuses] = useState([]);
 
+  // ===== IMPORT OFFICIEL MOYENNE ORIENTATION (ministère DECO) =====
+  const [officielFichier, setOfficielFichier] = useState(null);
+  const [officielStatus, setOfficielStatus] = useState('');
+  const [officielEnCours, setOfficielEnCours] = useState(false);
+
   // ===== IMPORT MGA POUR MOYENNE ORIENTATION (Maths, PH-CH, Anglais, CF) =====
   const [orientationFichier, setOrientationFichier] = useState(null);
   const [orientationStatus, setOrientationStatus] = useState('');
@@ -1262,6 +1267,47 @@ export default function App() {
     setOrientationEnCours(false);
   };
 
+  // ===== IMPORT OFFICIEL — MOYENNE ORIENTATION DU MINISTÈRE (DECO) =====
+  const importerMoyenneOfficielle = async () => {
+    if (!officielFichier) { setOfficielStatus('⚠️ Choisissez le fichier Excel du ministère'); return; }
+    setOfficielEnCours(true);
+    setOfficielStatus('⏳ Lecture du fichier Excel...');
+    try {
+      const XLSX = require('xlsx');
+      const data = await officielFichier.arrayBuffer();
+      const workbook = XLSX.read(data, { type: 'array' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+      if (rows.length === 0) {
+        setOfficielStatus('❌ Fichier vide');
+        setOfficielEnCours(false); return;
+      }
+      const colonnes = Object.keys(rows[0]);
+      const colMatricule = colonnes.find(c => c.toLowerCase().includes('matricule'));
+      const colMoyenne = colonnes.find(c => c.toLowerCase().includes('moyenne') || c.toLowerCase().includes('orientation'));
+
+      if (!colMatricule || !colMoyenne) {
+        setOfficielStatus(`❌ Colonnes non trouvées. Trouvées : ${colonnes.join(', ')}. Attendues : Matricule, Moyenne`);
+        setOfficielEnCours(false); return;
+      }
+
+      const eleves = rows.map(row => ({
+        matricule: String(row[colMatricule] || '').trim(),
+        moyenne: parseFloat(row[colMoyenne])
+      })).filter(e => e.matricule);
+
+      setOfficielStatus(`⏳ Envoi de ${eleves.length} élèves au serveur...`);
+      const res = await axios.post(`${API}/moyenne-orientation/importer-officiel`, { eleves });
+      const { misAJour, erreurs } = res.data;
+      setOfficielStatus(`✅ Import terminé : ${misAJour} élève(s) mis à jour` + (erreurs > 0 ? `, ⚠️ ${erreurs} erreur(s)` : ''));
+      setOfficielFichier(null);
+      const inputFile = document.getElementById('import-officiel-orientation-file');
+      if (inputFile) inputFile.value = '';
+      chargerEleves();
+    } catch (err) { setOfficielStatus('❌ Erreur : ' + (err.response?.data?.error || err.message)); }
+    setOfficielEnCours(false);
+  };
+
   const imprimerListePayes = () => {
     const filtre = classeFiltreInscription;
     const liste = elevesInscription.filter(e => paiements[e.id]).sort((a,b) => (a.nom||'').localeCompare(b.nom||''));
@@ -2342,6 +2388,32 @@ export default function App() {
             </div>
             {/* ===== FIN IMPORT MGA — MOYENNE ORIENTATION ===== */}
 
+            {/* ===== BLOC IMPORT OFFICIEL — MOYENNE ORIENTATION DU MINISTÈRE (DECO) ===== */}
+            <div style={{background:'#fff7ed',border:'2px solid #ea580c',borderRadius:'10px',padding:'1rem',marginBottom:'1.5rem'}}>
+              <h4 style={{margin:'0 0 0.75rem',color:'#9a3412',fontSize:'1rem'}}>📋 Import Officiel — Moyenne Orientation du Ministère (DECO)</h4>
+              <div style={{display:'flex',gap:'0.75rem',flexWrap:'wrap',alignItems:'center',marginBottom:'0.75rem'}}>
+                <input id="import-officiel-orientation-file" type="file" accept=".xlsx,.xls"
+                  onChange={e => { setOfficielFichier(e.target.files[0]); setOfficielStatus(''); }}
+                  style={{fontSize:'0.88rem',border:'1px solid #cbd5e1',borderRadius:'6px',padding:'4px 8px',background:'white'}} />
+                <button onClick={importerMoyenneOfficielle} disabled={officielEnCours || !officielFichier}
+                  style={{background:officielEnCours||!officielFichier?'#94a3b8':'#ea580c',color:'white',border:'none',borderRadius:'8px',
+                    padding:'0.5rem 1.2rem',cursor:officielEnCours||!officielFichier?'not-allowed':'pointer',fontWeight:'700',fontSize:'0.9rem'}}>
+                  {officielEnCours ? '⏳ Import en cours...' : '📤 Importer la moyenne officielle'}
+                </button>
+              </div>
+              {officielStatus && (
+                <div style={{padding:'0.5rem 0.75rem',borderRadius:'6px',fontWeight:'600',fontSize:'0.88rem',
+                  background:officielStatus.startsWith('✅')?'#dcfce7':officielStatus.startsWith('❌')?'#fee2e2':'#fef9c3',
+                  color:officielStatus.startsWith('✅')?'#166534':officielStatus.startsWith('❌')?'#991b1b':'#92400e'}}>
+                  {officielStatus}
+                </div>
+              )}
+              <p style={{margin:'0.5rem 0 0',color:'#64748b',fontSize:'0.8rem'}}>
+                ℹ️ Colonnes requises : <strong>Matricule</strong>, <strong>Moyenne</strong> (la moyenne d'orientation déjà calculée par le ministère, fichier reçu via le lien DECO). Valide automatiquement "Orienté" si ≥10, "Non orienté" si &lt;10 — vient directement compléter la liste officielle ci-dessous, sans avoir à ressaisir matricule par matricule.
+              </p>
+            </div>
+            {/* ===== FIN IMPORT OFFICIEL MOYENNE ORIENTATION ===== */}
+
             <div style={s.tableWrap}>
               <table style={s.table}>
                 <thead style={{...s.tableHead,background:'#1e3a5f'}}>
@@ -2518,7 +2590,7 @@ export default function App() {
             <div style={s.tableWrap}>
               <table style={s.table}>
                 <thead style={{...s.tableHead,background:'#1e40af'}}>
-                  <tr>{['#','Matricule','Nom','Prénom','Sexe','Classe','MGA','Parent','Téléphone'].map(h=><th key={h} style={s.th}>{h}</th>)}</tr>
+                  <tr>{['#','Matricule','Nom','Prénom','Sexe','Classe','MGA','Moyenne Orientation','Parent','Téléphone'].map(h=><th key={h} style={s.th}>{h}</th>)}</tr>
                 </thead>
                 <tbody>
                   {eleves.filter(e=>classes3eme.some(c=>c===e.classe)&&e.orientation_seconde==='Orienté')
@@ -2534,6 +2606,7 @@ export default function App() {
                       <td style={s.td}><span style={e.sexe==='M'?s.badgeGarcon:e.sexe==='F'?s.badgeFille:{}}>{e.sexe||'-'}</span></td>
                       <td style={s.td}><span style={s.badgeClasse}>{e.classe}</span></td>
                       <td style={s.td}><strong style={{color:'#1e40af'}}>{e.moyenne_generale||'-'}</strong></td>
+                      <td style={s.td}><strong style={{color: parseFloat(e.moyenne_orientation_finale) >= 10 ? '#166534' : '#991b1b'}}>{e.moyenne_orientation_finale!=null && e.moyenne_orientation_finale!==''?`${e.moyenne_orientation_finale}/20`:'-'}</strong></td>
                       <td style={s.td}>{e.nom_parent||'-'}</td>
                       <td style={s.td}>{e.telephone1?<a href={`tel:${e.telephone1}`} style={s.telLink}>📞 {e.telephone1}</a>:'-'}</td>
                     </tr>

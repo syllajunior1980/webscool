@@ -185,8 +185,8 @@ router.put('/:matricule/notes', async (req, res) => {
       const decisionOrientation = calcul.moyenne_orientation >= 10 ? 'Orienté' : 'Non orienté';
       try {
         await pool.query(
-          'UPDATE eleves SET orientation_seconde = $1 WHERE matricule = $2',
-          [decisionOrientation, matricule]
+          'UPDATE eleves SET orientation_seconde = $1, moyenne_orientation_finale = $2 WHERE matricule = $3',
+          [decisionOrientation, calcul.moyenne_orientation, matricule]
         );
       } catch (errLien) {
         console.error('⚠️ Erreur mise à jour orientation_seconde :', errLien.message);
@@ -197,6 +197,51 @@ router.put('/:matricule/notes', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// ───────────────────────────────────────────────
+// POST /api/moyenne-orientation/importer-officiel
+// Import en masse depuis le fichier du ministère (DECO) : Matricule + Moyenne déjà calculée
+// Met à jour directement orientation_seconde (>=10 → Orienté) et moyenne_orientation_finale
+// sur la table eleves — sans passer par les MGA / notes BEPC individuelles
+// ───────────────────────────────────────────────
+router.post('/importer-officiel', async (req, res) => {
+  const { eleves } = req.body;
+
+  if (!Array.isArray(eleves) || eleves.length === 0) {
+    return res.status(400).json({ error: 'Aucune donnée à importer' });
+  }
+
+  let misAJour = 0;
+  const erreurs = [];
+
+  for (const e of eleves) {
+    try {
+      const matricule = String(e.matricule || '').trim();
+      const moyenne = parseFloat(e.moyenne);
+
+      if (!matricule || isNaN(moyenne)) {
+        erreurs.push({ matricule: e.matricule, raison: 'Matricule ou moyenne invalide' });
+        continue;
+      }
+
+      const decision = moyenne >= 10 ? 'Orienté' : 'Non orienté';
+      const result = await pool.query(
+        `UPDATE eleves SET orientation_seconde = $1, moyenne_orientation_finale = $2 WHERE matricule = $3`,
+        [decision, moyenne, matricule]
+      );
+
+      if (result.rowCount === 0) {
+        erreurs.push({ matricule, raison: 'Matricule introuvable dans la base élèves' });
+        continue;
+      }
+      misAJour++;
+    } catch (err) {
+      erreurs.push({ matricule: e.matricule, raison: err.message });
+    }
+  }
+
+  res.json({ misAJour, erreurs: erreurs.length, details: erreurs.slice(0, 20) });
 });
 
 module.exports = router;
